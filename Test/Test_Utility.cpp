@@ -31,6 +31,11 @@ enum class ColorType : uint8
 	Blue,
 };
 
+constexpr int32 operator""_i32(unsigned long long x) { return x; }
+constexpr int64 operator""_i64(unsigned long long x) { return x; }
+constexpr uint32 operator""_u32(unsigned long long x) { return x; }
+constexpr uint64 operator""_u64(unsigned long long x) { return x; }
+
 TEST_CASE("Utility")
 {
 	SUBCASE("Min")
@@ -117,8 +122,8 @@ TEST_CASE("Utility")
 	{
 		static_assert(Abs(1) == 1);
 		static_assert(Abs(-1) == 1);
-		static_assert(Abs(1LL) == 1LL);
-		static_assert(Abs(-1LL) == 1LL);
+		static_assert(Abs(1_i64) == 1_i64);
+		static_assert(Abs(-1_i64) == 1_i64);
 		static_assert(Abs(1.0) == 1.0);
 		static_assert(Abs(-1.0) == 1.0);
 
@@ -134,25 +139,25 @@ TEST_CASE("Utility")
 	{
 		static_assert(AbsDiff(1, 2) == 1);
 		static_assert(AbsDiff(2, 1) == 1);
-		static_assert(AbsDiff(1u, 2u) == 1u);
-		static_assert(AbsDiff(2u, 1u) == 1u);
-		static_assert(AbsDiff(1LL, 2LL) == 1LL);
-		static_assert(AbsDiff(2LL, 1LL) == 1LL);
+		static_assert(AbsDiff(1_u32, 2_u32) == 1_u32);
+		static_assert(AbsDiff(2_u32, 1_u32) == 1_u32);
+		static_assert(AbsDiff(1_i64, 2_i64) == 1_i64);
+		static_assert(AbsDiff(2_i64, 1_i64) == 1_i64);
 		static_assert(AbsDiff(1.0, 2.0) == 1.0);
 		static_assert(AbsDiff(2.0, 1.0) == 1.0);
 
 		static_assert(AbsDiff(std::numeric_limits<int32>::max(), std::numeric_limits<int32>::min()) == std::numeric_limits<uint32>::max());
 		static_assert(AbsDiff(std::numeric_limits<int32>::min(), std::numeric_limits<int32>::max()) == std::numeric_limits<uint32>::max());
-		static_assert(AbsDiff(std::numeric_limits<int32>::min(), 0) == 2147483648u);
-		static_assert(AbsDiff(0, std::numeric_limits<int32>::max()) == 2147483647u);
+		static_assert(AbsDiff(std::numeric_limits<int32>::min(), 0) == 2147483648_u32);
+		static_assert(AbsDiff(0, std::numeric_limits<int32>::max()) == 2147483647_u32);
 
-		static_assert(AbsDiff(std::numeric_limits<uint32>::max(), 0u) == std::numeric_limits<uint32>::max());
-		static_assert(AbsDiff(0u, std::numeric_limits<uint32>::max()) == std::numeric_limits<uint32>::max());
+		static_assert(AbsDiff(std::numeric_limits<uint32>::max(), 0_u32) == std::numeric_limits<uint32>::max());
+		static_assert(AbsDiff(0_u32, std::numeric_limits<uint32>::max()) == std::numeric_limits<uint32>::max());
 
 		static_assert(AbsDiff(std::numeric_limits<int64>::max(), std::numeric_limits<int64>::min()) == std::numeric_limits<uint64>::max());
 		static_assert(AbsDiff(std::numeric_limits<int64>::min(), std::numeric_limits<int64>::max()) == std::numeric_limits<uint64>::max());
-		static_assert(AbsDiff(std::numeric_limits<int64>::min(), 0LL) == 9223372036854775808ull);
-		static_assert(AbsDiff(0LL, std::numeric_limits<int64>::max()) == 9223372036854775807ull);
+		static_assert(AbsDiff(std::numeric_limits<int64>::min(), 0_i64) == 9223372036854775808_i64);
+		static_assert(AbsDiff(0_i64, std::numeric_limits<int64>::max()) == 9223372036854775807_i64);
 
 		static_assert(AbsDiff(std::numeric_limits<double>::max(), 0.0) == std::numeric_limits<double>::max());
 		static_assert(AbsDiff(0.0, std::numeric_limits<double>::max()) == std::numeric_limits<double>::max());
@@ -195,17 +200,17 @@ TEST_CASE("Utility")
 		static_assert(IsOdd(2) == false);
 		static_assert(IsOdd(std::numeric_limits<int32>::max()) == true);
 
-		static_assert(IsOdd(0u) == false);
-		static_assert(IsOdd(1u) == true);
-		static_assert(IsOdd(2u) == false);
+		static_assert(IsOdd(0_u32) == false);
+		static_assert(IsOdd(1_u32) == true);
+		static_assert(IsOdd(2_u32) == false);
 		static_assert(IsOdd(std::numeric_limits<uint32>::max()) == true);
 
 		static_assert(IsOdd(std::numeric_limits<int64>::min()) == false);
-		static_assert(IsOdd(-2LL) == false);
-		static_assert(IsOdd(-1LL) == true);
-		static_assert(IsOdd(0LL) == false);
-		static_assert(IsOdd(1LL) == true);
-		static_assert(IsOdd(2LL) == false);
+		static_assert(IsOdd(-2_i64) == false);
+		static_assert(IsOdd(-1_i64) == true);
+		static_assert(IsOdd(0_i64) == false);
+		static_assert(IsOdd(1_i64) == true);
+		static_assert(IsOdd(2_i64) == false);
 		static_assert(IsOdd(std::numeric_limits<int64>::max()) == true);
 	}
 
@@ -219,17 +224,17 @@ TEST_CASE("Utility")
 		static_assert(IsEven(2) == true);
 		static_assert(IsEven(std::numeric_limits<int32>::max()) == false);
 
-		static_assert(IsEven(0u) == true);
-		static_assert(IsEven(1u) == false);
-		static_assert(IsEven(2u) == true);
+		static_assert(IsEven(0_u32) == true);
+		static_assert(IsEven(1_u32) == false);
+		static_assert(IsEven(2_u32) == true);
 		static_assert(IsEven(std::numeric_limits<uint32>::max()) == false);
 
 		static_assert(IsEven(std::numeric_limits<int64>::min()) == true);
-		static_assert(IsEven(-2LL) == true);
-		static_assert(IsEven(-1LL) == false);
-		static_assert(IsEven(0LL) == true);
-		static_assert(IsEven(1LL) == false);
-		static_assert(IsEven(2LL) == true);
+		static_assert(IsEven(-2_i64) == true);
+		static_assert(IsEven(-1_i64) == false);
+		static_assert(IsEven(0_i64) == true);
+		static_assert(IsEven(1_i64) == false);
+		static_assert(IsEven(2_i64) == true);
 		static_assert(IsEven(std::numeric_limits<int64>::max()) == false);
 	}
 
