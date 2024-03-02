@@ -11,12 +11,17 @@
 
 # include "Siv3DTest.hpp"
 
+constexpr int32 operator""_i32(unsigned long long x) { return x; }
+constexpr int64 operator""_i64(unsigned long long x) { return x; }
+constexpr uint32 operator""_u32(unsigned long long x) { return x; }
+constexpr uint64 operator""_u64(unsigned long long x) { return x; }
+
 TEST_CASE("Step.step(n)")
 {
 	{
 		std::vector<int32> v;
 
-		for (auto i : step(3))
+		for (auto i : step(3_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -28,7 +33,7 @@ TEST_CASE("Step.step(n)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : step(0))
+		for (auto i : step(0_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -40,7 +45,7 @@ TEST_CASE("Step.step(n)")
 	{
 		std::vector<uint64> v;
 
-		for (auto i : step(3ull))
+		for (auto i : step(3_u64))
 		{
 			static_assert(std::is_same_v<decltype(i), uint64>);
 			v.push_back(i);
@@ -74,7 +79,7 @@ TEST_CASE("Step.step(a, n, step)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : step(10, 4, 5))
+		for (auto i : step(10_i32, 4_i32, 5))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -86,7 +91,7 @@ TEST_CASE("Step.step(a, n, step)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : step(-10, 4, 5))
+		for (auto i : step(-10_i32, 4_i32, 5))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -98,7 +103,7 @@ TEST_CASE("Step.step(a, n, step)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : step(10, 4, -5))
+		for (auto i : step(10_i32, 4_i32, -5))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -113,7 +118,7 @@ TEST_CASE("Step.step_backward(n)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : step_backward(3))
+		for (auto i : step_backward(3_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -125,7 +130,7 @@ TEST_CASE("Step.step_backward(n)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : step_backward(0))
+		for (auto i : step_backward(0_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -137,7 +142,7 @@ TEST_CASE("Step.step_backward(n)")
 	{
 		std::vector<uint64> v;
 
-		for (auto i : step_backward(3ull))
+		for (auto i : step_backward(3_u64))
 		{
 			static_assert(std::is_same_v<decltype(i), uint64>);
 			v.push_back(i);
@@ -171,7 +176,7 @@ TEST_CASE("Step.Range(n)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : Range(0, 3))
+		for (auto i : Range(0_i32, 3_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -183,7 +188,7 @@ TEST_CASE("Step.Range(n)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : Range(-2, 2))
+		for (auto i : Range(-2_i32, 2_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -195,7 +200,7 @@ TEST_CASE("Step.Range(n)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : Range(0, 0))
+		for (auto i : Range(0_i32, 0_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -207,7 +212,7 @@ TEST_CASE("Step.Range(n)")
 	{
 		std::vector<int32> v;
 
-		for (auto i : Range(0, -1))
+		for (auto i : Range(0_i32, -1_i32))
 		{
 			static_assert(std::is_same_v<decltype(i), int32>);
 			v.push_back(i);
@@ -219,7 +224,7 @@ TEST_CASE("Step.Range(n)")
 	{
 		std::vector<uint64> v;
 
-		for (auto i : Range(0ull, 3ull))
+		for (auto i : Range(0_u64, 3_u64))
 		{
 			static_assert(std::is_same_v<decltype(i), uint64>);
 			v.push_back(i);
