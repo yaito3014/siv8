@@ -9,7 +9,7 @@ project(OpenSiv3D_Linux
 
 # Find required packages
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(SIV3D_THIRD_PARTY REQUIRED alsa libavcodec libavformat libavutil libcurl freetype2 gl glib-2.0 gtk+-3.0 harfbuzz libmpg123 ogg opencv4 opus opusfile libpng soundtouch libswresample libtiff-4 libturbojpeg uuid vorbis vorbisenc vorbisfile libwebp x11 glu xft zlib)
+pkg_check_modules(SIV3D_THIRD_PARTY REQUIRED uuid)
 
 find_package(Boost 1.71.0...1.83.0 REQUIRED)
 message(STATUS "[info] Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
@@ -17,7 +17,6 @@ message(STATUS "[info] SIV3D_THIRD_PARTY_INCLUDE_DIRS: ${SIV3D_THIRD_PARTY_INCLU
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-find_package(GIF REQUIRED)
 
 include(GNUInstallDirs)
 
@@ -40,13 +39,7 @@ set(SIV3D_CXX_FLAGS_RELEASE -O2 -DNDEBUG -march=x86-64 -mtune=generic)
 set(SIV3D_CXX_FLAGS_RELWITHDEBINFO -g3 -Og -pg)
 set(SIV3D_CXX_FLAGS_MINSIZEREL -Os -DNDEBUG -march=x86-64 -mtune=generic)
 set(SIV3D_CXX_DEFINITION
-    __LINUX_ALSA__
-    AS_USE_NAMESPACE
-    _GLFW_X11
-    MUPARSER_STATIC
     _UNICODE
-    WITH_MINIAUDIO
-    WITH_NOSOUND
 )
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -66,6 +59,8 @@ endif()
 set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D-Platform/Linux/Siv3DMain.cpp
 
+  ../Siv3D/src/Siv3D-Platform/Linux/Time/SivTime.cpp
+  
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/BinaryReader/BinaryReaderDetail.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Console/CConsole.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Date/SivDate_macOS_Linux.cpp
@@ -155,7 +150,6 @@ set(SIV3D_INTERNAL_INCLUDE_DIRS
 add_library(Siv3D STATIC ${SIV3D_INTERNAL_SOURCES})
 target_link_libraries(Siv3D INTERFACE
   ${CMAKE_THREAD_LIBS_INIT}
-  ${GIF_LIBRARIES}
   ${SIV3D_THIRD_PARTY_LIBRARIES}
   ${CMAKE_DL_LIBS}
 )
@@ -227,10 +221,6 @@ set(CPACK_PACKAGE_CONTACT ${CMAKE_PROJECT_HOMEPAGE_URL})
 set(CPACK_PACKAGE_HOMEPAGE_URL ${CMAKE_PROJECT_HOMEPAGE_URL})
 set(CPACK_PACKAGE_NAME "libSiv3D-dev")
 set(CPACK_PACKAGE_FILE_LICENSE ../LICENSE)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS
-  "cmake, libasound2-dev, libavcodec-dev, libavformat-dev, libavutil-dev, libboost-dev, libcurl4-openssl-dev, libgtk-3-dev,
-  libgif-dev, libglu1-mesa-dev, libharfbuzz-dev, libmpg123-dev, libopencv-dev, libopus-dev, libopusfile-dev,
-  libsoundtouch-dev, libswresample-dev, libtiff-dev, libturbojpeg0-dev, libvorbis-dev, libwebp-dev, libxft-dev, uuid-dev, xorg-dev"
-)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "cmake, libboost-dev, uuid-dev")
 
 include(CPack)

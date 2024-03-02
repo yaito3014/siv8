@@ -17,7 +17,7 @@ add_executable(Siv3DTest
   ../../Test/Test_Array.cpp
   ../../Test/Test_Byte.cpp
   ../../Test/Test_Concepts.cpp
-  ../../Test/Test_FileSystem.cpp
+# ../../Test/Test_FileSystem.cpp
   ../../Test/Test_FmtExtension.cpp
   ../../Test/Test_FunctionRef.cpp
   ../../Test/Test_Hash.cpp
