@@ -82,6 +82,8 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/Blob/SivBlob.cpp
   ../Siv3D/src/Siv3D/BoolToString/SivBoolToString.cpp
   ../Siv3D/src/Siv3D/Byte/SivByte.cpp
+  ../Siv3D/src/Siv3D/Color/SivColor.cpp
+  ../Siv3D/src/Siv3D/ColorF/SivColorF.cpp
   ../Siv3D/src/Siv3D/Console/ConsoleFactory.cpp
   ../Siv3D/src/Siv3D/Console/SivConsole.cpp
   ../Siv3D/src/Siv3D/ConsoleBuffer/SivConsoleBuffer.cpp
@@ -101,6 +103,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/FmtExtension/SivFmtExtension.cpp
   ../Siv3D/src/Siv3D/FormatUtility/SivFormatUtility.cpp
   ../Siv3D/src/Siv3D/Formatter/SivFormatter.cpp
+  ../Siv3D/src/Siv3D/HSV/SivHSV.cpp
   ../Siv3D/src/Siv3D/Hash/SivHash.cpp
   ../Siv3D/src/Siv3D/Int128/SivInt128.cpp
   ../Siv3D/src/Siv3D/IntFormatter/SivIntFormatter.cpp
@@ -132,6 +135,8 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/UnicodeConverter/SivUnicodeConverter.cpp
   ../Siv3D/src/Siv3D/UnicodeConverter/UnicodeUtility.cpp
   ../Siv3D/src/Siv3D/Vector2D/SivVector2D.cpp
+  ../Siv3D/src/Siv3D/Vector3D/SivVector3D.cpp
+  ../Siv3D/src/Siv3D/Vector4D/SivVector4D.cpp
   ../Siv3D/src/Siv3D/_TEMPLATE/_TEMPLATE.cpp
 )
 
