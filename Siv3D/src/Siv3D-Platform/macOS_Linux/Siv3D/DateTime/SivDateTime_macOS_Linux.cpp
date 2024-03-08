@@ -21,7 +21,7 @@ namespace s3d
 		::gettimeofday(&tv, nullptr);
 		::localtime_r(&tv.tv_sec, &lt);
 		return DateTime{ (1900 + lt.tm_year), (1 + lt.tm_mon), (lt.tm_mday),
-			lt.tm_hour, lt.tm_min, lt.tm_sec, (tv.tv_usec / 1000) };
+			lt.tm_hour, lt.tm_min, lt.tm_sec, static_cast<int32>(tv.tv_usec / 1000) };
 	}
 
 	DateTime DateTime::NowUTC() noexcept
@@ -31,6 +31,6 @@ namespace s3d
 		::gettimeofday(&tv, nullptr);
 		::gmtime_r(&tv.tv_sec, &gt);
 		return DateTime{ (1900 + gt.tm_year), (1 + gt.tm_mon), (gt.tm_mday),
-			gt.tm_hour, gt.tm_min, gt.tm_sec, (tv.tv_usec / 1000) };
+			gt.tm_hour, gt.tm_min, gt.tm_sec, static_cast<int32>(tv.tv_usec / 1000) };
 	}
 }
