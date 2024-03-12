@@ -9,17 +9,25 @@
 //
 //-----------------------------------------------
 
-# include <iostream>
-# include <Siv3D/Engine/Siv3DEngine.hpp>
-void Main();
+# pragma once
+# include <Siv3D/System/ISystem.hpp>
 
-int main(int, char**)
+namespace s3d
 {
-	s3d::Siv3DEngine engine;
-	
-	std::clog << "OpenSiv3D for Linux\n";
-	
-	Main();
+	class CSystem final : public ISiv3DSystem
+	{
+	public:
 
-	return 0;
+		CSystem() = default;
+
+		~CSystem() override;
+
+		void init() override;
+
+		bool update() override;
+
+	private:
+
+		bool m_shouldTerminate = false;
+	};
 }
