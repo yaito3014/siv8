@@ -9,7 +9,7 @@ project(OpenSiv3D_Linux
 
 # Find required packages
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(SIV3D_THIRD_PARTY REQUIRED uuid)
+pkg_check_modules(SIV3D_THIRD_PARTY REQUIRED gl glu uuid  x11)
 
 find_package(Boost 1.71.0...1.83.0 REQUIRED)
 message(STATUS "[info] Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
@@ -28,8 +28,6 @@ set(SIV3D_C_FLAGS_RELWITHDEBINFO -g3 -Og -pg)
 set(SIV3D_C_FLAGS_MINSIZEREL -Os -DNDEBUG -march=x86-64 -mtune=generic)
 set(SIV3D_C_DEFINITION
     _GLFW_X11
-    WITH_ALSA
-    WITH_NOSOUND
 )
 
 # C++ flags
@@ -39,6 +37,7 @@ set(SIV3D_CXX_FLAGS_RELEASE -O2 -DNDEBUG -march=x86-64 -mtune=generic)
 set(SIV3D_CXX_FLAGS_RELWITHDEBINFO -g3 -Og -pg)
 set(SIV3D_CXX_FLAGS_MINSIZEREL -Os -DNDEBUG -march=x86-64 -mtune=generic)
 set(SIV3D_CXX_DEFINITION
+    _GLFW_X11
     _UNICODE
 )
 
@@ -57,31 +56,30 @@ if (NOT CMAKE_CONFIGURATION_TYPES AND
 endif()
 
 set(SIV3D_INTERNAL_SOURCES
-  ../Siv3D/src/Siv3D-Platform/Linux/Siv3DMain.cpp
+  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Siv3DMain.cpp
 
-  ../Siv3D/src/Siv3D-Platform/Linux/Time/SivTime.cpp
-  
+  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/FileSystem/SivFileSystem_Linux.cpp
+  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/System/CSystem.cpp
+  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Time/SivTime.cpp
+  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Window/CWindow.cpp
+  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Window/WindowTitle.cpp
+
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/BinaryReader/BinaryReaderDetail.cpp
+  ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/BinaryWriter/BinaryWriterDetail.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Console/CConsole.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Date/SivDate_macOS_Linux.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/DateTime/SivDateTime_macOS_Linux.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/FileSystem/SivFileSystem_macOS_Linux.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Logger/CLogger.cpp
-
-  ../Siv3D/src/ThirdParty/double-conversion/bignum-dtoa.cc
-  ../Siv3D/src/ThirdParty/double-conversion/bignum.cc
-  ../Siv3D/src/ThirdParty/double-conversion/cached-powers.cc
-  ../Siv3D/src/ThirdParty/double-conversion/double-to-string.cc
-  ../Siv3D/src/ThirdParty/double-conversion/fast-dtoa.cc
-  ../Siv3D/src/ThirdParty/double-conversion/fixed-dtoa.cc
-  ../Siv3D/src/ThirdParty/fmt/format.cc
-  ../Siv3D/src/ThirdParty/simdutf/simdutf.cpp
+  ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/System/SivSystem_macOS_Linux.cpp
 
   ../Siv3D/src/Siv3D/BigInt/SivBigInt.cpp
   ../Siv3D/src/Siv3D/BinaryReader/SivBinaryReader.cpp
+  ../Siv3D/src/Siv3D/BinaryWriter/SivBinaryWriter.cpp
   ../Siv3D/src/Siv3D/Blob/SivBlob.cpp
   ../Siv3D/src/Siv3D/BoolToString/SivBoolToString.cpp
   ../Siv3D/src/Siv3D/Byte/SivByte.cpp
+  ../Siv3D/src/Siv3D/CPUInfo/SivCPUInfo.cpp
   ../Siv3D/src/Siv3D/Color/SivColor.cpp
   ../Siv3D/src/Siv3D/ColorF/SivColorF.cpp
   ../Siv3D/src/Siv3D/Console/ConsoleFactory.cpp
@@ -92,6 +90,8 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/DayOfWeek/SivDayOfWeek.cpp
   ../Siv3D/src/Siv3D/Demangle/SivDemangle.cpp
   ../Siv3D/src/Siv3D/Duration/SivDuration.cpp
+  ../Siv3D/src/Siv3D/Empty/CEmpty.cpp
+  ../Siv3D/src/Siv3D/Empty/EmptyFactory.cpp
   ../Siv3D/src/Siv3D/Engine/Siv3DEngine.cpp
   ../Siv3D/src/Siv3D/EngineLog/SivEngineLog.cpp
   ../Siv3D/src/Siv3D/Error/SivError.cpp
@@ -112,6 +112,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/Logger/SivLogger.cpp
   ../Siv3D/src/Siv3D/LoggerBuffer/SivLoggerBuffer.cpp
   ../Siv3D/src/Siv3D/MD5Value/SivMD5Value.cpp
+  ../Siv3D/src/Siv3D/MonitorInfo/SivMonitorInfo.cpp
   ../Siv3D/src/Siv3D/Optional/SivOptional.cpp
   ../Siv3D/src/Siv3D/ParseBool/SivParseBool.cpp
   ../Siv3D/src/Siv3D/ParseBoolExtended/SivParseBoolExtended.cpp
@@ -125,19 +126,71 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/String/SivString.cpp
   ../Siv3D/src/Siv3D/StringView/SivStringView.cpp
   ../Siv3D/src/Siv3D/System/SivSystem.cpp
+  ../Siv3D/src/Siv3D/System/SystemFactory.cpp
   ../Siv3D/src/Siv3D/TextEncoding/SivTextEncoding.cpp
   ../Siv3D/src/Siv3D/TextReader/SivTextReader.cpp
   ../Siv3D/src/Siv3D/TextReader/TextReaderDetail.cpp
+  ../Siv3D/src/Siv3D/TextWriter/SivTextWriter.cpp
+  ../Siv3D/src/Siv3D/TextWriter/TextWriterDetail.cpp
   ../Siv3D/src/Siv3D/ThousandSeparate/SivThousandSeparate.cpp
   ../Siv3D/src/Siv3D/Threading/SivThreading.cpp
   ../Siv3D/src/Siv3D/UUIDValue/SivUUIDValue.cpp
   ../Siv3D/src/Siv3D/Unicode/SivUnicode.cpp
   ../Siv3D/src/Siv3D/UnicodeConverter/SivUnicodeConverter.cpp
   ../Siv3D/src/Siv3D/UnicodeConverter/UnicodeUtility.cpp
+  ../Siv3D/src/Siv3D/UserAction/CUserAction.cpp
+  ../Siv3D/src/Siv3D/UserAction/UserActionFactory.cpp
   ../Siv3D/src/Siv3D/Vector2D/SivVector2D.cpp
   ../Siv3D/src/Siv3D/Vector3D/SivVector3D.cpp
   ../Siv3D/src/Siv3D/Vector4D/SivVector4D.cpp
+  ../Siv3D/src/Siv3D/Window/SivWindow.cpp
+  ../Siv3D/src/Siv3D/Window/WindowFactory.cpp
   ../Siv3D/src/Siv3D/_TEMPLATE/_TEMPLATE.cpp
+
+  ../Siv3D/src/ThirdParty/GLFW/cocoa_time.c
+  ../Siv3D/src/ThirdParty/GLFW/context.c
+  ../Siv3D/src/ThirdParty/GLFW/egl_context.c
+  ../Siv3D/src/ThirdParty/GLFW/glx_context.c
+  ../Siv3D/src/ThirdParty/GLFW/init.c
+  ../Siv3D/src/ThirdParty/GLFW/input.c
+  ../Siv3D/src/ThirdParty/GLFW/linux_joystick.c
+  ../Siv3D/src/ThirdParty/GLFW/monitor.c
+  ../Siv3D/src/ThirdParty/GLFW/null_init.c
+  ../Siv3D/src/ThirdParty/GLFW/null_joystick.c
+  ../Siv3D/src/ThirdParty/GLFW/null_monitor.c
+  ../Siv3D/src/ThirdParty/GLFW/null_window.c
+  ../Siv3D/src/ThirdParty/GLFW/osmesa_context.c
+  ../Siv3D/src/ThirdParty/GLFW/platform.c
+  ../Siv3D/src/ThirdParty/GLFW/posix_module.c
+  ../Siv3D/src/ThirdParty/GLFW/posix_poll.c
+  ../Siv3D/src/ThirdParty/GLFW/posix_thread.c
+  ../Siv3D/src/ThirdParty/GLFW/posix_time.c
+  ../Siv3D/src/ThirdParty/GLFW/vulkan.c
+  ../Siv3D/src/ThirdParty/GLFW/wgl_context.c
+  ../Siv3D/src/ThirdParty/GLFW/win32_init.c
+  ../Siv3D/src/ThirdParty/GLFW/win32_joystick.c
+  ../Siv3D/src/ThirdParty/GLFW/win32_module.c
+  ../Siv3D/src/ThirdParty/GLFW/win32_monitor.c
+  ../Siv3D/src/ThirdParty/GLFW/win32_thread.c
+  ../Siv3D/src/ThirdParty/GLFW/win32_time.c
+  ../Siv3D/src/ThirdParty/GLFW/win32_window.c
+  ../Siv3D/src/ThirdParty/GLFW/window.c
+  ../Siv3D/src/ThirdParty/GLFW/wl_init.c
+  ../Siv3D/src/ThirdParty/GLFW/wl_monitor.c
+  ../Siv3D/src/ThirdParty/GLFW/wl_window.c
+  ../Siv3D/src/ThirdParty/GLFW/x11_init.c
+  ../Siv3D/src/ThirdParty/GLFW/x11_monitor.c
+  ../Siv3D/src/ThirdParty/GLFW/x11_window.c
+  ../Siv3D/src/ThirdParty/GLFW/xkb_unicode.c
+  ../Siv3D/src/ThirdParty/cpu_features/impl_x86_windows.c
+  ../Siv3D/src/ThirdParty/double-conversion/bignum-dtoa.cc
+  ../Siv3D/src/ThirdParty/double-conversion/bignum.cc
+  ../Siv3D/src/ThirdParty/double-conversion/cached-powers.cc
+  ../Siv3D/src/ThirdParty/double-conversion/double-to-string.cc
+  ../Siv3D/src/ThirdParty/double-conversion/fast-dtoa.cc
+  ../Siv3D/src/ThirdParty/double-conversion/fixed-dtoa.cc
+  ../Siv3D/src/ThirdParty/fmt/format.cc
+  ../Siv3D/src/ThirdParty/simdutf/simdutf.cpp
 )
 
 set(SIV3D_INTERNAL_INCLUDE_DIRS
@@ -226,6 +279,6 @@ set(CPACK_PACKAGE_CONTACT ${CMAKE_PROJECT_HOMEPAGE_URL})
 set(CPACK_PACKAGE_HOMEPAGE_URL ${CMAKE_PROJECT_HOMEPAGE_URL})
 set(CPACK_PACKAGE_NAME "libSiv3D-dev")
 set(CPACK_PACKAGE_FILE_LICENSE ../LICENSE)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "cmake, libboost-dev, uuid-dev")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "cmake, libboost-dev, libglu1-mesa-dev, uuid-dev, xorg-dev")
 
 include(CPack)
