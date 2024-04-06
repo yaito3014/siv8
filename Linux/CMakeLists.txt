@@ -71,8 +71,10 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/DateTime/SivDateTime_macOS_Linux.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/FileSystem/SivFileSystem_macOS_Linux.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Logger/CLogger.cpp
+  ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/MemoryMappedFileView/MemoryMappedFileViewDetail.cpp
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/System/SivSystem_macOS_Linux.cpp
 
+  ../Siv3D/src/Siv3D/Base64Value/SivBase64Value.cpp
   ../Siv3D/src/Siv3D/BigInt/SivBigInt.cpp
   ../Siv3D/src/Siv3D/BinaryReader/SivBinaryReader.cpp
   ../Siv3D/src/Siv3D/BinaryWriter/SivBinaryWriter.cpp
@@ -112,6 +114,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/Logger/SivLogger.cpp
   ../Siv3D/src/Siv3D/LoggerBuffer/SivLoggerBuffer.cpp
   ../Siv3D/src/Siv3D/MD5Value/SivMD5Value.cpp
+  ../Siv3D/src/Siv3D/MemoryMappedFileView/SivMemoryMappedFileView.cpp
   ../Siv3D/src/Siv3D/MonitorInfo/SivMonitorInfo.cpp
   ../Siv3D/src/Siv3D/Optional/SivOptional.cpp
   ../Siv3D/src/Siv3D/ParseBool/SivParseBool.cpp
@@ -125,6 +128,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/String/Levenshtein.cpp
   ../Siv3D/src/Siv3D/String/SivString.cpp
   ../Siv3D/src/Siv3D/StringView/SivStringView.cpp
+  ../Siv3D/src/Siv3D/StringView/SivStringView_SIMD.cpp
   ../Siv3D/src/Siv3D/System/SivSystem.cpp
   ../Siv3D/src/Siv3D/System/SystemFactory.cpp
   ../Siv3D/src/Siv3D/TextEncoding/SivTextEncoding.cpp
@@ -182,6 +186,9 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/ThirdParty/GLFW/x11_monitor.c
   ../Siv3D/src/ThirdParty/GLFW/x11_window.c
   ../Siv3D/src/ThirdParty/GLFW/xkb_unicode.c
+  ../Siv3D/src/ThirdParty/absl/numeric/int128.cc
+  ../Siv3D/src/ThirdParty/absl/random/discrete_distribution.cc
+  ../Siv3D/src/ThirdParty/absl/random/gaussian_distribution.cc
   ../Siv3D/src/ThirdParty/cpu_features/impl_x86_windows.c
   ../Siv3D/src/ThirdParty/double-conversion/bignum-dtoa.cc
   ../Siv3D/src/ThirdParty/double-conversion/bignum.cc
@@ -282,3 +289,5 @@ set(CPACK_PACKAGE_FILE_LICENSE ../LICENSE)
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "cmake, libboost-dev, libglu1-mesa-dev, uuid-dev, xorg-dev")
 
 include(CPack)
+
+

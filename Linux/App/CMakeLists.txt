@@ -16,6 +16,7 @@ add_executable(Siv3DTest
 
   ../../Test/Siv3DTest.cpp
   ../../Test/Test_Array.cpp
+  ../../Test/Test_Base64Value.cpp
   # ../../Test/Test_BinaryWriter.cpp
   ../../Test/Test_Byte.cpp
   ../../Test/Test_Color.cpp
@@ -27,11 +28,13 @@ add_executable(Siv3DTest
   ../../Test/Test_Hash.cpp
   ../../Test/Test_Indexed.cpp
   ../../Test/Test_Memory.cpp
+  ../../Test/Test_MemoryMappedFileView.cpp
   ../../Test/Test_NamedParameter.cpp
   ../../Test/Test_PRNG.cpp
   ../../Test/Test_Platform.cpp
   ../../Test/Test_SequenceFormatter.cpp
   ../../Test/Test_Step.cpp
+  ../../Test/Test_String.cpp
   ../../Test/Test_StringView.cpp
   ../../Test/Test_TextReader.cpp
   ../../Test/Test_TupleFormatter.cpp
@@ -57,4 +60,5 @@ add_test(
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
 endif()
+
 
