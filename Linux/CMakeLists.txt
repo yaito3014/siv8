@@ -68,7 +68,7 @@ endif()
 set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Siv3DMain.cpp
 
-  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Siv3DMain.cpp
+  ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/FileSystem/SivFileSystem_Linux.cpp
   ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/System/CSystem.cpp
   ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Time/SivTime.cpp
   ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Window/CWindow.cpp
@@ -664,44 +664,44 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/ThirdParty/skia/src/core/SkYUVPlanesCache.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/Sk1DPathEffect.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/Sk2DPathEffect.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/SkBlenders.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/SkBlenders.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkColorMatrix.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkColorMatrixFilter.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkCornerPathEffect.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkDashPathEffect.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkDiscretePathEffect.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/SkEmbossMask.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/SkEmbossMaskFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/SkEmbossMask.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/SkEmbossMaskFilter.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkHighContrastFilter.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkShaderMaskFilterImpl.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkTableMaskFilter.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/SkTrimPathEffect.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkBlendModeColorFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkColorFilterBase.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkColorSpaceXformColorFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkComposeColorFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkGaussianColorFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkBlendModeColorFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkColorFilterBase.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkColorSpaceXformColorFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkComposeColorFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkGaussianColorFilter.cpp
 # ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkMatrixColorFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkRuntimeColorFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkTableColorFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkWorkingFormatColorFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkBlendImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkBlurImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkColorFilterImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkComposeImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkCropImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkDisplacementMapImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkDropShadowImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkImageImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkLightingImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMagnifierImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMatrixConvolutionImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMatrixTransformImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMergeImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMorphologyImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkPictureImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkRuntimeImageFilter.cpp
-# ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkShaderImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkRuntimeColorFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkTableColorFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkWorkingFormatColorFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkBlendImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkBlurImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkColorFilterImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkComposeImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkCropImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkDisplacementMapImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkDropShadowImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkImageImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkLightingImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMagnifierImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMatrixConvolutionImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMatrixTransformImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMergeImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkMorphologyImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkPictureImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkRuntimeImageFilter.cpp
+  ../Siv3D/src/ThirdParty/skia/src/effects/imagefilters/SkShaderImageFilter.cpp
   ../Siv3D/src/ThirdParty/skia/src/image/SkImage.cpp
   ../Siv3D/src/ThirdParty/skia/src/image/SkImage_AndroidFactories.cpp
   ../Siv3D/src/ThirdParty/skia/src/image/SkImage_Base.cpp
