@@ -969,7 +969,6 @@ set(SIV3D_INTERNAL_INCLUDE_DIRS
     ../Siv3D/src/ThirdParty
     ../Siv3D/src/ThirdParty/skia
     ../Siv3D/src/ThirdParty-prebuilt
-    ../Siv3D/src/ThirdParty-prebuilt/freetype
     ../Siv3D/src/ThirdParty-prebuilt/libjpeg-turbo
     ${SIV3D_THIRD_PARTY_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS})
