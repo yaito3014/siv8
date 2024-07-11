@@ -5,8 +5,7 @@ project(
   VERSION 0.8.0
   LANGUAGES CXX C ASM
   HOMEPAGE_URL "https://github.com/Siv3D/OpenSiv3D"
-  DESCRIPTION
-    "A C++23 framework for creative coding (2D/3D games, media art, visualizers, and simulators)."
+  DESCRIPTION "A C++23 framework for creative coding (2D/3D games, media art, visualizers, and simulators)."
 )
 
 # Find required packages
@@ -22,13 +21,12 @@ pkg_check_modules(
   harfbuzz
   libturbojpeg
   libpng16
-  zlib)
+  zlib
+)
 
-find_package(Boost 1.71.0 REQUIRED)
+find_package(Boost 1.71.0 REQUIRED CONFIG)
 message(STATUS "[info] Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
-message(
-  STATUS
-    "[info] SIV3D_THIRD_PARTY_INCLUDE_DIRS: ${SIV3D_THIRD_PARTY_INCLUDE_DIRS}")
+message(STATUS "[info] SIV3D_THIRD_PARTY_INCLUDE_DIRS: ${SIV3D_THIRD_PARTY_INCLUDE_DIRS}")
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -52,13 +50,13 @@ set(SIV3D_CXX_FLAGS
     -msse4.2
     -mavx2
     -mf16c
-    -mbmi2)
+    -mbmi2
+)
 set(SIV3D_CXX_FLAGS_DEBUG -g3 -O0 -pg -DDEBUG)
 set(SIV3D_CXX_FLAGS_RELEASE -O2 -DNDEBUG -march=x86-64 -mtune=generic)
 set(SIV3D_CXX_FLAGS_RELWITHDEBINFO -g3 -Og -pg)
 set(SIV3D_CXX_FLAGS_MINSIZEREL -Os -DNDEBUG -march=x86-64 -mtune=generic)
-set(SIV3D_CXX_DEFINITION _GLFW_X11 _UNICODE ZSTD_MULTITHREAD MUPARSER_STATIC
-                         SIV3D_LIBRARY_BUILD)
+set(SIV3D_CXX_DEFINITION _GLFW_X11 _UNICODE ZSTD_MULTITHREAD MUPARSER_STATIC SIV3D_LIBRARY_BUILD)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(SIV3D_CXX_FLAGS_WITH_COMPILER -fcolor-diagnostics)
@@ -69,7 +67,8 @@ endif()
 if(NOT CMAKE_CONFIGURATION_TYPES
    AND NOT CMAKE_NO_BUILD_TYPE
    AND NOT CMAKE_BUILD_TYPE
-   AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+   AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR
+)
   message(STATUS "[!] Setting build type to 'Release' as none was specified.")
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -127,12 +126,8 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/Siv3D/Console/SivConsole.cpp
     ../Siv3D/src/Siv3D/ConsoleBuffer/SivConsoleBuffer.cpp
     ../Siv3D/src/Siv3D/CullMode/SivCullMode.cpp
-    # ../Siv3D/src/Siv3D/Cursor/CursorFactory.cpp
-    # ../Siv3D/src/Siv3D/Cursor/CursorTransform.cpp
-    # ../Siv3D/src/Siv3D/Cursor/HighTemporalResolutionCursor.cpp
-    # ../Siv3D/src/Siv3D/Cursor/SivCursor.cpp
-    # ../Siv3D/src/Siv3D/CursorStyle/CursorStyleFactory.cpp
-    # ../Siv3D/src/Siv3D/CursorStyle/SivCursorStyle.cpp
+    # ../Siv3D/src/Siv3D/Cursor/CursorFactory.cpp ../Siv3D/src/Siv3D/Cursor/CursorTransform.cpp ../Siv3D/src/Siv3D/Cursor/HighTemporalResolutionCursor.cpp
+    # ../Siv3D/src/Siv3D/Cursor/SivCursor.cpp ../Siv3D/src/Siv3D/CursorStyle/CursorStyleFactory.cpp ../Siv3D/src/Siv3D/CursorStyle/SivCursorStyle.cpp
     ../Siv3D/src/Siv3D/CycleClock/SivCycleClock.cpp
     ../Siv3D/src/Siv3D/Date/SivDate.cpp
     ../Siv3D/src/Siv3D/DateTime/SivDateTime.cpp
@@ -386,8 +381,7 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/ThirdParty/Oniguruma/unicode_fold1_key.c
     ../Siv3D/src/ThirdParty/Oniguruma/unicode_fold2_key.c
     ../Siv3D/src/ThirdParty/Oniguruma/unicode_fold3_key.c
-    # ../Siv3D/src/ThirdParty/Oniguruma/unicode_fold_data.c
-    # ../Siv3D/src/ThirdParty/Oniguruma/unicode_property_data.c
+    # ../Siv3D/src/ThirdParty/Oniguruma/unicode_fold_data.c ../Siv3D/src/ThirdParty/Oniguruma/unicode_property_data.c
     ../Siv3D/src/ThirdParty/Oniguruma/unicode_unfold_key.c
     # ../Siv3D/src/ThirdParty/Oniguruma/unicode_wb_data.c
     ../Siv3D/src/ThirdParty/Oniguruma/utf16_be.c
@@ -473,7 +467,8 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/ThirdParty/zstd/dictBuilder/cover.c
     ../Siv3D/src/ThirdParty/zstd/dictBuilder/divsufsort.c
     ../Siv3D/src/ThirdParty/zstd/dictBuilder/fastcover.c
-    ../Siv3D/src/ThirdParty/zstd/dictBuilder/zdict.c)
+    ../Siv3D/src/ThirdParty/zstd/dictBuilder/zdict.c
+)
 
 set(SIV3D_SKIA_SOURCES
     ../Siv3D/src/ThirdParty/skia/modules/skcms/skcms.cc
@@ -699,20 +694,15 @@ set(SIV3D_SKIA_SOURCES
     ../Siv3D/src/ThirdParty/skia/src/core/SkYUVAPixmaps.cpp
     ../Siv3D/src/ThirdParty/skia/src/core/SkYUVMath.cpp
     ../Siv3D/src/ThirdParty/skia/src/core/SkYUVPlanesCache.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/Sk1DPathEffect.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/Sk2DPathEffect.cpp
+    # ../Siv3D/src/ThirdParty/skia/src/effects/Sk1DPathEffect.cpp ../Siv3D/src/ThirdParty/skia/src/effects/Sk2DPathEffect.cpp
     ../Siv3D/src/ThirdParty/skia/src/effects/SkBlenders.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkColorMatrix.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkColorMatrixFilter.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkCornerPathEffect.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkDashPathEffect.cpp
+    # ../Siv3D/src/ThirdParty/skia/src/effects/SkColorMatrix.cpp ../Siv3D/src/ThirdParty/skia/src/effects/SkColorMatrixFilter.cpp
+    # ../Siv3D/src/ThirdParty/skia/src/effects/SkCornerPathEffect.cpp ../Siv3D/src/ThirdParty/skia/src/effects/SkDashPathEffect.cpp
     # ../Siv3D/src/ThirdParty/skia/src/effects/SkDiscretePathEffect.cpp
     ../Siv3D/src/ThirdParty/skia/src/effects/SkEmbossMask.cpp
     ../Siv3D/src/ThirdParty/skia/src/effects/SkEmbossMaskFilter.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkHighContrastFilter.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkShaderMaskFilterImpl.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkTableMaskFilter.cpp
-    # ../Siv3D/src/ThirdParty/skia/src/effects/SkTrimPathEffect.cpp
+    # ../Siv3D/src/ThirdParty/skia/src/effects/SkHighContrastFilter.cpp ../Siv3D/src/ThirdParty/skia/src/effects/SkShaderMaskFilterImpl.cpp
+    # ../Siv3D/src/ThirdParty/skia/src/effects/SkTableMaskFilter.cpp ../Siv3D/src/ThirdParty/skia/src/effects/SkTrimPathEffect.cpp
     ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkBlendModeColorFilter.cpp
     ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkColorFilterBase.cpp
     ../Siv3D/src/ThirdParty/skia/src/effects/colorfilters/SkColorSpaceXformColorFilter.cpp
@@ -958,7 +948,8 @@ set(SIV3D_SKIA_SOURCES
     ../Siv3D/src/ThirdParty/skia/src/utils/SkShadowTessellator.cpp
     ../Siv3D/src/ThirdParty/skia/src/utils/SkShadowUtils.cpp
     ../Siv3D/src/ThirdParty/skia/src/utils/SkTestCanvas.cpp
-    ../Siv3D/src/ThirdParty/skia/src/utils/SkTextUtils.cpp)
+    ../Siv3D/src/ThirdParty/skia/src/utils/SkTextUtils.cpp
+)
 
 set(SIV3D_INTERNAL_INCLUDE_DIRS
     ../Siv3D/include
@@ -971,37 +962,31 @@ set(SIV3D_INTERNAL_INCLUDE_DIRS
     ../Siv3D/src/ThirdParty-prebuilt
     ../Siv3D/src/ThirdParty-prebuilt/libjpeg-turbo
     ${SIV3D_THIRD_PARTY_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS})
+    ${Boost_INCLUDE_DIRS}
+)
 
 add_library(Siv3D_skia STATIC ${SIV3D_SKIA_SOURCES})
-target_include_directories(
-  Siv3D_skia PUBLIC ../Siv3D/src/ThirdParty/skia
-                    ../Siv3D/src/ThirdParty-prebuilt/freetype)
-target_compile_options(Siv3D_skia PUBLIC ${SIV3D_CXX_FLAGS} -mavx512f
-                                         -mavx512dq -mfma)
+target_include_directories(Siv3D_skia PUBLIC ../Siv3D/src/ThirdParty/skia ../Siv3D/src/ThirdParty-prebuilt/freetype)
+target_compile_options(Siv3D_skia PUBLIC ${SIV3D_CXX_FLAGS} -mavx512f -mavx512dq -mfma)
 target_compile_definitions(
-  Siv3D_skia
-  PUBLIC SK_RELEASE SK_ENABLE_OPTIMIZE_SIZE SK_DISABLE_TRACING
-         SK_DISABLE_LEGACY_PNG_WRITEBUFFER SK_DISABLE_EFFECT_DESERIALIZATION)
+  Siv3D_skia PUBLIC SK_RELEASE SK_ENABLE_OPTIMIZE_SIZE SK_DISABLE_TRACING SK_DISABLE_LEGACY_PNG_WRITEBUFFER SK_DISABLE_EFFECT_DESERIALIZATION
+)
 
 add_library(Siv3D STATIC ${SIV3D_INTERNAL_SOURCES} $<TARGET_OBJECTS:Siv3D_skia>)
-target_link_libraries(
-  Siv3D
-  INTERFACE ${CMAKE_THREAD_LIBS_INIT} ${SIV3D_THIRD_PARTY_LIBRARIES}
-            ${CMAKE_DL_LIBS})
+target_link_libraries(Siv3D INTERFACE ${CMAKE_THREAD_LIBS_INIT} ${SIV3D_THIRD_PARTY_LIBRARIES} ${CMAKE_DL_LIBS})
 target_compile_features(Siv3D PRIVATE cxx_std_23 c_std_11)
 target_include_directories(
   Siv3D
-  PRIVATE $<BUILD_INTERFACE: ${SIV3D_INTERNAL_INCLUDE_DIRS}> $<BUILD_INTERFACE:
-          ${SIV3D_THIRD_PARTY_INCLUDE_DIRS}>
-  INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D/ThirdParty>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D>)
+  PRIVATE $<BUILD_INTERFACE: ${SIV3D_INTERNAL_INCLUDE_DIRS}> $<BUILD_INTERFACE: ${SIV3D_THIRD_PARTY_INCLUDE_DIRS}>
+  INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D/ThirdParty> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D>
+)
 set_target_properties(
   Siv3D
   PROPERTIES C_EXTENSIONS OFF
              CXX_STANDARD_REQUIRED ON
              CXX_EXTENSIONS OFF
-             DEBUG_POSTFIX "d")
+             DEBUG_POSTFIX "d"
+)
 target_compile_options(
   Siv3D
   PRIVATE $<$<COMPILE_LANGUAGE:CXX>:
@@ -1027,36 +1012,29 @@ target_compile_options(
           ${SIV3D_C_FLAGS_RELWITHDEBINFO}>
           $<$<CONFIG:MinSizeRel>:
           ${SIV3D_C_FLAGS_MINSIZEREL}>
-          >)
-target_compile_definitions(
-  Siv3D PRIVATE $<$<COMPILE_LANGUAGE:CXX>: ${SIV3D_CXX_DEFINITION}>
-                $<$<COMPILE_LANGUAGE:C>: ${SIV3D_C_DEFINITION}>)
+          >
+)
+target_compile_definitions(Siv3D PRIVATE $<$<COMPILE_LANGUAGE:CXX>: ${SIV3D_CXX_DEFINITION}> $<$<COMPILE_LANGUAGE:C>: ${SIV3D_C_DEFINITION}>)
 add_library(Siv3D::Siv3D ALIAS Siv3D)
 
 # Siv3D install settings
-message(
-  STATUS
-    "[info] CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}"
-)
-message(
-  STATUS
-    "[info] CMAKE_INSTALL_INCLUDEDIR: ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/Siv3D"
-)
+message(STATUS "[info] CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+message(STATUS "[info] CMAKE_INSTALL_INCLUDEDIR: ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
 install(
   TARGETS Siv3D
   EXPORT Siv3DTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
 install(
   EXPORT Siv3DTargets
   FILE Siv3DConfig.cmake
   NAMESPACE Siv3D::
   EXPORT_LINK_INTERFACE_LIBRARIES
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Siv3D)
-install(FILES ../Siv3D/include/Siv3D.hpp
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Siv3D)
-install(DIRECTORY ../Siv3D/include/Siv3D ../Siv3D/include/ThirdParty
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Siv3D)
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Siv3D
+)
+install(FILES ../Siv3D/include/Siv3D.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Siv3D)
+install(DIRECTORY ../Siv3D/include/Siv3D ../Siv3D/include/ThirdParty DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Siv3D)
 
 # deb package setttings
 set(CPACK_GENERATOR "DEB")
@@ -1065,7 +1043,6 @@ set(CPACK_PACKAGE_CONTACT ${CMAKE_PROJECT_HOMEPAGE_URL})
 set(CPACK_PACKAGE_HOMEPAGE_URL ${CMAKE_PROJECT_HOMEPAGE_URL})
 set(CPACK_PACKAGE_NAME "libSiv3D-dev")
 set(CPACK_PACKAGE_FILE_LICENSE ../LICENSE)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS
-    "cmake, libboost-dev, libglu1-mesa-dev, uuid-dev, xorg-dev")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "cmake, libboost-dev, libglu1-mesa-dev, uuid-dev, xorg-dev")
 
 include(CPack)
