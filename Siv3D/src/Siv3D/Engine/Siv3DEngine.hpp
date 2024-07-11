@@ -11,32 +11,33 @@
 
 # pragma once
 # include <tuple>
+
 # include "Siv3DComponent.hpp"
+
+# include <Siv3D/LicenseManager/ILicenseManager.hpp>
+# include <Siv3D/Logger/ILogger.hpp>
+# include <Siv3D/RegExp/IRegExp.hpp>
+# include <Siv3D/System/ISystem.hpp>
+# include <Siv3D/EngineResource/IEngineResource.hpp>
+# include <Siv3D/Profiler/IProfiler.hpp>
+# include <Siv3D/UserAction/IUserAction.hpp>
+# include <Siv3D/Window/IWindow.hpp>
+# include <Siv3D/Scene/IScene.hpp>
+# include <Siv3D/ImageDecoder/IImageDecoder.hpp>
+# include <Siv3D/ImageEncoder/IImageEncoder.hpp>
+# include <Siv3D/Emoji/IEmoji.hpp>
+# include <Siv3D/Console/IConsole.hpp>
+# include <Siv3D/Cursor/ICursor.hpp>
+# include <Siv3D/CursorStyle/ICursorStyle.hpp>
+# include <Siv3D/Mouse/IMouse.hpp>
+# include <Siv3D/Keyboard/IKeyboard.hpp>
+# include <Siv3D/Renderer/IRenderer.hpp>
+# include <Siv3D/Shader/IShader.hpp>
+# include <Siv3D/EngineShader/IEngineShader.hpp>
+# include <Siv3D/Renderer2D/IRenderer2D.hpp>
 
 namespace s3d
 {
-	class ISiv3DLicenseManager;
-	class ISiv3DLogger;
-	class ISiv3DRegExp;
-	class ISiv3DSystem;
-	class ISiv3DEngineResource;
-	class ISiv3DProfiler;
-	class ISiv3DUserAction;
-	class ISiv3DWindow;
-	class ISiv3DScene;
-	class ISiv3DImageDecoder;
-	class ISiv3DImageEncoder;
-	class ISiv3DEmoji;
-	class ISiv3DConsole;
-	class ISiv3DCursor;
-	class ISiv3DCursorStyle;
-	class ISiv3DKeyboard;
-	class ISiv3DMouse;
-	class ISiv3DRenderer;
-	class ISiv3DShader;
-	class ISiv3DEngineShader;
-	class ISiv3DRenderer2D;
-
 	class Siv3DEngine
 	{
 	private:
