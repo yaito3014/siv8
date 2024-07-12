@@ -13,7 +13,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(
   SIV3D_THIRD_PARTY
   REQUIRED
+  gio-2.0
   gl
+  glib-2.0
   glu
   uuid
   x11
@@ -92,6 +94,7 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Logger/CLogger.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/MemoryMappedFile/MemoryMappedFileDetail.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/MemoryMappedFileView/MemoryMappedFileViewDetail.cpp
+    ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/MonitorInfo/SivMonitorInfo_macOS_Linux.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Mouse/CMouse.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/System/SivSystem_macOS_Linux.cpp
     ../Siv3D/src/Siv3D/Array/SivArray.cpp
