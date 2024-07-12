@@ -29,6 +29,7 @@
 
 #if defined(_GLFW_X11)
 
+#include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,6 +92,153 @@ static GLFWvidmode vidmodeFromModeInfo(const XRRModeInfo* mi,
     return mode;
 }
 
+//-----------------------------------------------
+//
+//	[Siv3D]
+//
+GLFWAPI void glfwGetMonitorRect_Siv3D(GLFWmonitor* handle, int* xpos, int* ypos,
+                                      int* w, int* h) {
+  _GLFWmonitor* monitor = (_GLFWmonitor*)handle;
+  assert(monitor != NULL);
+
+  _GLFW_REQUIRE_INIT();
+
+  int screenX = 0, screenY = 0, screenWidth = 0, screenHeight = 0;
+
+  if (_glfw.x11.randr.available && !_glfw.x11.randr.monitorBroken) {
+    XRRScreenResources* sr =
+        XRRGetScreenResourcesCurrent(_glfw.x11.display, _glfw.x11.root);
+    XRRCrtcInfo* ci = XRRGetCrtcInfo(_glfw.x11.display, sr, monitor->x11.crtc);
+
+    if (ci) {
+      screenX = ci->x;
+
+      screenY = ci->y;
+
+      const XRRModeInfo* mi = getModeInfo(sr, ci->mode);
+
+      if (ci->rotation == RR_Rotate_90 || ci->rotation == RR_Rotate_270) {
+        screenWidth = ci->height;
+
+        screenHeight = ci->width;
+      } else {
+        screenWidth = mi->width;
+
+        screenHeight = mi->height;
+      }
+
+      XRRFreeCrtcInfo(ci);
+    }
+
+    XRRFreeScreenResources(sr);
+  } else {
+    screenWidth = DisplayWidth(_glfw.x11.display, _glfw.x11.screen);
+    screenHeight = DisplayHeight(_glfw.x11.display, _glfw.x11.screen);
+  }
+
+  if (xpos) *xpos = screenX;
+  if (ypos) *ypos = screenY;
+  if (w) *w = screenWidth;
+  if (h) *h = screenHeight;
+}
+
+GLFWAPI void glfwGetMonitorInfo_Siv3D(GLFWmonitor* handle, uint32_t* displayID,
+                                      uint32_t* unitNumber, int* xpos,
+                                      int* ypos, int* w, int* h, int* wx,
+                                      int* wy, int* ww, int* wh) {
+  _GLFWmonitor* monitor = (_GLFWmonitor*)handle;
+  assert(monitor != NULL);
+
+  _GLFW_REQUIRE_INIT();
+
+  int screenX = 0, screenY = 0, screenWidth = 0, screenHeight = 0;
+
+  if (_glfw.x11.randr.available && !_glfw.x11.randr.monitorBroken) {
+    XRRScreenResources* sr =
+        XRRGetScreenResourcesCurrent(_glfw.x11.display, _glfw.x11.root);
+    XRRCrtcInfo* ci = XRRGetCrtcInfo(_glfw.x11.display, sr, monitor->x11.crtc);
+
+    if (ci) {
+      screenX = ci->x;
+
+      screenY = ci->y;
+
+      const XRRModeInfo* mi = getModeInfo(sr, ci->mode);
+
+      if (ci->rotation == RR_Rotate_90 || ci->rotation == RR_Rotate_270) {
+        screenWidth = ci->height;
+
+        screenHeight = ci->width;
+      } else {
+        screenWidth = mi->width;
+
+        screenHeight = mi->height;
+      }
+
+      XRRFreeCrtcInfo(ci);
+    }
+
+    XRRFreeScreenResources(sr);
+  } else {
+    screenWidth = DisplayWidth(_glfw.x11.display, _glfw.x11.screen);
+    screenHeight = DisplayHeight(_glfw.x11.display, _glfw.x11.screen);
+  }
+
+  int areaX = screenX, areaY = screenY, areaWidth = screenWidth,
+      areaHeight = screenHeight;
+
+  if (_glfw.x11.NET_WORKAREA && _glfw.x11.NET_CURRENT_DESKTOP) {
+    Atom* extents = NULL;
+    Atom* desktop = NULL;
+    const unsigned long extentCount =
+        _glfwGetWindowPropertyX11(_glfw.x11.root, _glfw.x11.NET_WORKAREA,
+                                  XA_CARDINAL, (unsigned char**)&extents);
+
+    if (_glfwGetWindowPropertyX11(_glfw.x11.root, _glfw.x11.NET_CURRENT_DESKTOP,
+                                  XA_CARDINAL, (unsigned char**)&desktop) > 0) {
+      if (extentCount >= 4 && *desktop < extentCount / 4) {
+        const int globalX = extents[*desktop * 4 + 0];
+        const int globalY = extents[*desktop * 4 + 1];
+        const int globalWidth = extents[*desktop * 4 + 2];
+        const int globalHeight = extents[*desktop * 4 + 3];
+
+        if (areaX < globalX) {
+          areaWidth -= globalX - areaX;
+          areaX = globalX;
+        }
+
+        if (areaY < globalY) {
+          areaHeight -= globalY - areaY;
+          areaY = globalY;
+        }
+
+        if (areaX + areaWidth > globalX + globalWidth)
+          areaWidth = globalX - areaX + globalWidth;
+        if (areaY + areaHeight > globalY + globalHeight)
+          areaHeight = globalY - areaY + globalHeight;
+      }
+    }
+
+    if (extents) XFree(extents);
+    if (desktop) XFree(desktop);
+  }
+
+  if (xpos) *xpos = screenX;
+  if (ypos) *ypos = screenY;
+  if (w) *w = screenWidth;
+  if (h) *h = screenHeight;
+  if (wx) *wx = areaX;
+  if (wy) *wy = areaY;
+  if (ww) *ww = areaWidth;
+  if (wh) *wh = areaHeight;
+}
+
+int glfwIsCurrentMonitor_Siv3D(GLFWwindow* _window, GLFWmonitor* handle)
+{
+	
+}
+//
+//-----------------------------------------------
 
 //////////////////////////////////////////////////////////////////////////
 //////                       GLFW internal API                      //////
