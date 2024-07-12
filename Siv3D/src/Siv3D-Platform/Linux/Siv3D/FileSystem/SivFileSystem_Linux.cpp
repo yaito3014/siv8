@@ -349,7 +349,7 @@ namespace s3d
 			return detail::init::g_specialFolderPaths[FromEnum(folder)];
 		}
 
-		bool Removez(const FilePathView path, const AllowUndo allowUndo)
+		bool Remove(const FilePathView path, const AllowUndo allowUndo)
 		{
 			if (not path)
 			{
