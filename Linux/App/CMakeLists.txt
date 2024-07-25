@@ -14,25 +14,32 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
 add_executable(
   Siv3DTest
+  
   Main.cpp
+
   ../../Test/Siv3DTest.cpp
   ../../Test/Test_Array.cpp
   ../../Test/Test_Base64Value.cpp
-  # ../../Test/Test_BinaryWriter.cpp
+  ../../Test/Test_BinaryWriter.cpp
   ../../Test/Test_Byte.cpp
   ../../Test/Test_Color.cpp
   ../../Test/Test_ColorF.cpp
+  ../../Test/Test_Compression.cpp
   ../../Test/Test_Concepts.cpp
-  # ../../Test/Test_FileSystem.cpp
+  ../../Test/Test_FileSystem.cpp
   ../../Test/Test_FmtExtension.cpp
   ../../Test/Test_FunctionRef.cpp
   ../../Test/Test_Hash.cpp
+  ../../Test/Test_Image.cpp
   ../../Test/Test_Indexed.cpp
+  ../../Test/Test_JSON.cpp
   ../../Test/Test_Memory.cpp
+  ../../Test/Test_MemoryMappedFile.cpp
   ../../Test/Test_MemoryMappedFileView.cpp
   ../../Test/Test_NamedParameter.cpp
   ../../Test/Test_PRNG.cpp
   ../../Test/Test_Platform.cpp
+  ../../Test/Test_ScopeExit.cpp
   ../../Test/Test_SequenceFormatter.cpp
   ../../Test/Test_Step.cpp
   ../../Test/Test_String.cpp

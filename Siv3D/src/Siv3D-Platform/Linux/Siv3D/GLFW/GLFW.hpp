@@ -11,5 +11,6 @@
 
 # pragma once
 # define GLFW_INCLUDE_NONE
+# define GLFW_EXPOSE_NATIVE_X11
 # include <ThirdParty/GLFW/glfw3.h>
 # include <ThirdParty/GLFW/glfw3native.h>

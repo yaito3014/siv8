@@ -77,10 +77,13 @@ endif()
 
 set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Siv3DMain.cpp
+    ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Cursor/CCursor.cpp
     ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/FileSystem/SivFileSystem_Linux.cpp
+    ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Resource/SivResource_Linux.cpp
     ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/System/CSystem.cpp
     ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Time/SivTime.cpp
     ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Window/CWindow.cpp
+    ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Window/WindowMisc.cpp
     ../Siv3D/src/Siv3D-Platform/Linux/Siv3D/Window/WindowTitle.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/BinaryReader/BinaryReaderDetail.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/BinaryWriter/BinaryWriterDetail.cpp
@@ -97,6 +100,7 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/MonitorInfo/SivMonitorInfo_macOS_Linux.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/Mouse/CMouse.cpp
     ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/System/SivSystem_macOS_Linux.cpp
+    
     ../Siv3D/src/Siv3D/Array/SivArray.cpp
     ../Siv3D/src/Siv3D/Base64Value/SivBase64Value.cpp
     ../Siv3D/src/Siv3D/BigFloat/SivBigFloat.cpp
@@ -129,8 +133,12 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/Siv3D/Console/SivConsole.cpp
     ../Siv3D/src/Siv3D/ConsoleBuffer/SivConsoleBuffer.cpp
     ../Siv3D/src/Siv3D/CullMode/SivCullMode.cpp
-    # ../Siv3D/src/Siv3D/Cursor/CursorFactory.cpp ../Siv3D/src/Siv3D/Cursor/CursorTransform.cpp ../Siv3D/src/Siv3D/Cursor/HighTemporalResolutionCursor.cpp
-    # ../Siv3D/src/Siv3D/Cursor/SivCursor.cpp ../Siv3D/src/Siv3D/CursorStyle/CursorStyleFactory.cpp ../Siv3D/src/Siv3D/CursorStyle/SivCursorStyle.cpp
+    ../Siv3D/src/Siv3D/Cursor/CursorFactory.cpp
+    ../Siv3D/src/Siv3D/Cursor/CursorTransform.cpp
+    ../Siv3D/src/Siv3D/Cursor/HighTemporalResolutionCursor.cpp
+    ../Siv3D/src/Siv3D/Cursor/SivCursor.cpp
+    ../Siv3D/src/Siv3D/CursorStyle/CursorStyleFactory.cpp
+    ../Siv3D/src/Siv3D/CursorStyle/SivCursorStyle.cpp
     ../Siv3D/src/Siv3D/CycleClock/SivCycleClock.cpp
     ../Siv3D/src/Siv3D/Date/SivDate.cpp
     ../Siv3D/src/Siv3D/DateTime/SivDateTime.cpp
@@ -305,6 +313,7 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/Siv3D/Window/SivWindow.cpp
     ../Siv3D/src/Siv3D/Window/WindowFactory.cpp
     ../Siv3D/src/Siv3D/_TEMPLATE/_TEMPLATE.cpp
+    
     ../Siv3D/src/ThirdParty/GLFW/cocoa_time.c
     ../Siv3D/src/ThirdParty/GLFW/context.c
     ../Siv3D/src/ThirdParty/GLFW/egl_context.c
