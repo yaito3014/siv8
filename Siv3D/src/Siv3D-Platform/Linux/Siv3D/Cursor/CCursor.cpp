@@ -65,7 +65,7 @@ namespace s3d
 
 	CCursor::~CCursor()
 	{
-		LOG_SCOPED_TRACE(U"CCursor::~CCursor()");
+		LOG_SCOPED_TRACE("CCursor::~CCursor()");
 
 		m_customCursors.clear();
 
@@ -81,7 +81,7 @@ namespace s3d
 
 	void CCursor::init()
 	{
-		LOG_SCOPED_TRACE(U"CCursor::init()");
+		LOG_SCOPED_TRACE("CCursor::init()");
 
 		m_window = static_cast<GLFWwindow*>(SIV3D_ENGINE(Window)->getHandle());
 

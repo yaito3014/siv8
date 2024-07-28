@@ -217,6 +217,8 @@ set(SIV3D_INTERNAL_SOURCES
     ../Siv3D/src/Siv3D/LicenseManager/LicenseManagerFactory.cpp
     ../Siv3D/src/Siv3D/LicenseManager/SivLicenseManager.cpp
     ../Siv3D/src/Siv3D/Line/SivLine.cpp
+    ../Siv3D/src/Siv3D/LineCap/SivLineCap.cpp
+    ../Siv3D/src/Siv3D/LineType/SivLineType.cpp
     ../Siv3D/src/Siv3D/Logger/LoggerFactory.cpp
     ../Siv3D/src/Siv3D/Logger/SivLogger.cpp
     ../Siv3D/src/Siv3D/LoggerBuffer/SivLoggerBuffer.cpp
