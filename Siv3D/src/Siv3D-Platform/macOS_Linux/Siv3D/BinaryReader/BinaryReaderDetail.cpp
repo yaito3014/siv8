@@ -30,7 +30,7 @@ namespace s3d
 		{
 			// ファイルのオープン
 			{
-				m_file.file.open(path.toWstr(), std::ios_base::binary);
+				m_file.file.open(Unicode::ToUTF8(path), std::ios_base::binary);
 				m_file.readPos = 0;
 
 				if (not m_file.file) [[unlikely]]
