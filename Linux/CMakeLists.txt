@@ -97,7 +97,6 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/Camera2DControl/SivCamera2DControl.cpp
   ../Siv3D/src/Siv3D/Camera2DControlBuilder/SivCamera2DControlBuilder.cpp
   ../Siv3D/src/Siv3D/Circle/SivCircle.cpp
-  ../Siv3D/src/Siv3D/Circular/SivCircular.cpp
   ../Siv3D/src/Siv3D/Color/SivColor.cpp
   ../Siv3D/src/Siv3D/ColorF/SivColorF.cpp
   ../Siv3D/src/Siv3D/ColorWriteMask/SivColorWriteMask.cpp
@@ -239,7 +238,8 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/RegExp/RegExpDetail.cpp
   ../Siv3D/src/Siv3D/RegExp/RegExpFactory.cpp
   ../Siv3D/src/Siv3D/RegExp/SivRegExp.cpp
-  ../Siv3D/src/Siv3D/Renderer2D/Vertex2DBuilder.cpp
+  ../Siv3D/src/Siv3D/Renderer2D/Vertex2DBuilder_Rounded.cpp
+  ../Siv3D/src/Siv3D/Renderer2D/Vertex2DBuilder_StraightEdged.cpp
   ../Siv3D/src/Siv3D/ResizeMode/SivResizeMode.cpp
   ../Siv3D/src/Siv3D/SIMDMath/SivSIMDMath.cpp
   ../Siv3D/src/Siv3D/SVG/SVGDetail.cpp
