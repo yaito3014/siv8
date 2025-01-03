@@ -54,7 +54,7 @@ namespace s3d
 		&& std::ranges::sized_range<Range>
 		&& std::same_as<std::ranges::range_value_t<Range>, char32>
 		&& !std::is_convertible_v<Range, const char32*>
-		&& !requires(std::remove_cvref_t<Range>& range) { range.operator StringView; }
+		&& !detail::has_convertion_operator_to<std::remove_cvref_t<Range>&, StringView>
 		&& std::ranges::borrowed_range<Range>)
 	constexpr StringView::StringView(Range&& range)
 		: m_view{ std::forward<Range>(range) } {}
@@ -66,7 +66,7 @@ namespace s3d
 		&& std::ranges::sized_range<Range>
 		&& std::same_as<std::ranges::range_value_t<Range>, char32>
 		&& !std::is_convertible_v<Range, const char32*>
-		&& !requires(std::remove_cvref_t<Range>& range) { range.operator StringView; }
+		&& !detail::has_convertion_operator_to<std::remove_cvref_t<Range>&, StringView>
 		&& !std::ranges::borrowed_range<Range>)
 	constexpr StringView::StringView(Range&& range SIV3D_LIFETIMEBOUND)
 		: m_view{ std::forward<Range>(range) } {}

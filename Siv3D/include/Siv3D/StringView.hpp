@@ -19,9 +19,13 @@
 
 namespace s3d
 {
-	template <class Type, class Allocator>
-	class Array;
+	namespace detail {
 
+		template <class T, class U>
+		concept has_convertion_operator_to = requires (T x) { x.operator U; };
+
+	}
+	
 	struct FormatData;
 	class String;
 
@@ -92,7 +96,7 @@ namespace s3d
 			&& std::ranges::sized_range<Range>
 			&& std::same_as<std::ranges::range_value_t<Range>, char32>
 			&& !std::is_convertible_v<Range, const char32*>
-			&& !requires(std::remove_cvref_t<Range>& range) { range.operator StringView; }
+			&& !detail::has_convertion_operator_to<std::remove_cvref_t<Range>&, StringView>
 			&& std::ranges::borrowed_range<Range>)
 		[[nodiscard]]
 		explicit constexpr StringView(Range&& range);
@@ -104,7 +108,7 @@ namespace s3d
 			&& std::ranges::sized_range<Range>
 			&& std::same_as<std::ranges::range_value_t<Range>, char32>
 			&& !std::is_convertible_v<Range, const char32*>
-			&& !requires(std::remove_cvref_t<Range>& range) { range.operator StringView; }
+			&& !detail::has_convertion_operator_to<std::remove_cvref_t<Range>&, StringView>
 			&& !std::ranges::borrowed_range<Range>)
 			[[nodiscard]]
 		explicit constexpr StringView(Range&& range SIV3D_LIFETIMEBOUND);
