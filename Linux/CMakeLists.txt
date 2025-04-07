@@ -78,6 +78,8 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D-Platform/macOS_Linux/Siv3D/System/SivSystem_macOS_Linux.cpp
 
   ../Siv3D/src/Siv3D/Array/SivArray.cpp
+  ../Siv3D/src/Siv3D/AssetMonitor/AssetMonitorFactory.cpp
+  ../Siv3D/src/Siv3D/AssetMonitor/CAssetMonitor.cpp
   ../Siv3D/src/Siv3D/Base64Value/SivBase64Value.cpp
   ../Siv3D/src/Siv3D/BigFloat/SivBigFloat.cpp
   ../Siv3D/src/Siv3D/BigInt/SivBigInt.cpp
@@ -96,6 +98,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/Camera2D/SivCamera2D.cpp
   ../Siv3D/src/Siv3D/Camera2DControl/SivCamera2DControl.cpp
   ../Siv3D/src/Siv3D/Camera2DControlBuilder/SivCamera2DControlBuilder.cpp
+  ../Siv3D/src/Siv3D/ChildProcess/SivChildProcess.cpp
   ../Siv3D/src/Siv3D/Circle/SivCircle.cpp
   ../Siv3D/src/Siv3D/Color/SivColor.cpp
   ../Siv3D/src/Siv3D/ColorF/SivColorF.cpp
@@ -123,6 +126,8 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/DepthStencilStateBuilder/SivDepthStencilStateBuilder.cpp
   # ../Siv3D/src/Siv3D/DirectoryWatcher/SivDirectoryWatcher.cpp
   ../Siv3D/src/Siv3D/Duration/SivDuration.cpp
+  ../Siv3D/src/Siv3D/DynamicTexture/SivDynamicTexture.cpp
+  ../Siv3D/src/Siv3D/Ellipse/SivEllipse.cpp
   ../Siv3D/src/Siv3D/Emoji/CEmoji.cpp
   ../Siv3D/src/Siv3D/Emoji/EmojiFactory.cpp
   ../Siv3D/src/Siv3D/Emoji/SivEmoji.cpp
@@ -144,7 +149,12 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/FmtExtension/SivFmtExtension.cpp
   ../Siv3D/src/Siv3D/FormatUtility/SivFormatUtility.cpp
   ../Siv3D/src/Siv3D/Formatter/SivFormatter.cpp
+  ../Siv3D/src/Siv3D/Geometry2D/SivGeometry2D_BoundingRect.cpp
+  ../Siv3D/src/Siv3D/Geometry2D/SivGeometry2D_ConvexHull.cpp
   ../Siv3D/src/Siv3D/Geometry2D/SivGeometry2D_Intersect.cpp
+  ../Siv3D/src/Siv3D/Geometry2D/SivGeometry2D_IsClockwise.cpp
+  ../Siv3D/src/Siv3D/Geometry2D/SivGeometry2D_PoleOfInaccessibility.cpp
+  ../Siv3D/src/Siv3D/Geometry2D/SivGeometry2D_SmallestEnclosingCircle.cpp
   ../Siv3D/src/Siv3D/Graphics/SivGraphics.cpp
   ../Siv3D/src/Siv3D/Graphics2D/SivGraphics2D.cpp
   ../Siv3D/src/Siv3D/Grid/SivGrid.cpp
@@ -164,6 +174,8 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/ImageEncoder/CImageEncoder.cpp
   ../Siv3D/src/Siv3D/ImageEncoder/ImageEncoderFactory.cpp
   ../Siv3D/src/Siv3D/ImageEncoder/SivImageEncoder.cpp
+  ../Siv3D/src/Siv3D/ImageFormat/BCn/BCnDecoder.cpp
+  ../Siv3D/src/Siv3D/ImageFormat/BCn/BCnEncoder.cpp
   ../Siv3D/src/Siv3D/ImageFormat/BMP/BMPDecoder.cpp
   ../Siv3D/src/Siv3D/ImageFormat/BMP/BMPEncoder.cpp
   ../Siv3D/src/Siv3D/ImageFormat/JPEG/JPEGDecoder.cpp
@@ -175,6 +187,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/ImageFormat/TGA/TGADecoder.cpp
   ../Siv3D/src/Siv3D/ImageFormat/TGA/TGAEncoder.cpp
   ../Siv3D/src/Siv3D/ImagePixelFormat/SivImagePixelFormat.cpp
+  ../Siv3D/src/Siv3D/ImageProcessing/SivImageProcessing.cpp
   ../Siv3D/src/Siv3D/Input/SivInput.cpp
   ../Siv3D/src/Siv3D/InputCombination/SivInputCombination.cpp
   ../Siv3D/src/Siv3D/InputDeviceType/SivInputDeviceType.cpp
@@ -187,6 +200,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/JSON/SivJSON.cpp
   ../Siv3D/src/Siv3D/JSONIterator/SivJSONIterator.cpp
   ../Siv3D/src/Siv3D/JSONValueType/SivJSONValueType.cpp
+  ../Siv3D/src/Siv3D/JoinStyle/SivJoinStyle.cpp
   ../Siv3D/src/Siv3D/Keyboard/KeyboardFactory.cpp
   ../Siv3D/src/Siv3D/Keyboard/SivKeyboard.cpp
   ../Siv3D/src/Siv3D/LicenseManager/CLicenseManager.cpp
@@ -194,6 +208,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/LicenseManager/SivLicenseManager.cpp
   ../Siv3D/src/Siv3D/Line/SivLine.cpp
   ../Siv3D/src/Siv3D/LineCap/SivLineCap.cpp
+  ../Siv3D/src/Siv3D/LineString/SivLineString.cpp
   ../Siv3D/src/Siv3D/LineType/SivLineType.cpp
   ../Siv3D/src/Siv3D/Logger/LoggerFactory.cpp
   ../Siv3D/src/Siv3D/Logger/SivLogger.cpp
@@ -202,6 +217,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/MSAASampleCount/SivMSAASampleCount.cpp
   ../Siv3D/src/Siv3D/MSL/SivMSL.cpp
   ../Siv3D/src/Siv3D/Mat3x2/SivMat3x2.cpp
+  ../Siv3D/src/Siv3D/Mat3x3/SivMat3x3.cpp
   ../Siv3D/src/Siv3D/MathParser/MathParserDetail.cpp
   ../Siv3D/src/Siv3D/MathParser/SivMathParser.cpp
   ../Siv3D/src/Siv3D/MemoryMappedFile/SivMemoryMappedFile.cpp
@@ -222,18 +238,28 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/ParseErrorReason/SivParseErrorReason.cpp
   ../Siv3D/src/Siv3D/ParseFloat/SivParseFloat.cpp
   ../Siv3D/src/Siv3D/ParseInt/SivParseInt.cpp
+  ../Siv3D/src/Siv3D/Pipe/SivPipe.cpp
   ../Siv3D/src/Siv3D/PixelShader/SivPixelShader.cpp
   ../Siv3D/src/Siv3D/Point/SivPoint.cpp
   ../Siv3D/src/Siv3D/Point3D/SivPoint3D.cpp
+  ../Siv3D/src/Siv3D/Polygon/ClosedLineString.cpp
+  ../Siv3D/src/Siv3D/Polygon/GeometryCommon.cpp
+  ../Siv3D/src/Siv3D/Polygon/PolygonBuffer.cpp
+  ../Siv3D/src/Siv3D/Polygon/PolygonDetail.cpp
+  ../Siv3D/src/Siv3D/Polygon/SivPolygon.cpp
+  ../Siv3D/src/Siv3D/Polygon/Triangulate.cpp
+  ../Siv3D/src/Siv3D/PolygonFailureType/SivPolygonFailureType.cpp
   ../Siv3D/src/Siv3D/Profiler/CProfiler.cpp
   ../Siv3D/src/Siv3D/Profiler/ProfilerFactory.cpp
   ../Siv3D/src/Siv3D/Profiler/SivProfiler.cpp
   ../Siv3D/src/Siv3D/Quad/SivQuad.cpp
+  ../Siv3D/src/Siv3D/QualityFactor/SivQualityFactor.cpp
   ../Siv3D/src/Siv3D/Random/SivRandom.cpp
   ../Siv3D/src/Siv3D/RasterizerState/SivRasterizerState.cpp
   ../Siv3D/src/Siv3D/RasterizerStateBuilder/SivRasterizerStateBuilder.cpp
   ../Siv3D/src/Siv3D/Rect/SivRect.cpp
   ../Siv3D/src/Siv3D/RectF/SivRectF.cpp
+  ../Siv3D/src/Siv3D/RectanglePack/SivRectanglePack.cpp
   ../Siv3D/src/Siv3D/RegExp/CRegExp.cpp
   ../Siv3D/src/Siv3D/RegExp/RegExpDetail.cpp
   ../Siv3D/src/Siv3D/RegExp/RegExpFactory.cpp
@@ -241,9 +267,11 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/Renderer2D/Vertex2DBuilder_Rounded.cpp
   ../Siv3D/src/Siv3D/Renderer2D/Vertex2DBuilder_StraightEdged.cpp
   ../Siv3D/src/Siv3D/ResizeMode/SivResizeMode.cpp
+  ../Siv3D/src/Siv3D/RoundRect/SivRoundRect.cpp
   ../Siv3D/src/Siv3D/SIMDMath/SivSIMDMath.cpp
   ../Siv3D/src/Siv3D/SVG/SVGDetail.cpp
   ../Siv3D/src/Siv3D/SVG/SivSVG.cpp
+  ../Siv3D/src/Siv3D/SampleBorderColor/SivSampleBorderColor.cpp
   ../Siv3D/src/Siv3D/SamplerState/SivSamplerState.cpp
   ../Siv3D/src/Siv3D/SamplerStateBuilder/SivSamplerStateBuilder.cpp
   ../Siv3D/src/Siv3D/Scene/CScene.cpp
@@ -256,6 +284,10 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/ScopedRenderStates2D/SivScopedRenderStates2D.cpp
   ../Siv3D/src/Siv3D/ScopedScissorRect2D/SivScopedScissorRect2D.cpp
   ../Siv3D/src/Siv3D/ScopedViewport2D/SivScopedViewport2D.cpp
+  ../Siv3D/src/Siv3D/ScreenCapture/CScreenCapture.cpp
+  ../Siv3D/src/Siv3D/ScreenCapture/ScreenCaptureFactory.cpp
+  ../Siv3D/src/Siv3D/ScreenCapture/SivScreenCapture.cpp
+  ../Siv3D/src/Siv3D/Shape2D/Shape2D.cpp
   ../Siv3D/src/Siv3D/Stopwatch/SivStopwatch.cpp
   ../Siv3D/src/Siv3D/String/Levenshtein.cpp
   ../Siv3D/src/Siv3D/String/SivString.cpp
@@ -268,14 +300,23 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/TextReader/TextReaderDetail.cpp
   ../Siv3D/src/Siv3D/TextWriter/SivTextWriter.cpp
   ../Siv3D/src/Siv3D/TextWriter/TextWriterDetail.cpp
+  ../Siv3D/src/Siv3D/Texture/SivTexture.cpp
+  ../Siv3D/src/Siv3D/Texture/TextureUtility.cpp
   ../Siv3D/src/Siv3D/TextureAddressMode/SivTextureAddressMode.cpp
   ../Siv3D/src/Siv3D/TextureFilter/SivTextureFilter.cpp
+  ../Siv3D/src/Siv3D/TextureFormat/SivTextureFormat.cpp
+  ../Siv3D/src/Siv3D/TextureRegion/SivTextureRegion.cpp
+  ../Siv3D/src/Siv3D/TexturedCircle/SivTexturedCircle.cpp
+  ../Siv3D/src/Siv3D/TexturedQuad/SivTexturedQuad.cpp
+  ../Siv3D/src/Siv3D/TexturedRoundRect/SivTexturedRoundRect.cpp
   ../Siv3D/src/Siv3D/ThousandSeparate/SivThousandSeparate.cpp
   ../Siv3D/src/Siv3D/Threading/SivThreading.cpp
   ../Siv3D/src/Siv3D/Timer/SivTimer.cpp
   ../Siv3D/src/Siv3D/Transformer2D/SivTransformer2D.cpp
   ../Siv3D/src/Siv3D/Triangle/SivTriangle.cpp
   ../Siv3D/src/Siv3D/TriangleFillMode/SivTriangleFillMode.cpp
+  ../Siv3D/src/Siv3D/TriangleIndex/SivTriangleIndex.cpp
+  ../Siv3D/src/Siv3D/TriangleIndex32/SivTriangleIndex32.cpp
   ../Siv3D/src/Siv3D/Troubleshooting/Troubleshooting.cpp
   ../Siv3D/src/Siv3D/UUIDValue/SivUUIDValue.cpp
   ../Siv3D/src/Siv3D/Unicode/SivUnicode.cpp
@@ -289,6 +330,7 @@ set(SIV3D_INTERNAL_SOURCES
   ../Siv3D/src/Siv3D/Vector3D/SivVector3D.cpp
   ../Siv3D/src/Siv3D/Vector4D/SivVector4D.cpp
   ../Siv3D/src/Siv3D/VertexShader/SivVertexShader.cpp
+  # ../Siv3D/src/Siv3D/WebBrowser/SivWebBrowser.cpp
   # ../Siv3D/src/Siv3D/Window/SivWindow.cpp
   # ../Siv3D/src/Siv3D/Window/WindowFactory.cpp
   ../Siv3D/src/Siv3D/_TEMPLATE/_TEMPLATE.cpp
@@ -893,6 +935,7 @@ set(SIV3D_INTERNAL_INCLUDE_DIRS
   ../Siv3D/src/Siv3D-Platform/macOS_Linux
   ../Siv3D/src/ThirdParty
   ../Siv3D/src/ThirdParty/skia
+  ../Siv3D/src/ThirdParty-prebuilt
   ${SIV3D_THIRD_PARTY_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
