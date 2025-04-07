@@ -9,6 +9,8 @@
 //
 //-----------------------------------------------
 
+# include <cmath>
+
 # include <Siv3D/ColorHSV.hpp>
 # include <Siv3D/HalfFloat.hpp>
 # include <Siv3D/FloatFormatter.hpp>
