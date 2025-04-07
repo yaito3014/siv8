@@ -238,7 +238,7 @@ namespace s3d
 
 			DXGI_FORMAT DXGIFormat{};
 
-			MTLPixelFormat MTLPixelFormat{};
+			enum MTLPixelFormat MTLPixelFormat{};
 
 			GL_CONSTANTS GLInternalFormat{};
 
