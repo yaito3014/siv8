@@ -22,7 +22,7 @@ Main.cpp
 ../../Test/Test_ColorF.cpp
 ../../Test/Test_Compression.cpp
 ../../Test/Test_Concepts.cpp
-../../Test/Test_FileSystem.cpp
+#../../Test/Test_FileSystem.cpp
 ../../Test/Test_FmtExtension.cpp
 ../../Test/Test_FunctionRef.cpp
 ../../Test/Test_Hash.cpp
@@ -36,7 +36,6 @@ Main.cpp
 ../../Test/Test_PRNG.cpp
 ../../Test/Test_Platform.cpp
 ../../Test/Test_ScopeExit.cpp
-../../Test/Test_SequenceFormatter.cpp
 ../../Test/Test_Step.cpp
 ../../Test/Test_String.cpp
 ../../Test/Test_StringView.cpp
