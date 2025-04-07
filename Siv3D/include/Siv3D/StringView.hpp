@@ -25,6 +25,9 @@ namespace s3d
 		concept has_convertion_operator_to = requires (T x) { x.operator U; };
 
 	}
+
+	template <class T, class Allocator>
+	class Array;
 	
 	struct FormatData;
 	class String;
