@@ -10,6 +10,7 @@
 //-----------------------------------------------
 
 # include <algorithm>
+# include <limits>
 # include <Siv3D/Troubleshooting/Troubleshooting.hpp>
 # include "CAssetMonitor.hpp"
 
