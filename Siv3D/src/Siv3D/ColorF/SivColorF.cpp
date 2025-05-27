@@ -122,7 +122,7 @@ namespace s3d
 		if (0.0f < rf)
 		{
 			int32 rExp = static_cast<int32>(std::floor(std::log2f(rf)));
-			float rMantissa = (rf / std::powf(2.0f, static_cast<float>(rExp)) - 1.0f);
+			float rMantissa = (rf / std::pow(2.0f, static_cast<float>(rExp)) - 1.0f);
 
 			rExp += 15; // バイアス調整
 
@@ -149,7 +149,7 @@ namespace s3d
 		if (0.0f < gf)
 		{
 			int32 gExp = static_cast<int32>(std::floor(std::log2f(gf)));
-			float gMantissa = (gf / std::powf(2.0f, static_cast<float>(gExp)) - 1.0f);
+			float gMantissa = (gf / std::pow(2.0f, static_cast<float>(gExp)) - 1.0f);
 
 			gExp += 15; // バイアス調整
 
@@ -173,7 +173,7 @@ namespace s3d
 		if (0.0f < bf)
 		{
 			int32 bExp = static_cast<int32>(std::floor(std::log2f(bf)));
-			float bMantissa = (bf / std::powf(2.0f, static_cast<float>(bExp)) - 1.0f);
+			float bMantissa = (bf / std::pow(2.0f, static_cast<float>(bExp)) - 1.0f);
 
 			bExp += 15; // バイアス調整
 
