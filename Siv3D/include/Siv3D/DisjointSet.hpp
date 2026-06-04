@@ -10,6 +10,7 @@
 //-----------------------------------------------
 
 # pragma once
+# include <limits>
 # include "Common.hpp"
 # include "Array.hpp"
 # include "Concepts.hpp"

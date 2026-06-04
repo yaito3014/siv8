@@ -1,0 +1,93 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "siv3d",
+  "version-string": "0.8.0",
+  "description": "Siv3D (siv8) third-party dependencies managed via vcpkg manifest mode.",
+  "homepage": "https://siv3d.github.io/",
+  "builtin-baseline": "a11dd074dac3fa168aa8efb992cbb0220a3dc481",
+
+  "$comment-scope": "Only libraries that exist as vcpkg ports are listed here. Header-only ports (earcut-hpp, pcg, parallel-hashmap, mapbox-variant, libmorton, rapidhash, wyhash, miniaudio, drlibs, fast-float) do NOT all export a CMake config; wrap them with INTERFACE targets in CMake where needed.",
+
+  "$comment-not-in-vcpkg": "These ThirdParty libs are NOT on vcpkg and must stay vendored or be provided via overlay-ports/: EnumBitmask, Xoshiro-cpp, libcpprime, Obfuscate, RFC1321, Wintab, bc7enc_rdo, levenshtein-sse, miniutf, r8brain-free-src, rectpack2D, serial_cpp, tinycolormap, PDFium. (Foundation/Metal/QuartzCore are Apple system frameworks linked via find_library, not packages.)",
+
+  "$comment-baseline-lag": "ThirdParty.md pins newer versions than this baseline carries, so no override is set for: doctest (2.5.2 vs 2.4.12), double-conversion (3.4.0 vs 3.3.1), fast-float (8.2.4 vs 8.1.0), libjpeg-turbo (3.1.4.1 vs 3.1.2), libpng (1.6.58 vs 1.6.51), nanoflann (1.9.0 vs 1.8.0), simdutf (7.7.1 vs 7.7.0), zlib (1.3.2 vs 1.3.1). Bump builtin-baseline or add a custom registry to pin these exactly.",
+
+  "$comment-bundled-workaround": "rapidhash is deliberately NOT listed here: its vcpkg port fails to install, so the bundled header (Siv3D/src/ThirdParty/rapidhash/rapidhash.h) is used instead, reached via the <ThirdParty/...> include path in CMakeLists.txt (GROUP B). Re-add it to dependencies once the vcpkg port is fixed.",
+
+  "dependencies": [
+    "abseil",
+    { "name": "boost-filesystem", "version>=": "1.88.0" },
+    { "name": "boost-geometry", "version>=": "1.88.0" },
+    { "name": "boost-multiprecision", "version>=": "1.88.0" },
+    { "name": "boost-range", "version>=": "1.88.0" },
+    "cpu-features",
+    "directxmath",
+    "double-conversion",
+    "drlibs",
+    "earcut-hpp",
+    "easyexif",
+    "fast-float",
+    "fmt",
+    "freetype",
+    "harfbuzz",
+    { "name": "glfw3", "platform": "!windows" },
+    "libjpeg-turbo",
+    "libmorton",
+    "libpng",
+    "lunasvg",
+    "mapbox-variant",
+    "mimalloc",
+    "miniaudio",
+    { "name": "msdfgen", "default-features": false },
+    "muparser",
+    "nanobench",
+    "nanoflann",
+    "nlohmann-json",
+    "oniguruma",
+    { "name": "opencv4", "default-features": false },
+    "oscpack",
+    "parallel-hashmap",
+    "pcg",
+    "pffft",
+    "plutovg",
+    "simdutf",
+    "stb",
+    "stduuid",
+    { "name": "wintoast", "platform": "windows" },
+    "wyhash",
+    "xxhash",
+    "zlib",
+    "zstd"
+  ],
+
+  "features": {
+    "tests": {
+      "description": "Unit test framework (Siv3D-Test).",
+      "dependencies": [ "doctest" ]
+    },
+    "skia": {
+      "description": "Skia backend (vcpkg ships an UNOFFICIAL port; heavy and may need pinning/overlay).",
+      "dependencies": [ "skia" ]
+    }
+  },
+
+  "overrides": [
+    { "name": "abseil", "version": "20250814.1" },
+    { "name": "cpu-features", "version": "0.10.1" },
+    { "name": "fmt", "version": "10.2.1" },
+    { "name": "freetype", "version": "2.13.3" },
+    { "name": "glfw3", "version": "3.4" },
+    { "name": "harfbuzz", "version": "11.2.0" },
+    { "name": "lunasvg", "version": "3.5.0" },
+    { "name": "mimalloc", "version": "2.1.2" },
+    { "name": "msdfgen", "version": "1.13" },
+    { "name": "muparser", "version": "2.3.5" },
+    { "name": "nanobench", "version": "4.3.11" },
+    { "name": "nlohmann-json", "version": "3.12.0" },
+    { "name": "oniguruma", "version": "6.9.9" },
+    { "name": "parallel-hashmap", "version": "2.0.0" },
+    { "name": "wintoast", "version": "1.3.2" },
+    { "name": "xxhash", "version": "0.8.2" },
+    { "name": "zstd", "version": "1.5.7" }
+  ]
+}

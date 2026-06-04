@@ -403,6 +403,8 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+build/
+build-*/
 
 # Ninja
 # https://github.com/github/gitignore/blob/master/Global/Ninja.gitignore

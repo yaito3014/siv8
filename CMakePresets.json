@@ -1,0 +1,56 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+
+  "configurePresets": [
+    {
+      "name": "vcpkg-base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_INSTALL": "ON"
+      }
+    },
+
+    {
+      "name": "windows",
+      "displayName": "Windows (x64, static)",
+      "inherits": "vcpkg-base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-windows-static" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+
+    {
+      "name": "macos",
+      "displayName": "macOS (arm64)",
+      "inherits": "vcpkg-base",
+      "generator": "Xcode",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-osx",
+        "CMAKE_OSX_ARCHITECTURES": "arm64"
+      },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
+    },
+
+    {
+      "name": "linux",
+      "displayName": "Linux (x64)",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "x64-linux" },
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+    }
+  ],
+
+  "buildPresets": [
+    { "name": "windows-debug",   "configurePreset": "windows", "configuration": "Debug" },
+    { "name": "windows-release", "configurePreset": "windows", "configuration": "Release" },
+    { "name": "macos-debug",     "configurePreset": "macos",   "configuration": "Debug" },
+    { "name": "macos-release",   "configurePreset": "macos",   "configuration": "Release" },
+    { "name": "linux-debug",     "configurePreset": "linux",   "configuration": "Debug" },
+    { "name": "linux-release",   "configurePreset": "linux",   "configuration": "Release" }
+  ]
+}

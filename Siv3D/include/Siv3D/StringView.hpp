@@ -74,28 +74,28 @@ namespace s3d
 
 		/// @brief コピーコンストラクタ
 		/// @param other コピー元の StringView
-		[[nodiscard]] 
+		[[nodiscard]]
 		constexpr StringView(const StringView&) = default;
 
 		/// @brief std::u32string から StringView を作成します。
 		/// @param s 元となる文字列
-		[[nodiscard]] 
+		[[nodiscard]]
 		constexpr StringView(const std::u32string& s SIV3D_LIFETIMEBOUND) noexcept;
 
 		/// @brief std::u32string_view から StringView を作成します。
 		/// @param s 元となる文字列ビュー
-		[[nodiscard]] 
+		[[nodiscard]]
 		constexpr StringView(std::u32string_view s) noexcept;
 
 		/// @brief ポインタと長さから StringView を作成します。
 		/// @param s 文字列の先頭ポインタ
 		/// @param length 文字列の長さ
-		[[nodiscard]] 
+		[[nodiscard]]
 		constexpr StringView(const value_type* s, size_type length) noexcept;
 
 		/// @brief C スタイル文字列から StringView を作成します。
 		/// @param s null 終端文字列のポインタ
-		[[nodiscard]] 
+		[[nodiscard]]
 		constexpr StringView(const value_type* s) noexcept;
 
 		/// @brief 範囲から StringView を作成します。
@@ -108,7 +108,6 @@ namespace s3d
 			&& std::ranges::sized_range<Range>
 			&& std::same_as<std::ranges::range_value_t<Range>, char32>
 			&& !std::is_convertible_v<Range, const char32*>
-			&& !requires(std::remove_cvref_t<Range>& range) { range.operator StringView; }
 			&& std::ranges::borrowed_range<Range>)
 		[[nodiscard]]
 		explicit constexpr StringView(Range&& range);
@@ -123,7 +122,6 @@ namespace s3d
 			&& std::ranges::sized_range<Range>
 			&& std::same_as<std::ranges::range_value_t<Range>, char32>
 			&& !std::is_convertible_v<Range, const char32*>
-			&& !requires(std::remove_cvref_t<Range>& range) { range.operator StringView; }
 			&& !std::ranges::borrowed_range<Range>)
 			[[nodiscard]]
 		explicit constexpr StringView(Range&& range SIV3D_LIFETIMEBOUND);
@@ -654,7 +652,7 @@ namespace s3d
 		/// @return 見つかった位置、見つからなかった場合は npos
 		[[nodiscard]]
 		constexpr size_type find_first_of(StringView s, size_type pos = 0) const noexcept;
-		
+
 		/// @brief 指定した文字を先頭から検索します。
 		/// @param ch 検索する文字
 		/// @param pos 検索を開始する位置 (デフォルトは 0)
@@ -844,7 +842,7 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		/// @brief std::u32string_view を返します。 | Returns std::u32string_view.
-		/// @return std::u32string_view 
+		/// @return std::u32string_view
 		constexpr std::u32string_view view() const noexcept;
 
 		////////////////////////////////////////////////////////////////
@@ -897,7 +895,7 @@ namespace s3d
 
 		/// @brief 英字の大小を無視して文字列の大小を比較します。
 		/// @param s 比較対象の文字列
-		/// @return 比較結果。等しければ 0, 小さければ -1, 大きければ 1		
+		/// @return 比較結果。等しければ 0, 小さければ -1, 大きければ 1
 		[[nodiscard]]
 		int32 case_insensitive_compare(StringView s) const noexcept;
 
@@ -909,7 +907,7 @@ namespace s3d
 
 		/// @brief 英字の大小を無視して文字列を比較します。
 		/// @param s 比較対象の文字列
-		/// @return 英字の大小を無視した時に文字列が等しい場合 true, それ以外の場合は false	
+		/// @return 英字の大小を無視した時に文字列が等しい場合 true, それ以外の場合は false
 		[[nodiscard]]
 		bool case_insensitive_equals(StringView s) const noexcept;
 
@@ -968,7 +966,7 @@ namespace s3d
 
 		/// @brief 指定した値と等しい要素の個数を返します。
 		/// @param ch 検索する値
-		/// @return 指定した値と等しい要素の個数	
+		/// @return 指定した値と等しい要素の個数
 		[[nodiscard]]
 		constexpr int64 count(value_type ch) const noexcept;
 
@@ -988,7 +986,7 @@ namespace s3d
 		/// @brief 条件を満たす要素の個数を返します。
 		/// @tparam Fty 条件を記述した関数の型
 		/// @param f 条件を記述した関数
-		/// @return 条件を満たす要素の個数	
+		/// @return 条件を満たす要素の個数
 		template <class Fty>
 		[[nodiscard]]
 		constexpr int64 count_if(Fty f) const
@@ -1044,7 +1042,7 @@ namespace s3d
 
 		/// @brief タブ文字を半角空白に置換した文字列を返します。
 		/// @param tabSize タブ置換後の半角空白の数
-		/// @return 新しい文字列	
+		/// @return 新しい文字列
 		[[nodiscard]]
 		String expandTabs(size_type tabSize = 4) const;
 
@@ -1057,7 +1055,7 @@ namespace s3d
 		/// @brief 指定したインデックスにある要素を返します。インデックスが範囲外の場合デフォルト値を返します。
 		/// @param index インデックス
 		/// @param defaultValue インデックスが範囲外の場合に返すデフォルト値
-		/// @return 指定したインデックスにある要素、範囲外の場合 defaultValue	
+		/// @return 指定したインデックスにある要素、範囲外の場合 defaultValue
 		[[nodiscard]]
 		constexpr value_type fetch(size_type index, value_type defaultValue) const noexcept;
 
@@ -1108,7 +1106,7 @@ namespace s3d
 
 		/// @brief 指定した文字数で改行するようにした新しい文字列を返します。
 		/// @param width 1 行の文字数
-		/// @return 新しい文字列	
+		/// @return 新しい文字列
 		[[nodiscard]]
 		String layout(size_type width) const;
 
