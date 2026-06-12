@@ -54,7 +54,7 @@ namespace s3d
 		: m_string(s, pos, count) {}
 
 	template <class Range>
-		requires Concept::ContainerCompatibleRange<String::value_type, Range>
+		requires Concept::ContainerCompatibleRange<Range, String::value_type>
 	constexpr String::String(std::from_range_t, Range&& range)
 		: m_string(std::from_range, std::forward<Range>(range)) {}
 
@@ -198,7 +198,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <class Range>
-		requires Concept::ContainerCompatibleRange<String::value_type, Range>
+		requires Concept::ContainerCompatibleRange<Range, String::value_type>
 	constexpr String& String::assign_range(Range&& range)
 	{
 		m_string.assign_range(std::forward<Range>(range));
@@ -684,7 +684,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <class Range>
-		requires Concept::ContainerCompatibleRange<String::value_type, Range>
+		requires Concept::ContainerCompatibleRange<Range, String::value_type>
 	constexpr String::iterator String::insert_range(const_iterator pos, Range&& range)
 	{
 		return m_string.insert_range(pos, std::forward<Range>(range));
@@ -893,7 +893,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <class Range>
-		requires Concept::ContainerCompatibleRange<String::value_type, Range>
+		requires Concept::ContainerCompatibleRange<Range, String::value_type>
 	constexpr String& String::append_range(Range&& range)
 	{
 		m_string.append_range(std::forward<Range>(range));

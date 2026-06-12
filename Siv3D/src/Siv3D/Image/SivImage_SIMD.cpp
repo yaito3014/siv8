@@ -64,6 +64,15 @@ namespace s3d
 
 	# if SIV3D_INTRINSIC(SSE)
 
+		// The *_AVX2 functions are selected at runtime via SupportsAVX2(). MSVC emits
+		// AVX2 intrinsics without arch flags; GCC/Clang require a per-function target
+		// so the rest of the TU keeps the SSE4.2 baseline.
+	#	if defined(__GNUC__) || defined(__clang__)
+	#		define SIV3D_TARGET_AVX2 __attribute__((target("avx2")))
+	#	else
+	#		define SIV3D_TARGET_AVX2
+	#	endif
+
 		static void PremultiplyAlpha_SSE41(Color* pixels, const size_t num_pixels)
 		{
 			const size_t loopCount = ((num_pixels + 3) / (sizeof(__m128i) / sizeof(Color)) / 2);
@@ -119,6 +128,7 @@ namespace s3d
 			}
 		}
 
+		SIV3D_TARGET_AVX2
 		static void PremultiplyAlpha_AVX2(Color* pixels, const size_t num_pixels)
 		{
 			const size_t loopCount = ((num_pixels + 7) / (sizeof(__m256i) / sizeof(Color)));
@@ -298,6 +308,30 @@ namespace s3d
 			}
 		}
 
+		// Not a local lambda: the per-function AVX2 target does not extend to a
+		// lambda's operator(), so GCC/Clang reject the intrinsics inside it.
+		SIV3D_TARGET_AVX2
+		static __m256i Unpremul8_AVX2(const __m256i c, const __m256i invQ16)
+		{
+			// c:      0..255
+			// invQ16: round((255 << 16) / a), or 0 when a == 0
+			//
+			// Equivalent to plain:
+			//   (c * invQ16 + 0x8000) >> 16
+			//
+			// The maximum product is:
+			//   255 * 16711680 + 0x8000 = 4261511168
+			// which still fits in uint32_t.
+			const __m256i bias = _mm256_set1_epi32(0x00008000);
+			const __m256i max_255 = _mm256_set1_epi32(255);
+			__m256i v = _mm256_mullo_epi32(c, invQ16);
+			v = _mm256_add_epi32(v, bias);
+			v = _mm256_srli_epi32(v, 16);
+			v = _mm256_min_epu32(v, max_255);
+			return v;
+		}
+
+		SIV3D_TARGET_AVX2
 		static void UnpremultiplyAlpha_AVX2(Color* pixels, const size_t num_pixels)
 		{
 			const size_t loopCount = ((num_pixels + 7) / 8);
@@ -306,26 +340,6 @@ namespace s3d
 
 			const __m256i mask_00ff = _mm256_set1_epi32(0x000000FF);
 			const __m256i mask_alpha = _mm256_set1_epi32(static_cast<int>(0xFF000000));
-			const __m256i bias = _mm256_set1_epi32(0x00008000);
-			const __m256i max_255 = _mm256_set1_epi32(255);
-
-			auto Unpremul8 = [bias, max_255](__m256i c, __m256i invQ16) -> __m256i
-			{
-				// c:      0..255
-				// invQ16: round((255 << 16) / a), or 0 when a == 0
-				//
-				// Equivalent to plain:
-				//   (c * invQ16 + 0x8000) >> 16
-				//
-				// The maximum product is:
-				//   255 * 16711680 + 0x8000 = 4261511168
-				// which still fits in uint32_t.
-				__m256i v = _mm256_mullo_epi32(c, invQ16);
-				v = _mm256_add_epi32(v, bias);
-				v = _mm256_srli_epi32(v, 16);
-				v = _mm256_min_epu32(v, max_255);
-				return v;
-			};
 
 			for (__m256i* ptr = reinterpret_cast<__m256i*>(p), *end = (ptr + loopCount); ptr != end; ++ptr)
 			{
@@ -358,9 +372,9 @@ namespace s3d
 				__m256i g = _mm256_and_si256(_mm256_srli_epi32(color, 8), mask_00ff);
 				__m256i b = _mm256_and_si256(_mm256_srli_epi32(color, 16), mask_00ff);
 
-				r = Unpremul8(r, invQ16);
-				g = Unpremul8(g, invQ16);
-				b = Unpremul8(b, invQ16);
+				r = Unpremul8_AVX2(r, invQ16);
+				g = Unpremul8_AVX2(g, invQ16);
+				b = Unpremul8_AVX2(b, invQ16);
 
 				const __m256i result =
 					_mm256_or_si256(
@@ -441,6 +455,7 @@ namespace s3d
 			}
 		}
 
+		SIV3D_TARGET_AVX2
 		static void BGRAtoRGBA_AVX2(Color* pixels, const size_t num_pixels)
 		{
 			const size_t loopCount = ((num_pixels + 7) / 8);

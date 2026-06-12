@@ -31,7 +31,6 @@ find_package(harfbuzz CONFIG REQUIRED)               # harfbuzz::harfbuzz
 find_package(PNG            REQUIRED)                 # PNG::PNG
 find_package(JPEG          REQUIRED)                 # JPEG::JPEG (libjpeg-turbo)
 find_package(ZLIB          REQUIRED)                 # ZLIB::ZLIB
-find_package(ZSTD CONFIG)                            # zstd::libzstd (optional name varies)
 find_package(OpenCV        REQUIRED COMPONENTS core imgproc)
 find_package(mimalloc CONFIG REQUIRED)               # mimalloc / mimalloc-static
 
@@ -44,16 +43,11 @@ set(SIV3D_VCPKG_LIBS
     ${OpenCV_LIBS}
 )
 
-# zstd target name differs across configs (static vs shared); pick whatever exists.
-if(TARGET zstd::libzstd)
-    list(APPEND SIV3D_VCPKG_LIBS zstd::libzstd)
-elseif(TARGET zstd::libzstd_static)
-    list(APPEND SIV3D_VCPKG_LIBS zstd::libzstd_static)
-elseif(TARGET zstd::libzstd_shared)
-    list(APPEND SIV3D_VCPKG_LIBS zstd::libzstd_shared)
-endif()
+# NOTE(zstd): the engine includes <ThirdParty/zstd/zstd.h> and compiles the vendored
+#   zstd sources via GROUP B, so vcpkg zstd must NOT be linked (duplicate symbols).
+#   Remove the vendored copy first if switching to the vcpkg package.
 
-# mimalloc target name also varies (static vs shared).
+# mimalloc target name varies (static vs shared).
 if(TARGET mimalloc-static)
     list(APPEND SIV3D_VCPKG_LIBS mimalloc-static)
 elseif(TARGET mimalloc)
@@ -81,6 +75,10 @@ if(NOT SIV3D_USE_SKIA)
 endif()
 if(WIN32)
     list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/GLFW/")
+    list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/oscpack/ip/posix/")
+else()
+    list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/WinToast/")
+    list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/oscpack/ip/win32/")
 endif()
 
 # ============================================================================
@@ -89,6 +87,33 @@ endif()
 file(GLOB_RECURSE SIV3D_COMMON_SOURCES CONFIGURE_DEPENDS
     "${SIV3D_SRC}/Siv3D/*.cpp"
 )
+
+# Common-side TUs that include a per-platform detail header (C*.hpp /
+# *Detail.hpp) which has no Linux implementation yet. Excluded on Linux only;
+# the rest of each subsystem still compiles. See TODO(linux).
+if(UNIX AND NOT APPLE)
+    set(SIV3D_LINUX_UNIMPLEMENTED
+        "Siv3D/ChildProcess/SivChildProcess\\.cpp"
+        "Siv3D/Clipboard/ClipboardFactory\\.cpp"
+        "Siv3D/Cursor/CursorFactory\\.cpp"
+        "Siv3D/CursorStyle/CursorStyleFactory\\.cpp"
+        "Siv3D/DirectoryWatcher/SivDirectoryWatcher\\.cpp"
+        "Siv3D/DragDrop/DragDropFactory\\.cpp"
+        "Siv3D/Keyboard/KeyboardFactory\\.cpp"
+        "Siv3D/MediaTranscoder/MediaTranscoderFactory\\.cpp"
+        "Siv3D/Mouse/MouseFactory\\.cpp"
+        "Siv3D/NativeShare/NativeShareFactory\\.cpp"
+        "Siv3D/Notifications/NotificationsFactory\\.cpp"
+        "Siv3D/Notifications/SivNotifications\\.cpp"
+        "Siv3D/Pentablet/PentabletFactory\\.cpp"
+        "Siv3D/System/SystemFactory\\.cpp"
+        "Siv3D/TextToSpeech/TextToSpeechFactory\\.cpp"
+        "Siv3D/Window/WindowFactory\\.cpp"
+    )
+    foreach(pattern IN LISTS SIV3D_LINUX_UNIMPLEMENTED)
+        list(FILTER SIV3D_COMMON_SOURCES EXCLUDE REGEX "${pattern}")
+    endforeach()
+endif()
 
 set(SIV3D_PLATFORM_SOURCES "")
 if(WIN32)
@@ -109,6 +134,9 @@ elseif(UNIX)
     file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS
         "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
     )
+    # These macOS_Linux sources need the GLFW layer, which currently lives under
+    # Siv3D-Platform/macOS/ only; they move back in when a Linux backend exists.
+    list(FILTER SIV3D_PLATFORM_SOURCES EXCLUDE REGEX "/macOS_Linux/Siv3D/(CursorStyle|Keyboard|Mouse)/")
     message(WARNING "Siv3D: Linux has no graphics backend yet — building common code only (not a linkable runtime). See TODO(linux).")
 endif()
 
@@ -136,11 +164,46 @@ if(APPLE)
     )
 endif()
 
+# Include dirs mirror the vcxproj/Xcode IncludePath. include/ThirdParty is PUBLIC
+# because public headers (e.g. Int128.hpp -> absl int128.h) include sibling files
+# as "absl/..." — without this dir those resolve into vcpkg's absl and mix versions.
 target_include_directories(Siv3D
     PUBLIC
-        "${SIV3D_INCLUDE}"          # <Siv3D/...> public headers
+        "${SIV3D_INCLUDE}"            # <Siv3D/...> public headers
+        "${SIV3D_INCLUDE}/ThirdParty" # vendored public deps (absl, fmt, ...)
     PRIVATE
-        "${SIV3D_SRC}"              # internal headers + vendored <ThirdParty/...>
+        "${SIV3D_SRC}"                # internal headers + vendored <ThirdParty/...>
+        "${SIV3D_SRC}/ThirdParty"     # vendored libs that include themselves bare (serial_cpp, ...)
+        "${SIV3D_SRC}/ThirdParty/skia" # skia headers use repo-root-relative "include/core/..."
+)
+if(WIN32)
+    target_include_directories(Siv3D PRIVATE "${SIV3D_SRC}/Siv3D-Platform/WindowsDesktop")
+elseif(APPLE)
+    target_include_directories(Siv3D PRIVATE
+        "${SIV3D_SRC}/Siv3D-Platform/macOS"
+        "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux"
+    )
+elseif(UNIX)
+    target_include_directories(Siv3D PRIVATE "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux")
+endif()
+
+# Definitions shared by the vcxproj and Xcode builds. _UNICODE is required on all
+# platforms: vendored muparser switches mu::string_type to std::wstring on it, and
+# the MathParser engine code assumes the wide variant.
+target_compile_definitions(Siv3D PRIVATE
+    SIV3D_LIBRARY_BUILD
+    ZSTD_MULTITHREAD
+    ONIG_STATIC
+    MUPARSER_STATIC
+    SK_RELEASE
+    SK_ENABLE_OPTIMIZE_SIZE
+    SK_DISABLE_TRACING
+    SK_DISABLE_EFFECT_DESERIALIZATION
+    LUNASVG_BUILD_STATIC
+    OSC_HOST_LITTLE_ENDIAN
+    R8B_PFFFT_DOUBLE
+    TOML11_COMPILE_SOURCES
+    _UNICODE
 )
 
 target_link_libraries(Siv3D PRIVATE ${SIV3D_VCPKG_LIBS})
@@ -164,7 +227,7 @@ if(WIN32)
         d3d11 dxgi dxguid d3dcompiler
         winmm ws2_32 imm32 version
     )
-    target_compile_definitions(Siv3D PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+    target_compile_definitions(Siv3D PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE)
 elseif(APPLE)
     find_library(COCOA_LIB    Cocoa     REQUIRED)
     find_library(METAL_LIB    Metal     REQUIRED)
@@ -178,6 +241,12 @@ elseif(UNIX)
     # glfw3 comes from vcpkg on non-Windows; OpenGL/X11/Wayland TBD with the backend.
     find_package(glfw3 CONFIG REQUIRED)
     target_link_libraries(Siv3D PRIVATE glfw)
+endif()
+
+# Vendored zstd is built with ZSTD_MULTITHREAD; consumers must link pthread on POSIX.
+if(NOT WIN32)
+    find_package(Threads REQUIRED)
+    target_link_libraries(Siv3D PUBLIC Threads::Threads)
 endif()
 
 # ============================================================================

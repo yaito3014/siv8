@@ -144,7 +144,7 @@ namespace s3d
 		/// @tparam Range 範囲の型
 		/// @param range 範囲
 		template <class Range>
-			requires Concept::ContainerCompatibleRange<String::value_type, Range>
+			requires Concept::ContainerCompatibleRange<Range, String::value_type>
 		[[nodiscard]]
 		constexpr String(std::from_range_t, Range&& range);
 
@@ -288,7 +288,7 @@ namespace s3d
 		/// @param range 代入する範囲
 		/// @return *this
 		template <class Range>
-			requires Concept::ContainerCompatibleRange<String::value_type, Range>
+			requires Concept::ContainerCompatibleRange<Range, String::value_type>
 		constexpr String& assign_range(Range&& range) SIV3D_LIFETIMEBOUND;
 
 		////////////////////////////////////////////////////////////////
@@ -795,7 +795,7 @@ namespace s3d
 		/// @param range 挿入する範囲
 		/// @return 最初に挿入された要素を指すイテレータ
 		template <class Range>
-			requires Concept::ContainerCompatibleRange<String::value_type, Range>
+			requires Concept::ContainerCompatibleRange<Range, String::value_type>
 		constexpr iterator insert_range(const_iterator pos, Range&& range) SIV3D_LIFETIMEBOUND;
 
 		////////////////////////////////////////////////////////////////
@@ -1055,7 +1055,7 @@ namespace s3d
 		/// @param range 追加する範囲
 		/// @return *this
 		template <class Range>
-			requires Concept::ContainerCompatibleRange<String::value_type, Range>
+			requires Concept::ContainerCompatibleRange<Range, String::value_type>
 		constexpr String& append_range(Range&& range) SIV3D_LIFETIMEBOUND;
 
 		////////////////////////////////////////////////////////////////

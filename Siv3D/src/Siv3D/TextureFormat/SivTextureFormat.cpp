@@ -238,7 +238,7 @@ namespace s3d
 
 			DXGI_FORMAT DXGIFormat{};
 
-			MTLPixelFormat MTLPixelFormat{};
+			MTLPixelFormat MTLFormat{};
 
 			GL_CONSTANTS GLInternalFormat{};
 
@@ -314,7 +314,7 @@ namespace s3d
 
 	uint32 TextureFormat::MTLPixelFormat() const noexcept
 	{
-		return TextureFormatPropertyTable[FromEnum(m_value)].MTLPixelFormat;
+		return TextureFormatPropertyTable[FromEnum(m_value)].MTLFormat;
 	}
 
 	////////////////////////////////////////////////////////////////

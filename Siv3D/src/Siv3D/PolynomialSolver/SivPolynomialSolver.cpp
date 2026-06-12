@@ -9,6 +9,7 @@
 //
 //-----------------------------------------------
 
+# include <cmath>
 # include <Siv3D/PolynomialSolver.hpp>
 # include <Siv3D/MathConstants.hpp>
 
