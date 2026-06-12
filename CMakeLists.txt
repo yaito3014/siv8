@@ -1,27 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
-# ----------------------------------------------------------------------------
-# Siv3D (siv8) — CMake build scaffold
-#
-# Phased migration strategy (see vcpkg.json for the dependency manifest):
-#
-#   Phase 1 (this scaffold):
-#     - Replace the committed prebuilt binaries (Siv3D/lib/, ThirdParty-prebuilt/)
-#       with vcpkg packages. These use canonical includes (opencv2/, hb.h, ft2build.h)
-#       so they drop in cleanly.  -> GROUP A below.
-#     - Keep compiling the source-vendored ThirdParty, because the engine includes
-#       them via the vendored layout (e.g. <ThirdParty/fmt/format.h>).  -> GROUP B.
-#
-#   Phase 2 (follow-up, not done here):
-#     - Rewrite <ThirdParty/...> includes to canonical headers and switch GROUP B
-#       to vcpkg find_package as well. Until then those vcpkg entries in vcpkg.json
-#       are unused-but-harmless (trim vcpkg.json to GROUP A if you want faster CI).
-#
-#   Phase 0 blocker (tracked separately):
-#     - Linux has NO Window/Renderer backend (only D3D11/Windows, Metal/macOS).
-#       The Linux target configures and builds common code, but cannot link a full
-#       runnable engine until an OpenGL/Vulkan backend exists. See TODO(linux).
-# ----------------------------------------------------------------------------
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+endif()
 
 project(Siv3D LANGUAGES CXX VERSION 0.8.0)
 
