@@ -18,6 +18,8 @@
 # include <Siv3D/EngineLog.hpp>
 # include <ShlObj_core.h>
 
+# include <shellapi.h>
+
 namespace s3d
 {
 	namespace detail

@@ -9,8 +9,11 @@
 //
 //-----------------------------------------------
 
+
 # include <Siv3D/Windows/Windows.hpp>
 # include <Siv3D/Time.hpp>
+
+# include <timeapi.h>
 
 namespace s3d
 {

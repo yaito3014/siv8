@@ -18,6 +18,9 @@
 # include <Siv3D/Windows/Windows.hpp>
 # include <Siv3D/FreestandingMessageBox/FreestandingMessageBox.hpp>
 
+# include <ole2.h>
+# include <timeapi.h>
+
 // ユーザが実装するエントリーポイント | User-defined entry point
 void Main();
 

@@ -15,6 +15,9 @@
 # include <Siv3D/FileSystem.hpp>
 # include <Siv3D/Windows/Windows.hpp>
 
+# include <timeapi.h>
+# include <shellapi.h>
+
 namespace s3d
 {
 	namespace System

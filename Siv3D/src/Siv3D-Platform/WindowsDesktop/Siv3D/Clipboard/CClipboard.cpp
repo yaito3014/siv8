@@ -19,6 +19,8 @@
 # include <Siv3D/Window/IWindow.hpp>
 # include <Siv3D/EngineLog.hpp>
 
+# include <shellapi.h>
+
 namespace s3d
 {
 	namespace

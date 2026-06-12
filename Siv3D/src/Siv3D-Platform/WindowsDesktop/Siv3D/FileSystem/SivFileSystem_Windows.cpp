@@ -13,6 +13,8 @@
 # include <Siv3D/Resource.hpp>
 # include "WindowsFileSystem.hpp"
 
+#include <shellapi.h>
+
 namespace s3d
 {
 	namespace detail

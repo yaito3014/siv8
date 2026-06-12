@@ -161,7 +161,7 @@ set_target_properties(Siv3D PROPERTIES CXX_EXTENSIONS OFF)
 # UTF-8 text, and consumers must compile them with the same source charset
 # and a truthful __cplusplus.
 if(MSVC)
-    target_compile_options(Siv3D PUBLIC /utf-8 /Zc:__cplusplus)
+    target_compile_options(Siv3D PUBLIC /utf-8 /Zc:__cplusplus /MP)
 endif()
 if(APPLE)
     set_target_properties(Siv3D PROPERTIES

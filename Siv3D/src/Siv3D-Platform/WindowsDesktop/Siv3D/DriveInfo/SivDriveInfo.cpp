@@ -13,6 +13,8 @@
 # include <Siv3D/FormatLiteral.hpp>
 # include <Siv3D/Windows/Windows.hpp>
 
+# include <winioctl.h>
+
 namespace s3d
 {
 	namespace
