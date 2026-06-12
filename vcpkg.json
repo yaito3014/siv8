@@ -33,7 +33,6 @@
     "nanoflann",
     "nlohmann-json",
     "oniguruma",
-    "oscpack",
     "parallel-hashmap",
     "pcg",
     "pffft",
@@ -44,7 +43,6 @@
     "wyhash",
     "xxhash",
     "zlib",
-    "zstd",
     {
       "name": "msdfgen",
       "default-features": false
