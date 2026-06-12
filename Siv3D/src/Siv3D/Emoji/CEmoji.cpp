@@ -17,9 +17,11 @@
 # include <Siv3D/CacheDirectory/CacheDirectory.hpp>
 
 SIV3D_DISABLE_MSVC_WARNINGS_PUSH(4244)
-# include <ThirdParty/skia/include/core/SkCanvas.h>
-# include <ThirdParty/skia/include/core/SkTextBlob.h>
-# include <ThirdParty/skia/include/core/SkFontMetrics.h>
+# include <include/core/SkCanvas.h>
+# include <include/core/SkTextBlob.h>
+# include <include/core/SkFontMetrics.h>
+# include <include/core/SkFontMgr.h>
+# include <include/ports/SkFontMgr_empty.h>
 SIV3D_DISABLE_MSVC_WARNINGS_POP()
 
 namespace s3d
@@ -147,7 +149,7 @@ namespace s3d
 		m_hbBuffer = ::hb_buffer_create();
 
 		std::unique_ptr<SkStreamAsset> fileStream = SkFILEStream::Make(Unicode::ToUTF8(emojiFilePath).c_str());
-		m_typeface = SkTypeface_FreeType::MakeFromStream(std::move(fileStream), SkFontArguments{});
+		m_typeface = SkFontMgr_New_Custom_Empty()->makeFromStream(std::move(fileStream), SkFontArguments{});
 		m_font.setTypeface(m_typeface);
 
 		m_available = true;

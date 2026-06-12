@@ -6,30 +6,28 @@ cmake_minimum_required(VERSION 3.25)
 #   - the engine build tree:   cmake -B build -DSiv3D_DIR=<repo>/build
 #   - an installed prefix:     cmake -B build -DCMAKE_PREFIX_PATH=<prefix>
 #
-# Siv3D is a static library whose package config find_dependency()s its vcpkg
-# packages, so this project must also configure under the vcpkg toolchain with
-# the same triplet. It reuses the engine repository's manifest — and, when
-# present, the engine build's already-populated vcpkg_installed tree — instead
-# of declaring dependencies of its own.
+# Siv3D is a static library whose package config find_dependency()s its
+# dependencies, so they must be findable here too: from the system, or from
+# the engine build's vcpkg_installed prefix, which is put on CMAKE_PREFIX_PATH
+# below when present. No vcpkg toolchain or manifest is involved.
 # ============================================================================
 
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
-endif()
-
-# Must match the engine build: static vcpkg triplet and static CRT (/MT, /MTd),
-# so the produced executable is self-contained (no DLLs to ship).
-if(WIN32 AND NOT DEFINED VCPKG_TARGET_TRIPLET)
-    set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "vcpkg triplet (static, no runtime DLLs)")
-endif()
+# Must match the engine build: static CRT (/MT, /MTd), so the produced
+# executable is self-contained (no DLLs to ship).
 if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
-set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." CACHE PATH
-    "vcpkg manifest directory (the engine repository root)")
-if(NOT DEFINED VCPKG_INSTALLED_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed")
-    set(VCPKG_INSTALLED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed" CACHE PATH
-        "Reuse the engine build's vcpkg packages instead of installing a second copy")
+
+# Reuse the dependencies the engine build resolved via vcpkg (if any).
+if(WIN32)
+    set(_siv3d_app_dep_triplet "x64-windows-static")
+elseif(APPLE)
+    set(_siv3d_app_dep_triplet "x64-osx")
+else()
+    set(_siv3d_app_dep_triplet "x64-linux")
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed/${_siv3d_app_dep_triplet}")
+    list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed/${_siv3d_app_dep_triplet}")
 endif()
 
 project(Siv3D-App LANGUAGES CXX)

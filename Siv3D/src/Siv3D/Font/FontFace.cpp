@@ -16,7 +16,9 @@
 # include <Siv3D/GlyphIndex.hpp>
 # include <Siv3D/ScopeExit.hpp>
 
-# include <ThirdParty/skia/include/core/SkStream.h>
+# include <include/core/SkStream.h>
+# include <include/core/SkFontMgr.h>
+# include <include/ports/SkFontMgr_empty.h>
 
 namespace s3d
 {
@@ -213,7 +215,7 @@ namespace s3d
 				fontArgs.setVariationDesignPosition(variationPosition);
 			}
 
-			m_colrv1->skTypeface = SkTypeface_FreeType::MakeFromStream(std::move(stream), fontArgs);		
+			m_colrv1->skTypeface = SkFontMgr_New_Custom_Empty()->makeFromStream(std::move(stream), fontArgs);
 			m_colrv1->skFont.setTypeface(m_colrv1->skTypeface);
 		}
 

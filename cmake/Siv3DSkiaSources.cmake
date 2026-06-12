@@ -267,6 +267,8 @@ set(SIV3D_SKIA_SOURCES
     "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkDebug_win.cpp"
     "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkFontHost_FreeType_common.cpp"
     "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkFontHost_FreeType.cpp"
+    "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkFontMgr_custom.cpp"
+    "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkFontMgr_custom_empty.cpp"
     "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkGlobalInitialization_default.cpp"
     "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkMemory_malloc.cpp"
     "${SIV3D_SRC}/ThirdParty/skia/src/ports/SkOSFile_stdio.cpp"
@@ -417,3 +419,12 @@ set(SIV3D_SKIA_SOURCES
 # SkWriteBuffer includes include/encode/SkPngEncoder.h, which is not vendored.
 set_source_files_properties("${SIV3D_SRC}/ThirdParty/skia/src/core/SkWriteBuffer.cpp"
     PROPERTIES COMPILE_DEFINITIONS SK_DISABLE_LEGACY_PNG_WRITEBUFFER)
+
+# skcms selects these wide variants at runtime; upstream (BUILD.gn) compiles
+# them with the matching -march on GCC/Clang. MSVC needs no flags.
+if(NOT MSVC AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+    set_source_files_properties("${SIV3D_SRC}/ThirdParty/skia/modules/skcms/src/skcms_TransformHsw.cc"
+        PROPERTIES COMPILE_OPTIONS "-march=haswell")
+    set_source_files_properties("${SIV3D_SRC}/ThirdParty/skia/modules/skcms/src/skcms_TransformSkx.cc"
+        PROPERTIES COMPILE_OPTIONS "-march=skylake-avx512")
+endif()

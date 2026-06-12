@@ -11,7 +11,7 @@
 
 # include "CRegExp.hpp"
 # include <Siv3D/EngineLog.hpp>
-# include <ThirdParty/Oniguruma/oniguruma.h>
+# include <oniguruma.h>
 
 namespace s3d
 {

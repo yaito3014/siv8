@@ -12,10 +12,10 @@
 # include "BitmapGlyphRenderer.hpp"
 
 SIV3D_DISABLE_MSVC_WARNINGS_PUSH(4244)
-# include <ThirdParty/skia/include/core/SkBitmap.h>
-# include <ThirdParty/skia/include/core/SkCanvas.h>
-# include <ThirdParty/skia/include/core/SkTextBlob.h>
-# include <ThirdParty/skia/include/core/SkFontMetrics.h>
+# include <include/core/SkBitmap.h>
+# include <include/core/SkCanvas.h>
+# include <include/core/SkTextBlob.h>
+# include <include/core/SkFontMetrics.h>
 SIV3D_DISABLE_MSVC_WARNINGS_POP()
 
 namespace s3d

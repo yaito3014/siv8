@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.25)
 
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
-    set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
-endif()
+# Dependencies resolve system-first with a vcpkg fallback (see
+# cmake/DependencyResolver.cmake). Do NOT configure with the vcpkg toolchain
+# file; only `vcpkg` on PATH (or -DVCPKG_EXECUTABLE=...) is needed, and only
+# when some dependency is absent from the system.
 
 # Static dependencies + static CRT (/MT, /MTd), matching the MSBuild projects:
 # the engine and apps built against it are self-contained, with no vcpkg DLLs
@@ -14,9 +15,9 @@ if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# C is required: the vendored ThirdParty tree (zstd, plutovg, Oniguruma,
-# miniaudio, cpu_features, ...) is C — without it the VS generator silently
-# drops every .c source from the build.
+# C is required: the vendored ThirdParty tree (zstd, plutovg, miniaudio,
+# cpu_features, ...) is C — without it the VS generator silently drops
+# every .c source from the build.
 project(Siv3D LANGUAGES C CXX VERSION 0.8.0)
 
 if(APPLE)
@@ -30,28 +31,62 @@ endif()
 include(GNUInstallDirs)
 
 # ---- options --------------------------------------------------------------
-option(SIV3D_BUILD_TESTS "Build the Siv3D-Test target (needs vcpkg feature 'tests')" OFF)
+option(SIV3D_BUILD_TESTS "Build the Siv3D-Test target" OFF)
 # ON by default: the font/SVG subsystems reference Skia unconditionally, so an
 # engine built without it cannot link an application (only turn this OFF for
 # compile-only iteration on the engine itself).
-option(SIV3D_USE_SKIA    "Compile the bundled Skia sources (heavy, required to link apps)" ON)
+option(SIV3D_USE_SKIA      "Use Skia (required to link apps)" ON)
+option(SIV3D_PREBUILT_SKIA "Resolve skia like other dependencies (system, then the vcpkg port with the freetype backend) instead of compiling the vendored snapshot" OFF)
 
 set(SIV3D_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/Siv3D")
 set(SIV3D_SRC     "${SIV3D_DIR}/src")
 set(SIV3D_INCLUDE "${SIV3D_DIR}/include")
 
 # ============================================================================
-# GROUP A — binary libraries supplied by vcpkg (replace Siv3D/lib + ThirdParty-prebuilt)
-#   Canonical includes already used by the engine, so these are safe to link now.
+# GROUP A — binary libraries (system-first, vcpkg fallback)
+#   Declared via DependencyResolver: each is probed on the system, and the
+#   misses are installed through one generated vcpkg manifest.
+#   BASELINE = vcpkg release 2025.09.17, the last with boost 1.88: the vendored
+#   boost.geometry extensions (PolygonDetail) need overlay internals that
+#   boost 1.89+ removed.
 # ============================================================================
-find_package(Freetype       REQUIRED)               # Freetype::Freetype
-find_package(harfbuzz CONFIG REQUIRED)               # harfbuzz::harfbuzz
-find_package(PNG            REQUIRED)                 # PNG::PNG
-find_package(JPEG          REQUIRED)                 # JPEG::JPEG (libjpeg-turbo)
-find_package(libjpeg-turbo CONFIG REQUIRED)          # TurboJPEG API (tjCompress etc.)
-find_package(ZLIB          REQUIRED)                 # ZLIB::ZLIB
-find_package(OpenCV        REQUIRED COMPONENTS core imgproc)
-find_package(mimalloc CONFIG REQUIRED)               # mimalloc / mimalloc-static
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/DependencyResolver.cmake")
+
+# Freetype is CONFIG so it resolves from the same source as harfbuzz (whose
+# config insists on its own freetype): a module-mode probe finding a system
+# freetype next to a vcpkg harfbuzz half-defines vcpkg's freetype export set
+# (error) and would mix two freetype copies into one static link.
+dep_declare(Freetype      CONFIG PORT freetype)      # Freetype::Freetype
+dep_declare(harfbuzz      CONFIG)                    # harfbuzz::harfbuzz
+dep_declare(PNG                  PORT libpng)        # PNG::PNG
+dep_declare(libjpeg-turbo CONFIG)                    # libjpeg API + TurboJPEG API
+dep_declare(ZLIB                 PORT zlib)          # ZLIB::ZLIB
+dep_declare(OpenCV               PORT opencv4 COMPONENTS core imgproc NO_DEFAULT_FEATURES)
+dep_declare(mimalloc      CONFIG)                    # mimalloc / mimalloc-static
+dep_declare(oniguruma     CONFIG)                    # oniguruma::onig
+# VERSION must be a full version that exists in the vcpkg version database
+# ("version>=" entries are validated verbatim), hence 1.88.0 rather than 1.88.
+dep_declare(Boost         CONFIG VERSION 1.88.0
+    COMPONENTS  filesystem                           # compiled; required by boost.process v1
+    HEADER_ONLY geometry multiprecision process range)
+if(NOT WIN32)
+    dep_declare(glfw3     CONFIG)                    # window backend on non-Windows
+endif()
+if(SIV3D_BUILD_TESTS)
+    dep_declare(doctest   CONFIG)
+endif()
+if(SIV3D_USE_SKIA AND SIV3D_PREBUILT_SKIA)
+    dep_declare(unofficial-skia CONFIG PORT skia FEATURES freetype)
+endif()
+
+# NOTE: the baseline must be a commit of the vcpkg PORTS REGISTRY (the
+# microsoft/vcpkg repo — release tag 2025.09.17 here), not the vcpkg-tool
+# version hash that `vcpkg version` prints.
+dep_resolve(BASELINE 4334d8b4c8916018600212ab4dd4bbdc343065d1)
+
+# JPEG::JPEG resolves against libjpeg-turbo (vcpkg prefix is prepended by the
+# resolver, so the vcpkg copy wins when the system had none).
+find_package(JPEG REQUIRED)
 
 set(SIV3D_VCPKG_LIBS
     Freetype::Freetype
@@ -60,6 +95,9 @@ set(SIV3D_VCPKG_LIBS
     JPEG::JPEG
     ZLIB::ZLIB
     ${OpenCV_LIBS}
+    oniguruma::onig
+    Boost::headers
+    Boost::filesystem
 )
 
 # NOTE(zstd): the engine includes <ThirdParty/zstd/zstd.h> and compiles the vendored
@@ -97,16 +135,28 @@ file(GLOB_RECURSE SIV3D_TP_SOURCES CONFIGURE_DEPENDS
 # the vendored tree is pruned, so globbing sweeps in sources whose headers are
 # absent (effects, encode, posix ports, ...).
 list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/skia/")
+
+# Prefer a prebuilt skia over compiling the vendored m125 snapshot. With
+# SIV3D_PREBUILT_SKIA=ON the resolver guarantees one exists (system or vcpkg);
+# otherwise this probe just picks one up if available. The exported target
+# carries skia's include root and the exact SK_* defines it was built with.
+# The vendored headers remain in use when SIV3D_USE_SKIA=OFF (compile-only
+# builds still include them).
+set(SIV3D_VENDORED_SKIA ON)
 if(SIV3D_USE_SKIA)
-    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DSkiaSources.cmake")
-    list(APPEND SIV3D_TP_SOURCES ${SIV3D_SKIA_SOURCES})
+    find_package(unofficial-skia CONFIG QUIET)
+    if(unofficial-skia_FOUND)
+        set(SIV3D_VENDORED_SKIA OFF)
+        message(STATUS "Siv3D: skia — prebuilt (unofficial::skia::skia)")
+    else()
+        include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DSkiaSources.cmake")
+        list(APPEND SIV3D_TP_SOURCES ${SIV3D_SKIA_SOURCES})
+        message(STATUS "Siv3D: skia — compiling vendored snapshot")
+    endif()
 endif()
 
-# Sources excluded by the vcxproj/Xcode projects: Oniguruma's unicode_*_data.c
-# are #included by other TUs (they do not compile standalone) and the engine
-# uses only the ASCII/UTF-32 encodings; msdfgen's export/save modules need
-# image libraries the engine does not provide to it.
-list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/Oniguruma/(big5|cp1251|euc_(jp|jp_prop|kr|tw)|gb18030|iso8859_[0-9]+|koi8(_r)?|sjis(_prop)?|unicode_(egcb|fold|property|wb)_data|utf16_(be|le)|utf32_be|utf8)\\.c$")
+# Sources excluded by the vcxproj/Xcode projects: msdfgen's export/save modules
+# need image libraries the engine does not provide to it.
 list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/msdfgen/core/(export-svg|save-(bmp|fl32|rgba|tiff))\\.cpp$")
 
 # GLFW is only needed on non-Windows (vcpkg also offers it).
@@ -227,8 +277,15 @@ target_include_directories(Siv3D
     PRIVATE
         "${SIV3D_SRC}"                # internal headers + vendored <ThirdParty/...>
         "${SIV3D_SRC}/ThirdParty"     # vendored libs that include themselves bare (serial_cpp, ...)
-        "${SIV3D_SRC}/ThirdParty/skia" # skia headers use repo-root-relative "include/core/..."
 )
+# skia headers use repo-root-relative "include/core/..." paths (engine code too).
+# With a prebuilt skia the imported target supplies its own root instead, and
+# the vendored tree must stay off the path so the two versions never mix.
+if(SIV3D_VENDORED_SKIA)
+    target_include_directories(Siv3D PRIVATE "${SIV3D_SRC}/ThirdParty/skia")
+else()
+    target_link_libraries(Siv3D PRIVATE unofficial::skia::skia)
+endif()
 if(WIN32)
     target_include_directories(Siv3D PRIVATE "${SIV3D_SRC}/Siv3D-Platform/WindowsDesktop")
 elseif(APPLE)
@@ -246,18 +303,23 @@ endif()
 target_compile_definitions(Siv3D PRIVATE
     SIV3D_LIBRARY_BUILD
     ZSTD_MULTITHREAD
-    ONIG_STATIC
     MUPARSER_STATIC
-    SK_RELEASE
-    SK_ENABLE_OPTIMIZE_SIZE
-    SK_DISABLE_TRACING
-    SK_DISABLE_EFFECT_DESERIALIZATION
     LUNASVG_BUILD_STATIC
     OSC_HOST_LITTLE_ENDIAN
     R8B_PFFFT_DOUBLE
     TOML11_COMPILE_SOURCES
     _UNICODE
 )
+# SK_* only for the vendored snapshot: a prebuilt skia exports the defines it
+# was actually built with through its imported target.
+if(SIV3D_VENDORED_SKIA)
+    target_compile_definitions(Siv3D PRIVATE
+        SK_RELEASE
+        SK_ENABLE_OPTIMIZE_SIZE
+        SK_DISABLE_TRACING
+        SK_DISABLE_EFFECT_DESERIALIZATION
+    )
+endif()
 if(MSVC)
     target_compile_definitions(Siv3D PRIVATE
         _CRT_SECURE_NO_WARNINGS
@@ -351,6 +413,12 @@ export(EXPORT Siv3DTargets
 
 # The config only resolves dependencies and includes Siv3DTargets.cmake next to
 # itself, so the one generated file serves both the build tree and the install.
+set(SIV3D_BOOST_MIN_VERSION 1.88)
+if(SIV3D_USE_SKIA AND NOT SIV3D_VENDORED_SKIA)
+    set(SIV3D_SKIA_FIND_DEPENDENCY "find_dependency(unofficial-skia CONFIG)")
+else()
+    set(SIV3D_SKIA_FIND_DEPENDENCY "")
+endif()
 configure_package_config_file("cmake/Siv3DConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfig.cmake"
     INSTALL_DESTINATION "${SIV3D_INSTALL_CMAKEDIR}"

@@ -22,8 +22,7 @@
 # include "FontCommon.hpp"
 
 SIV3D_DISABLE_MSVC_WARNINGS_PUSH(4244)
-# include <ThirdParty/skia/include/core/SkFont.h>
-# include <ThirdParty/skia/src/ports/SkTypeface_FreeType.h>
+# include <include/core/SkFont.h>
 SIV3D_DISABLE_MSVC_WARNINGS_POP()
 
 namespace s3d
