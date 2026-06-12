@@ -36,6 +36,12 @@ if(WIN32)
     enable_language(RC)
 endif()
 
+# A user-wide `vcpkg integrate install` would inject the classic-mode tree
+# (include path + autolinked libs) into this MSBuild project, shadowing the
+# engine's vendored ThirdParty headers (absl version mismatch -> unresolved
+# externals). All dependencies come through find_package(Siv3D) instead.
+set(CMAKE_VS_GLOBALS "VcpkgEnabled=false")
+
 find_package(Siv3D 0.8 CONFIG REQUIRED)
 
 option(SIV3D_APP_BUILD_TESTS "Compile ../Test into the app so RunTest() is available" ON)

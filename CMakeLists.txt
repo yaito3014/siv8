@@ -30,6 +30,13 @@ endif()
 
 include(GNUInstallDirs)
 
+# A user-wide `vcpkg integrate install` injects the classic-mode tree
+# (e.g. C:\vcpkg\installed\x64-windows: include path + autolinked libs) into
+# every MSBuild project, where its /I beats imported-target /external:I and
+# shadows the vendored ThirdParty headers (absl version mismatch -> unresolved
+# externals). Dependencies are resolved exclusively by DependencyResolver here.
+set(CMAKE_VS_GLOBALS "VcpkgEnabled=false")
+
 # ---- options --------------------------------------------------------------
 option(SIV3D_BUILD_TESTS "Build the Siv3D-Test target" OFF)
 # ON by default: the font/SVG subsystems reference Skia unconditionally, so an
@@ -250,7 +257,11 @@ target_compile_features(Siv3D PUBLIC cxx_std_23)
 # Debug postfix lets `cmake --install` of both configurations share one prefix
 # (Siv3Dd.lib / Siv3D.lib), and the exported per-config locations pick the
 # matching one in the consumer.
-set_target_properties(Siv3D PROPERTIES CXX_EXTENSIONS OFF DEBUG_POSTFIX d)
+# EXPORT_NO_SYSTEM: consumers must resolve the vendored ThirdParty headers
+# (absl, fmt, ...) ahead of any same-named system or vcpkg copy; SYSTEM
+# demotion would put them behind every plain include dir (/I before
+# /external:I on MSVC).
+set_target_properties(Siv3D PROPERTIES CXX_EXTENSIONS OFF DEBUG_POSTFIX d EXPORT_NO_SYSTEM TRUE)
 
 # Mirrors the vcxproj AdditionalOptions. PUBLIC: the public headers contain
 # UTF-8 text, and consumers must compile them with the same source charset
@@ -429,9 +440,13 @@ write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfigVersion.cmake"
     COMPATIBILITY SameMinorVersion
 )
+# The config includes VcpkgShim.cmake from beside itself, in the build tree
+# and in the install tree alike.
+configure_file("cmake/VcpkgShim.cmake" "${CMAKE_CURRENT_BINARY_DIR}/VcpkgShim.cmake" COPYONLY)
 install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/VcpkgShim.cmake"
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}"
 )
 

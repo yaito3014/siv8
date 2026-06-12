@@ -48,6 +48,10 @@
 include_guard(GLOBAL)
 cmake_minimum_required(VERSION 3.21)
 
+# Toolchain-emulation shim: per-port vcpkg-cmake-wrapper dispatch and the
+# <triplet>/debug search path, for the install trees this resolver activates.
+include("${CMAKE_CURRENT_LIST_DIR}/VcpkgShim.cmake")
+
 # -----------------------------------------------------------------------------
 # Declaration
 # -----------------------------------------------------------------------------
@@ -198,21 +202,22 @@ function(_dep_write_manifest out_path baseline)
   file(WRITE "${out_path}" "${_json}")
 endfunction()
 
-# Activate a vcpkg install tree: prefix for find_package, plus the toolchain
-# context variables some port configs (e.g. harfbuzz) read. Must be a macro so
-# everything lands in the caller's directory scope.
+# Activate a vcpkg install tree. VcpkgShim puts <prefix> and <prefix>/debug on
+# CMAKE_PREFIX_PATH and supplies the toolchain context (_VCPKG_INSTALLED_DIR,
+# VCPKG_TARGET_TRIPLET, find_package -> vcpkg-cmake-wrapper dispatch) that the
+# port configs and wrappers (freetype, harfbuzz, ...) rely on. Must be a macro
+# so everything lands in the caller's directory scope.
 macro(_dep_use_prefix prefix triplet)
-  list(PREPEND CMAKE_PREFIX_PATH "${prefix}")
+  if(NOT DEFINED VCPKG_TARGET_TRIPLET)
+    set(VCPKG_TARGET_TRIPLET "${triplet}")
+  endif()
+  vcpkg_shim_use_prefix("${prefix}")
   if(WIN32)
     set(ENV{CMAKE_PREFIX_PATH} "${prefix};$ENV{CMAKE_PREFIX_PATH}")
   else()
     set(ENV{CMAKE_PREFIX_PATH} "${prefix}:$ENV{CMAKE_PREFIX_PATH}")
   endif()
   set(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed")
-  set(_VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}")
-  if(NOT DEFINED VCPKG_TARGET_TRIPLET)
-    set(VCPKG_TARGET_TRIPLET "${triplet}")
-  endif()
 endmacro()
 
 # Best-effort default triplet (override with -DVCPKG_TARGET_TRIPLET=...)

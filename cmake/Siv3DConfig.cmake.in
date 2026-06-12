@@ -7,7 +7,18 @@
 # WindowsDesktop/CMakeLists.txt for an example.
 include(CMakeFindDependencyMacro)
 
-find_dependency(Freetype)
+# When the dependencies come from a vcpkg install tree but this project is
+# configured without the vcpkg toolchain, the shim restores the toolchain
+# behaviors the port configs rely on (per-port vcpkg-cmake-wrapper dispatch,
+# <triplet>/debug search paths). It activates only if a vcpkg installed tree
+# is found on CMAKE_PREFIX_PATH and backs off under the real toolchain.
+include("${CMAKE_CURRENT_LIST_DIR}/VcpkgShim.cmake")
+vcpkg_shim_autodetect()
+
+# CONFIG for the same reason as the engine build: harfbuzz's config insists on
+# its own freetype, and a module-mode hit on a different copy would mix two
+# freetypes into one static link.
+find_dependency(Freetype CONFIG)
 find_dependency(harfbuzz CONFIG)
 find_dependency(PNG)
 find_dependency(libjpeg-turbo CONFIG)
