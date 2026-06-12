@@ -156,6 +156,13 @@ add_library(Siv3D::Siv3D ALIAS Siv3D)
 # Apple .mm sources, which target_compile_features(cxx_std_23) does not cover.
 target_compile_features(Siv3D PUBLIC cxx_std_23)
 set_target_properties(Siv3D PROPERTIES CXX_EXTENSIONS OFF)
+
+# Mirrors the vcxproj AdditionalOptions. PUBLIC: the public headers contain
+# UTF-8 text, and consumers must compile them with the same source charset
+# and a truthful __cplusplus.
+if(MSVC)
+    target_compile_options(Siv3D PUBLIC /utf-8 /Zc:__cplusplus)
+endif()
 if(APPLE)
     set_target_properties(Siv3D PROPERTIES
         OBJCXX_STANDARD 23
