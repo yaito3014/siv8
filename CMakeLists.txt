@@ -82,7 +82,7 @@ endif()
 # NOTE: the baseline must be a commit of the vcpkg PORTS REGISTRY (the
 # microsoft/vcpkg repo — release tag 2025.09.17 here), not the vcpkg-tool
 # version hash that `vcpkg version` prints.
-dep_resolve(BASELINE 4334d8b4c8916018600212ab4dd4bbdc343065d1)
+dep_resolve(BASELINE f3e10653cc27d62a37a3763cd84b38bca07c6075)
 
 set(SIV3D_VCPKG_LIBS
     Freetype::Freetype
