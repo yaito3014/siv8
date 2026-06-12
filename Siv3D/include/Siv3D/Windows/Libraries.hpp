@@ -30,24 +30,31 @@
 	# pragma comment (lib, "setupapi")
 	# pragma comment (lib, "winmm")
 	# pragma comment (lib, "wininet")
-	# pragma comment (lib, "freetype/freetype" SIV3D_DEBUG_LIB_SUFFIX(_d))
-	# pragma comment (lib, "harfbuzz/harfbuzz" SIV3D_DEBUG_LIB_SUFFIX(_d))
-	# pragma comment (lib, "libjpeg-turbo/turbojpeg-static" SIV3D_DEBUG_LIB_SUFFIX(_d))
-	# pragma comment (lib, "libpng/libpng16" SIV3D_DEBUG_LIB_SUFFIX(_d))
-	# pragma comment (lib, "opencv/opencv_core4100" SIV3D_DEBUG_LIB_SUFFIX(d))
-	# pragma comment (lib, "opencv/opencv_imgproc4100" SIV3D_DEBUG_LIB_SUFFIX(d))
-	# pragma comment (lib, "zlib/zlib" SIV3D_DEBUG_LIB_SUFFIX(d))
-	# pragma comment (lib, "siv3d/Siv3D" SIV3D_DEBUG_LIB_SUFFIX(_d))
+	// CMake (find_package(Siv3D)) ビルドでは、エンジンとサードパーティライブラリは
+	// CMake のターゲットとしてリンクされるため、SIV3D_NO_AUTOLINK が定義され
+	// 以下の自動リンクは無効になる（上記のシステムライブラリは引き続き自動リンク）
+	# if !defined(SIV3D_NO_AUTOLINK)
 
-	# if SIV3D_BUILD(DEBUG)
-	#	pragma comment (lib, "boost/libboost_filesystem-vc143-mt-sgd-x64-1_88")
-	# else
-	#	pragma comment (lib, "boost/libboost_filesystem-vc143-mt-s-x64-1_88")
-	# endif
+	#	pragma comment (lib, "freetype/freetype" SIV3D_DEBUG_LIB_SUFFIX(_d))
+	#	pragma comment (lib, "harfbuzz/harfbuzz" SIV3D_DEBUG_LIB_SUFFIX(_d))
+	#	pragma comment (lib, "libjpeg-turbo/turbojpeg-static" SIV3D_DEBUG_LIB_SUFFIX(_d))
+	#	pragma comment (lib, "libpng/libpng16" SIV3D_DEBUG_LIB_SUFFIX(_d))
+	#	pragma comment (lib, "opencv/opencv_core4100" SIV3D_DEBUG_LIB_SUFFIX(d))
+	#	pragma comment (lib, "opencv/opencv_imgproc4100" SIV3D_DEBUG_LIB_SUFFIX(d))
+	#	pragma comment (lib, "zlib/zlib" SIV3D_DEBUG_LIB_SUFFIX(d))
+	#	pragma comment (lib, "siv3d/Siv3D" SIV3D_DEBUG_LIB_SUFFIX(_d))
 
-	# if (SIV3D_USE_MIMALLOC)
-	#	pragma comment (lib, "mimalloc/mimalloc-static" SIV3D_DEBUG_LIB_SUFFIX(_d))
-	# endif
+	#	if SIV3D_BUILD(DEBUG)
+	#		pragma comment (lib, "boost/libboost_filesystem-vc143-mt-sgd-x64-1_88")
+	#	else
+	#		pragma comment (lib, "boost/libboost_filesystem-vc143-mt-s-x64-1_88")
+	#	endif
+
+	#	if (SIV3D_USE_MIMALLOC)
+	#		pragma comment (lib, "mimalloc/mimalloc-static" SIV3D_DEBUG_LIB_SUFFIX(_d))
+	#	endif
+
+	# endif // !defined(SIV3D_NO_AUTOLINK)
 
 	# undef SIV3D_DEBUG_LIB_SUFFIX
 

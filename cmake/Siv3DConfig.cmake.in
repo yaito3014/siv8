@@ -1,0 +1,54 @@
+@PACKAGE_INIT@
+
+# Siv3D is a static library, so its vcpkg dependencies (linked PRIVATE, exported
+# as $<LINK_ONLY:...>) must still be resolvable in the consuming project at link
+# time. The consumer must therefore configure with the same vcpkg toolchain and
+# triplet that built Siv3D — see WindowsDesktop/CMakeLists.txt for an example.
+include(CMakeFindDependencyMacro)
+
+find_dependency(Freetype)
+find_dependency(harfbuzz CONFIG)
+find_dependency(PNG)
+find_dependency(JPEG)
+find_dependency(libjpeg-turbo CONFIG)
+find_dependency(ZLIB)
+find_dependency(OpenCV COMPONENTS core imgproc)
+find_dependency(mimalloc CONFIG)
+
+if(NOT WIN32)
+    find_dependency(glfw3 CONFIG)
+    find_dependency(Threads)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/Siv3DTargets.cmake")
+
+# The install tree may carry only a subset of configurations (typically Debug
+# and Release), but multi-config generators evaluate every project
+# configuration at generate time and error on a missing IMPORTED_LOCATION.
+# Map each missing configuration to an installed one; the mapping only takes
+# effect if that configuration is actually built (on MSVC, prefer installing
+# both Debug and Release so the CRT flavors match).
+get_target_property(_siv3d_configs Siv3D::Siv3D IMPORTED_CONFIGURATIONS)
+if(_siv3d_configs)
+    foreach(_siv3d_cfg DEBUG RELEASE MINSIZEREL RELWITHDEBINFO)
+        if(NOT "${_siv3d_cfg}" IN_LIST _siv3d_configs)
+            if(_siv3d_cfg STREQUAL "DEBUG")
+                set(_siv3d_pref RELEASE RELWITHDEBINFO MINSIZEREL)
+            else()
+                set(_siv3d_pref RELEASE RELWITHDEBINFO MINSIZEREL DEBUG)
+            endif()
+            foreach(_siv3d_candidate IN LISTS _siv3d_pref)
+                if("${_siv3d_candidate}" IN_LIST _siv3d_configs)
+                    set_target_properties(Siv3D::Siv3D PROPERTIES
+                        "MAP_IMPORTED_CONFIG_${_siv3d_cfg}" "${_siv3d_candidate}")
+                    break()
+                endif()
+            endforeach()
+        endif()
+    endforeach()
+    unset(_siv3d_pref)
+    unset(_siv3d_candidate)
+endif()
+unset(_siv3d_configs)
+
+check_required_components(Siv3D)

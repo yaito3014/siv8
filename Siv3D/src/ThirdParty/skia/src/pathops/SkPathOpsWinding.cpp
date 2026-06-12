@@ -156,7 +156,10 @@ void SkOpSegment::rayCheck(const SkOpRayHit& base, SkOpRayDir dir, SkOpRayHit** 
         }
         SkDVector slope;
         SkPoint pt;
-        SkDEBUGCODE(sk_bzero(&slope, sizeof(slope)));
+        // [Siv3D] upstream zeroes slope only under SK_DEBUG, but this build defines
+        // SK_RELEASE even in Debug, so zero unconditionally: the t≈0 / t≈1 branches
+        // below leave slope unassigned and MSVC /RTC1 flags the read at fSlope.
+        sk_bzero(&slope, sizeof(slope));
         bool valid = false;
         if (approximately_zero(t)) {
             pt = fPts[0];
