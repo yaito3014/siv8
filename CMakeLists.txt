@@ -84,15 +84,10 @@ endif()
 # version hash that `vcpkg version` prints.
 dep_resolve(BASELINE 4334d8b4c8916018600212ab4dd4bbdc343065d1)
 
-# JPEG::JPEG resolves against libjpeg-turbo (vcpkg prefix is prepended by the
-# resolver, so the vcpkg copy wins when the system had none).
-find_package(JPEG REQUIRED)
-
 set(SIV3D_VCPKG_LIBS
     Freetype::Freetype
     harfbuzz::harfbuzz
     PNG::PNG
-    JPEG::JPEG
     ZLIB::ZLIB
     ${OpenCV_LIBS}
     oniguruma::onig
@@ -104,11 +99,18 @@ set(SIV3D_VCPKG_LIBS
 #   zstd sources via GROUP B, so vcpkg zstd must NOT be linked (duplicate symbols).
 #   Remove the vendored copy first if switching to the vcpkg package.
 
-# mimalloc / turbojpeg target names vary (static vs shared).
+# mimalloc / libjpeg-turbo target names vary (static vs shared). The classic
+# libjpeg API also comes from the libjpeg-turbo config (no FindJPEG module:
+# its library-name heuristics are unreliable against a vcpkg-only install).
 if(TARGET mimalloc-static)
     list(APPEND SIV3D_VCPKG_LIBS mimalloc-static)
 elseif(TARGET mimalloc)
     list(APPEND SIV3D_VCPKG_LIBS mimalloc)
+endif()
+if(TARGET libjpeg-turbo::jpeg-static)
+    list(APPEND SIV3D_VCPKG_LIBS libjpeg-turbo::jpeg-static)
+elseif(TARGET libjpeg-turbo::jpeg)
+    list(APPEND SIV3D_VCPKG_LIBS libjpeg-turbo::jpeg)
 endif()
 if(TARGET libjpeg-turbo::turbojpeg-static)
     list(APPEND SIV3D_VCPKG_LIBS libjpeg-turbo::turbojpeg-static)
