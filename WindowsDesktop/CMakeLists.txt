@@ -1,24 +1,29 @@
 cmake_minimum_required(VERSION 3.25)
 
 # ============================================================================
-# Standalone Siv3D application project (CMake port of Siv3D-Test.vcxproj).
-# The engine is consumed ONLY through find_package(Siv3D); point CMake at one of
-#   - the engine build tree:   cmake -B build -DSiv3D_DIR=<repo>/build
-#   - an installed prefix:     cmake -B build -DCMAKE_PREFIX_PATH=<prefix>
+# Siv3D sample application (CMake port of Siv3D-Test.vcxproj). This is the
+# top-level project; it pulls in the engine one of two ways:
 #
-# Siv3D is a static library whose package config find_dependency()s its vcpkg
-# dependencies, so this project also configures with the vcpkg toolchain (which
-# provides the per-port wrapper machinery the configs rely on) and reuses the
-# engine build's vcpkg_installed tree — no second install. Has no manifest of
-# its own, so the toolchain runs in classic mode (resolves nothing, just wires
-# up the prefix).
+#   - add_subdirectory (default): build the engine from source, in-tree, using
+#     the engine's own vcpkg manifest. No install, one configure/build:
+#       cmake -B build && cmake --build build
+#
+#   - find_package: consume an installed or build-tree-exported Siv3D:
+#       cmake -B build -DSIV3D_APP_USE_FIND_PACKAGE=ON -DCMAKE_PREFIX_PATH=<prefix>
+#       cmake -B build -DSIV3D_APP_USE_FIND_PACKAGE=ON -DSiv3D_DIR=<repo>/build
 # ============================================================================
+get_filename_component(_siv3d_engine_default "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+set(SIV3D_ENGINE_DIR "${_siv3d_engine_default}" CACHE PATH "Siv3D engine source directory")
+option(SIV3D_APP_USE_FIND_PACKAGE "Consume an installed Siv3D via find_package instead of building it in-tree" OFF)
+option(SIV3D_APP_BUILD_TESTS "Compile ../Test into the app so RunTest() is available (needs the engine 'tests' feature)" OFF)
+
+# ---- pre-project() setup; must match the engine build ----
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
         CACHE STRING "vcpkg toolchain")
 endif()
 
-# Must match the engine build: static triplet + static CRT (/MT, /MTd).
+# Static triplet + static CRT (/MT, /MTd).
 if(WIN32 AND NOT DEFINED VCPKG_TARGET_TRIPLET)
     set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "vcpkg triplet")
 endif()
@@ -26,17 +31,28 @@ if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# Reuse the engine build's installed dependency tree (configs for every dep,
-# including the overlay forks) instead of installing a second copy.
-if(WIN32)
-    set(_siv3d_app_dep_triplet "x64-windows-static")
-elseif(APPLE)
-    set(_siv3d_app_dep_triplet "x64-osx")
+if(SIV3D_APP_USE_FIND_PACKAGE)
+    # Reuse the engine build's installed dependency tree (configs for every dep,
+    # including the overlay forks) instead of installing a second copy.
+    if(WIN32)
+        set(_siv3d_app_dep_triplet "x64-windows-static")
+    elseif(APPLE)
+        set(_siv3d_app_dep_triplet "x64-osx")
+    else()
+        set(_siv3d_app_dep_triplet "x64-linux")
+    endif()
+    if(EXISTS "${SIV3D_ENGINE_DIR}/build/vcpkg_installed/${_siv3d_app_dep_triplet}")
+        list(PREPEND CMAKE_PREFIX_PATH "${SIV3D_ENGINE_DIR}/build/vcpkg_installed/${_siv3d_app_dep_triplet}")
+    endif()
 else()
-    set(_siv3d_app_dep_triplet "x64-linux")
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed/${_siv3d_app_dep_triplet}")
-    list(PREPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../build/vcpkg_installed/${_siv3d_app_dep_triplet}")
+    # Build the engine in-tree: drive vcpkg from the engine's manifest so its
+    # deps (and the overlay-ports / vcpkg-configuration.json) resolve here.
+    if(NOT DEFINED VCPKG_MANIFEST_DIR)
+        set(VCPKG_MANIFEST_DIR "${SIV3D_ENGINE_DIR}" CACHE PATH "Siv3D vcpkg manifest dir")
+    endif()
+    if(SIV3D_APP_BUILD_TESTS)
+        list(APPEND VCPKG_MANIFEST_FEATURES "tests")
+    endif()
 endif()
 
 project(Siv3D-App LANGUAGES CXX)
@@ -46,14 +62,17 @@ if(WIN32)
 endif()
 
 # A user-wide `vcpkg integrate install` would inject the classic-mode tree
-# (include path + autolinked libs) into this MSBuild project, shadowing the
-# engine's vendored ThirdParty headers (absl version mismatch -> unresolved
-# externals). All dependencies come through find_package(Siv3D) instead.
+# (include path + autolinked libs), shadowing the engine's headers.
 set(CMAKE_VS_GLOBALS "VcpkgEnabled=false")
 
-find_package(Siv3D 0.8 CONFIG REQUIRED)
-
-option(SIV3D_APP_BUILD_TESTS "Compile ../Test into the app so RunTest() is available" ON)
+# ---- pull in the engine: Siv3D::Siv3DCore ----
+if(SIV3D_APP_USE_FIND_PACKAGE)
+    find_package(Siv3D 0.8 CONFIG REQUIRED)
+else()
+    # Keep the engine's Siv3D-Test target / 'tests' feature consistent with ours.
+    set(SIV3D_BUILD_TESTS ${SIV3D_APP_BUILD_TESTS} CACHE BOOL "Build the Siv3D-Test target" FORCE)
+    add_subdirectory("${SIV3D_ENGINE_DIR}" siv3d-engine)
+endif()
 
 set(SIV3D_APP_SOURCES Main.cpp)
 if(SIV3D_APP_BUILD_TESTS)
@@ -63,6 +82,12 @@ endif()
 
 add_executable(Siv3D-App ${SIV3D_APP_SOURCES})
 target_link_libraries(Siv3D-App PRIVATE Siv3D::Siv3DCore)
+
+# Main.cpp includes the test harness (<Siv3DTest.hpp> -> doctest/nanobench) only
+# under this define, so the app builds without the test-only deps when off.
+if(SIV3D_APP_BUILD_TESTS)
+    target_compile_definitions(Siv3D-App PRIVATE SIV3D_APP_BUILD_TESTS)
+endif()
 
 # Same build-throughput trick as the vcxproj (pch.h just includes <Siv3D.hpp>).
 target_precompile_headers(Siv3D-App PRIVATE pch.h)
