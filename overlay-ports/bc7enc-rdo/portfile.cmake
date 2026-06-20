@@ -1,18 +1,15 @@
 # Siv3D overlay port for richgel999/bc7enc_rdo.
 #
 # Provenance:  REF below is the exact upstream commit (a real fork would point
-#              REPO at the fork instead). Any local change is an explicit,
-#              reviewable .patch in PATCHES — never a silent edit to bundled
-#              source. That is the whole point of this port over bare vendoring.
+#              REPO at the fork instead). Source is used unmodified; the only
+#              local change is a force-included <cstdint> (a documented compile
+#              option in build-CMakeLists.txt, not a source edit).
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO richgel999/bc7enc_rdo
     REF dbe416d28a5530b4e8cc45b14bf034dc6b96bbde
     SHA512 eb247d4e2c75dab592f6122c664f256fcc81fad0b321e14ae3e750986d40c7d230626ec15af209ce1282b704ad99d28c0994aadc2decdd8196c3b8a02f097e39
     HEAD_REF master
-    PATCHES
-        0001-ert-include-cstdint.patch
-        0002-cstdint-headers.patch
 )
 
 # Upstream has no build system and bundles a CLI (test.cpp) plus PNG/zip helpers

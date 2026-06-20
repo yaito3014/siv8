@@ -15,6 +15,17 @@ add_library(bc7enc_rdo STATIC
     utils.cpp
 )
 target_compile_features(bc7enc_rdo PUBLIC cxx_std_17)
+
+# These sources use fixed-width int types (uint8_t/...) but rely on a transitive
+# <cstdint> that libstdc++ provides and MSVC does not. Force-include it into
+# every TU rather than patching each header — robust across line-ending/whitespace
+# conversions (a header .patch corrupted git-apply on Windows checkouts).
+if(MSVC)
+    target_compile_options(bc7enc_rdo PRIVATE /FIcstdint)
+else()
+    target_compile_options(bc7enc_rdo PRIVATE "SHELL:-include cstdint")
+endif()
+
 target_include_directories(bc7enc_rdo PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")

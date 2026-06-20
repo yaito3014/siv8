@@ -1,0 +1,3 @@
+# Patch files must stay LF — CRLF breaks `git apply` (vcpkg overlay patches) on Windows.
+*.patch text eol=lf
+*.diff  text eol=lf
