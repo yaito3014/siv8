@@ -12,7 +12,7 @@
 # include "CAudio.hpp"
 # include <Siv3D/EngineLog.hpp>
 # include <Siv3D/Error/InternalEngineError.hpp>
-# include <ThirdParty/miniaudio/miniaudio.h>
+# include <miniaudio.h>
 
 namespace s3d
 {

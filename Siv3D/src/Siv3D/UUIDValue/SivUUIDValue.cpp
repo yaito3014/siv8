@@ -13,7 +13,7 @@
 # include <Siv3D/Unicode.hpp>
 
 # define UUID_SYSTEM_GENERATOR
-# include <ThirdParty/stduuid/uuid.h>
+# include <stduuid/uuid.h>
 
 namespace s3d
 {

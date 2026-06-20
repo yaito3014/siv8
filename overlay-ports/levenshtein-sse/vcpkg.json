@@ -1,0 +1,7 @@
+{
+  "name": "levenshtein-sse",
+  "version-date": "2023-09-15",
+  "description": "SSE-accelerated Levenshtein distance (addaleax/levenshtein-sse). Siv3D overlay port: upstream pinned by commit + a Siv3D patch (drops the SSE-intrinsic includes, which the engine supplies via its own SIMD layer, and silences GCC warnings).",
+  "homepage": "https://github.com/addaleax/levenshtein-sse",
+  "license": "MIT"
+}

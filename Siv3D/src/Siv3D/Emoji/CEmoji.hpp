@@ -12,8 +12,8 @@
 # pragma once
 # include "IEmoji.hpp"
 # if SIV3D_PLATFORM(WINDOWS) | SIV3D_PLATFORM(MACOS) | SIV3D_PLATFORM(WEB)
-#	include <ThirdParty-prebuilt/harfbuzz/hb.h>
-#	include <ThirdParty-prebuilt/harfbuzz/hb-ft.h>
+#	include <harfbuzz/hb.h>
+#	include <harfbuzz/hb-ft.h>
 # else
 #	include <harfbuzz/hb.h>
 #	include <harfbuzz/hb-ft.h>

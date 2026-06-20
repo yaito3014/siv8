@@ -13,7 +13,7 @@
 # include <Siv3D/Array.hpp>
 # include <Siv3D/Unicode.hpp>
 # include <Siv3D/MemoryMappedFileView.hpp>
-# include <ThirdParty/easyexif/exif.h>
+# include <exif.h>
 
 namespace s3d
 {

@@ -11,7 +11,7 @@
 
 # pragma once
 SIV3D_DISABLE_MSVC_WARNINGS_PUSH(6294)
-# include <ThirdParty/absl/random/distributions.h>
+# include <absl/random/distributions.h>
 SIV3D_DISABLE_MSVC_WARNINGS_POP()
 # include "Common.hpp"
 # include "Concepts.hpp"

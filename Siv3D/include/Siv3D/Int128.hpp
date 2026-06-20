@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # pragma once
-# include <ThirdParty/absl/numeric/int128.h>
+# include <absl/numeric/int128.h>
 # include "Common.hpp"
 # include "String.hpp"
 # include "LetterCase.hpp"

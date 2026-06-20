@@ -10,8 +10,8 @@
 //-----------------------------------------------
 
 # pragma once
-# include <ThirdParty/fmt/format.h>
-# include <ThirdParty/fmt/xchar.h>
+# include <fmt/format.h>
+# include <fmt/xchar.h>
 # include <Siv3D/String.hpp>
 # include <Siv3D/Format.hpp>
 

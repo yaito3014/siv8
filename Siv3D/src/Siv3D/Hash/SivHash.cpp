@@ -10,13 +10,13 @@
 //-----------------------------------------------
 
 # include <Siv3D/Hash.hpp>
-# include <ThirdParty/wyhash/wyhash.h>
-# include <ThirdParty/rapidhash/rapidhash.h>
+# include <wyhash.h>
+# include <rapidhash.h>
 # define XXH_IMPLEMENTATION
 # define XXH_STATIC_LINKING_ONLY
 # define XXH_NO_STREAM
 # define XXH_NAMESPACE SIV3D_
-# include <ThirdParty/xxHash/xxhash.h>
+# include <xxhash.h>
 
 namespace s3d
 {

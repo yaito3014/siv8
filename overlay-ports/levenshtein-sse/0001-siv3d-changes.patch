@@ -1,0 +1,67 @@
+diff --git a/levenshtein-sse.hpp b/levenshtein-sse.hpp
+index 1a50747..54571b9 100644
+--- a/levenshtein-sse.hpp
++++ b/levenshtein-sse.hpp
+@@ -13,15 +13,6 @@
+ #include <cstdint>
+ #include <cassert>
+ #include <limits>
+-#ifdef __SSSE3__
+-#include <tmmintrin.h>
+-#endif
+-#ifdef __SSE4_1__
+-#include <smmintrin.h>
+-#endif
+-#ifdef __AVX2__
+-#include <immintrin.h>
+-#endif
+ 
+ namespace levenshteinSSE {
+ 
+@@ -193,9 +184,9 @@ constexpr std::size_t alignment = 1;
+ template<typename Vec1, typename Vec2, typename Iterator1, typename Iterator2>
+ struct LevenshteinIterationBase {
+ static inline void perform(const Iterator1& a, const Iterator2& b,
+-  std::size_t& i, std::size_t j, std::size_t bLen, Vec1& diag, const Vec2& diag2)
++  std::size_t& i, std::size_t j, [[maybe_unused]] std::size_t bLen, Vec1& diag, const Vec2& diag2)
+ {
+-  std::uint32_t min = std::min(diag2[i], diag2[i-1]);
++  std::uint32_t min = static_cast<std::uint32_t>(std::min(diag2[i], diag2[i-1]));
+   if (min < diag[i-1]) {
+     diag[i] = min + 1;
+   }
+@@ -275,7 +266,7 @@ static inline void performSIMD(const T* a, const T* b,
+ 
+ #ifdef __SSSE3__
+ static inline void performSSE(const T* a, const T* b,
+-  std::size_t& i, std::size_t j, std::size_t bLen,
++  std::size_t& i, std::size_t j, [[maybe_unused]] std::size_t bLen,
+   std::uint32_t* diag, const std::uint32_t* diag2)
+ {
+   const __m128i one128_epi32 = _mm_set1_epi32(1);
+@@ -310,10 +301,10 @@ static inline void performSSE(const T* a, const T* b,
+   // We support 1, 2, and 4 byte objects for SSE comparison.
+   // We always process 16 entries at once, so we may need multiple fetches
+   // depending on object size.
+-  if (sizeof(T) <= 2) {
++  if constexpr (sizeof(T) <= 2) {
+     __m128i substitutionCost16LX, substitutionCost16HX;
+     
+-    if (sizeof(T) == 1) {
++    if constexpr (sizeof(T) == 1) {
+       __m128i a_ = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&a[i-16]));
+       __m128i b_ = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&b[j-1]));
+       a_ = _mm_shuffle_epi8(a_, reversedIdentity128_epi8);
+@@ -777,10 +768,10 @@ T levenshteinDiagonal(Iterator1 a, Iterator1 aEnd, Iterator2 b, Iterator2 bEnd)
+         ::perform(a, b, i, j, bLen, diag, diag2);
+     }
+     
+-    diag[0] = k;
++    diag[0] = static_cast<T>(k);
+     
+     if (k <= aLen) {
+-      diag[k] = k;
++      diag[k] = static_cast<T>(k);
+     }
+     
+     if (k == aLen + bLen) {

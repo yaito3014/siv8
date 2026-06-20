@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # include <Siv3D/Geometry2D/PoleOfInaccessibility.hpp>
-# include <ThirdParty/mapbox/polylabel.hpp>
+# include <mapbox/polylabel.hpp>
 
 namespace s3d
 {

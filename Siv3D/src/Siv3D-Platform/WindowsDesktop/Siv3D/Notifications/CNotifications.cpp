@@ -14,7 +14,7 @@
 # include <Siv3D/Notifications/CNotifications.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
 # include <Siv3D/EngineLog.hpp>
-# include <ThirdParty/WinToast/wintoastlib.h>
+# include <wintoastlib.h>
 
 namespace s3d
 {

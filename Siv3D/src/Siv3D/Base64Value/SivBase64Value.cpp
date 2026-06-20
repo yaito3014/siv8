@@ -12,7 +12,7 @@
 # include <Siv3D/Base64Value.hpp>
 # include <Siv3D/Blob.hpp>
 # include <Siv3D/MemoryMappedFileView.hpp>
-# include <ThirdParty/simdutf/simdutf.h>
+# include <simdutf.h>
 
 namespace s3d
 {

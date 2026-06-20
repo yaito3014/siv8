@@ -18,10 +18,7 @@
 # include "IReader.hpp"
 # include "TOMLValueType.hpp"
 # include "TOMLParseErrorReason.hpp"
-# ifndef TOML11_COMPILE_SOURCES
-#	define TOML11_COMPILE_SOURCES
-# endif
-# include <ThirdParty/toml11/toml.hpp>
+# include <toml.hpp>
 
 namespace s3d
 {

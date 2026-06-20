@@ -10,8 +10,8 @@
 //-----------------------------------------------
 
 # include "MSDFGlyphRenderer.hpp"
-# include <ThirdParty/msdfgen/msdfgen.h>
-# include <ThirdParty/msdfgen/ext/resolve-shape-geometry.h>
+# include <msdfgen/msdfgen.h>
+# include <msdfgen/msdfgen-ext.h>
 
 namespace s3d
 {

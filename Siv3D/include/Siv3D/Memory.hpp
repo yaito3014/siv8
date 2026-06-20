@@ -14,7 +14,7 @@
 # include <bit>
 # include "Platform.hpp"
 # if SIV3D_USE_MIMALLOC
-#	include <ThirdParty/mimalloc/mimalloc.h>
+#	include <mimalloc.h>
 # endif
 
 namespace s3d

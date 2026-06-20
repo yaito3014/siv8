@@ -6,19 +6,28 @@ cmake_minimum_required(VERSION 3.25)
 #   - the engine build tree:   cmake -B build -DSiv3D_DIR=<repo>/build
 #   - an installed prefix:     cmake -B build -DCMAKE_PREFIX_PATH=<prefix>
 #
-# Siv3D is a static library whose package config find_dependency()s its
-# dependencies, so they must be findable here too: from the system, or from
-# the engine build's vcpkg_installed prefix, which is put on CMAKE_PREFIX_PATH
-# below when present. No vcpkg toolchain or manifest is involved.
+# Siv3D is a static library whose package config find_dependency()s its vcpkg
+# dependencies, so this project also configures with the vcpkg toolchain (which
+# provides the per-port wrapper machinery the configs rely on) and reuses the
+# engine build's vcpkg_installed tree — no second install. Has no manifest of
+# its own, so the toolchain runs in classic mode (resolves nothing, just wires
+# up the prefix).
 # ============================================================================
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        CACHE STRING "vcpkg toolchain")
+endif()
 
-# Must match the engine build: static CRT (/MT, /MTd), so the produced
-# executable is self-contained (no DLLs to ship).
+# Must match the engine build: static triplet + static CRT (/MT, /MTd).
+if(WIN32 AND NOT DEFINED VCPKG_TARGET_TRIPLET)
+    set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "vcpkg triplet")
+endif()
 if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# Reuse the dependencies the engine build resolved via vcpkg (if any).
+# Reuse the engine build's installed dependency tree (configs for every dep,
+# including the overlay forks) instead of installing a second copy.
 if(WIN32)
     set(_siv3d_app_dep_triplet "x64-windows-static")
 elseif(APPLE)
@@ -53,7 +62,7 @@ if(SIV3D_APP_BUILD_TESTS)
 endif()
 
 add_executable(Siv3D-App ${SIV3D_APP_SOURCES})
-target_link_libraries(Siv3D-App PRIVATE Siv3D::Siv3D)
+target_link_libraries(Siv3D-App PRIVATE Siv3D::Siv3DCore)
 
 # Same build-throughput trick as the vcxproj (pch.h just includes <Siv3D.hpp>).
 target_precompile_headers(Siv3D-App PRIVATE pch.h)

@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # include <Siv3D/Colormap.hpp>
-# include <ThirdParty/tinycolormap/tinycolormap.hpp>
+# include <tinycolormap.hpp>
 
 namespace s3d
 {

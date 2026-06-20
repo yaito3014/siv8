@@ -11,7 +11,7 @@
 
 # include <Siv3D/WaveProcessing.hpp>
 # include <Siv3D/Error.hpp>
-# include <ThirdParty/r8brain-free-src/CDSPResampler.h>
+# include <r8brain-free-src/CDSPResampler.h>
 
 namespace s3d
 {

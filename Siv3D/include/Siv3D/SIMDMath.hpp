@@ -21,8 +21,8 @@
 #	pragma clang diagnostic ignored "-Wdefaulted-function-deleted"
 # endif
 
-# include <ThirdParty/DirectXMath/DirectXMath.h>
-# include <ThirdParty/DirectXMath/DirectXPackedVector.h>
+# include <DirectXMath.h>
+# include <DirectXPackedVector.h>
 
 # ifdef __clang__
 #	pragma clang diagnostic pop

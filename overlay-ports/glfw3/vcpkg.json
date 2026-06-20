@@ -1,0 +1,27 @@
+{
+  "name": "glfw3",
+  "version": "3.4",
+  "port-version": 1,
+  "description": "GLFW (Siv3D fork): upstream 3.4 + siv3d-glfw.patch adding the GLFW_Siv3D_DragDrop bridge and engine input/cocoa/monitor hooks. Overlay port; replaces the registry glfw3.",
+  "homepage": "https://github.com/glfw/glfw",
+  "license": "Zlib",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ],
+  "features": {
+    "wayland": {
+      "description": "Use Wayland display server",
+      "supports": "linux",
+      "dependencies": [
+        "wayland"
+      ]
+    }
+  }
+}

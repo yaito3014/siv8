@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # include "Triangulate.hpp"
-# include <ThirdParty/Earcut/earcut.hpp>
+# include <mapbox/earcut.hpp>
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
 

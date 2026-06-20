@@ -1,0 +1,7 @@
+{
+  "name": "rectpack2d",
+  "version-date": "2025-05-03",
+  "description": "2D rectangle packing (TeamHypersomnia/rectpack2D), header-only. Siv3D overlay port: upstream pinned by commit, PRISTINE (the vendored copy matched this commit exactly — no patch).",
+  "homepage": "https://github.com/TeamHypersomnia/rectpack2D",
+  "license": "MIT"
+}

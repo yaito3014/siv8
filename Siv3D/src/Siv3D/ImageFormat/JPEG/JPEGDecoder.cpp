@@ -13,7 +13,7 @@
 # include <Siv3D/IReader.hpp>
 # include <Siv3D/EngineLog.hpp>
 # if SIV3D_PLATFORM(WINDOWS) | SIV3D_PLATFORM(MACOS) | SIV3D_PLATFORM(WEB)
-#	include <ThirdParty-prebuilt/libjpeg-turbo/turbojpeg.h>
+#	include <turbojpeg.h>
 # else
 #	include <turbojpeg.h>
 # endif

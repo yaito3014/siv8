@@ -12,7 +12,7 @@
 # include <Siv3D/MicrophoneInfo.hpp>
 # include <Siv3D/Audio/IAudio.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
-# include <ThirdParty/miniaudio/miniaudio.h>
+# include <miniaudio.h>
 
 namespace s3d
 {

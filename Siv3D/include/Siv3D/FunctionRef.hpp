@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # pragma once
-# include <ThirdParty/absl/functional/function_ref.h>
+# include <absl/functional/function_ref.h>
 
 namespace s3d
 {

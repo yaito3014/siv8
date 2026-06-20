@@ -13,7 +13,7 @@
 # include <Siv3D/Image.hpp>
 
 # define STB_IMAGE_RESIZE_IMPLEMENTATION
-# include <ThirdParty/stb/stb_image_resize2.h>
+# include <stb_image_resize2.h>
 
 namespace s3d
 {

@@ -11,7 +11,7 @@
 
 # include <Siv3D/RectanglePack.hpp>
 # include <Siv3D/Number.hpp>
-# include <ThirdParty/rectpack2D/finders_interface.h>
+# include <rectpack2D/finders_interface.h>
 
 namespace s3d
 {

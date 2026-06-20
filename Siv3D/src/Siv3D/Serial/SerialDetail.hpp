@@ -11,7 +11,7 @@
 
 # pragma once
 # include <Siv3D/Serial.hpp>
-# include <ThirdParty/serial_cpp/serial.h>
+# include <serial_cpp/serial.h>
 
 namespace s3d
 {

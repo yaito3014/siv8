@@ -13,7 +13,7 @@
 # include <Siv3D/BinaryFileWriter.hpp>
 # include <Siv3D/EngineLog.hpp>
 # if SIV3D_PLATFORM(WINDOWS) | SIV3D_PLATFORM(MACOS) | SIV3D_PLATFORM(WEB)
-#	include <ThirdParty-prebuilt/libpng/png.h>
+#	include <png.h>
 # else
 #	include <png.h>
 # endif

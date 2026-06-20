@@ -14,7 +14,7 @@
 # include "Common.hpp"
 # include "Array.hpp"
 SIV3D_DISABLE_MSVC_WARNINGS_PUSH(6294)
-# include <ThirdParty/absl/random/discrete_distribution.h>
+# include <absl/random/discrete_distribution.h>
 SIV3D_DISABLE_MSVC_WARNINGS_POP()
 
 namespace s3d

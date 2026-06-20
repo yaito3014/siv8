@@ -1,0 +1,108 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "siv3d",
+  "version": "0.8.0",
+  "description": "Siv3D engine dependencies (static, vcpkg manifest mode).",
+  "homepage": "https://siv3d.github.io/",
+  "builtin-baseline": "f3e10653cc27d62a37a3763cd84b38bca07c6075",
+  "dependencies": [
+    "freetype",
+    "harfbuzz",
+    "libpng",
+    "libjpeg-turbo",
+    "zlib",
+    "abseil",
+    "earcut-hpp",
+    "fast-float",
+    "fmt",
+    "libmorton",
+    "rapidhash",
+    "stb",
+    "stduuid",
+    "tinycolormap",
+    "wyhash",
+    "xxhash",
+    "mapbox-variant",
+    "mapbox-geometry",
+    "mapbox-polylabel",
+    "drlibs",
+    "miniaudio",
+    "directxmath",
+    "nlohmann-json",
+    "pcg",
+    "pffft",
+    "r8brain-free-src",
+    "parallel-hashmap",
+    "nanoflann",
+    {
+      "name": "opencv4",
+      "default-features": false
+    },
+    "mimalloc",
+    "oniguruma",
+    "double-conversion",
+    "easyexif",
+    "toml11",
+    "serial-cpp",
+    "simdutf",
+    "zstd",
+    "lunasvg",
+    "muparser",
+    "cpu-features",
+    "msdfgen",
+    {
+      "name": "skia",
+      "default-features": false,
+      "features": [
+        "freetype"
+      ]
+    },
+    "boost-filesystem",
+    "boost-geometry",
+    "boost-multiprecision",
+    "boost-process",
+    "boost-range",
+    "bc7enc-rdo",
+    "levenshtein-sse",
+    "rectpack2d",
+    {
+      "name": "glfw3",
+      "platform": "!windows"
+    },
+    {
+      "name": "wintoast",
+      "platform": "windows"
+    }
+  ],
+  "features": {
+    "tests": {
+      "description": "Build the Siv3D test target.",
+      "dependencies": [
+        "doctest",
+        "nanobench"
+      ]
+    }
+  },
+  "overrides": [
+    {
+      "$comment": "Vendored boost.geometry 'dissolve' extension needs overlay internals removed in 1.89+; keep geometry at 1.88 while the rest of boost follows the baseline.",
+      "name": "boost-geometry",
+      "version": "1.88.0"
+    },
+    {
+      "$comment": "abseil is in Siv3D's PUBLIC ABI (Int128.hpp etc.); pin the LTS that matches the formerly-vendored copy so the inline namespace (lts_20250814) and ABI stay identical. Consumers must resolve the same version.",
+      "name": "abseil",
+      "version": "20250814.1"
+    },
+    {
+      "$comment": "fmt is in Siv3D's PUBLIC ABI (FormatLiteralObject.hpp); pin the formerly-vendored 12.1.0 so the versioned inline namespace (fmt::v12) and ABI stay identical.",
+      "name": "fmt",
+      "version": "12.1.0"
+    },
+    {
+      "$comment": "toml11 is in Siv3D's PUBLIC ABI (TOML.hpp); pin the formerly-vendored 4.4.0 so the parsed-value types stay ABI-identical for consumers.",
+      "name": "toml11",
+      "version": "4.4.0"
+    }
+  ]
+}

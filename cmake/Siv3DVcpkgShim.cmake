@@ -1,0 +1,35 @@
+# Route find_package through the bundled share/<port>/vcpkg-cmake-wrapper.cmake
+# so bundled port configs (e.g. freetype) resolve their own deps without a vcpkg
+# toolchain. Siv3DConfig includes this only when the bundle is present; it backs
+# off under the real toolchain or if find_package is already overridden.
+if(NOT VCPKG_TOOLCHAIN AND NOT COMMAND _find_package)
+    set(z_siv3d_shim_depth 0)
+    macro(find_package z_siv3d_shim_name)
+        math(EXPR z_siv3d_shim_depth "${z_siv3d_shim_depth} + 1")
+        set(z_siv3d_shim_${z_siv3d_shim_depth}_wrapper "")
+        if(DEFINED _VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+            string(TOLOWER "${z_siv3d_shim_name}" z_siv3d_shim_lower)
+            set(z_siv3d_shim_${z_siv3d_shim_depth}_wrapper
+                "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/${z_siv3d_shim_lower}/vcpkg-cmake-wrapper.cmake"
+            )
+            unset(z_siv3d_shim_lower)
+        endif()
+        if(EXISTS "${z_siv3d_shim_${z_siv3d_shim_depth}_wrapper}")
+            if(DEFINED ARGS)
+                set(z_siv3d_shim_${z_siv3d_shim_depth}_args_backup "${ARGS}")
+            endif()
+            set(ARGS "${z_siv3d_shim_name};${ARGN}")
+            include("${z_siv3d_shim_${z_siv3d_shim_depth}_wrapper}")
+            if(DEFINED z_siv3d_shim_${z_siv3d_shim_depth}_args_backup)
+                set(ARGS "${z_siv3d_shim_${z_siv3d_shim_depth}_args_backup}")
+                unset(z_siv3d_shim_${z_siv3d_shim_depth}_args_backup)
+            else()
+                unset(ARGS)
+            endif()
+        else()
+            _find_package("${z_siv3d_shim_name}" ${ARGN})
+        endif()
+        unset(z_siv3d_shim_${z_siv3d_shim_depth}_wrapper)
+        math(EXPR z_siv3d_shim_depth "${z_siv3d_shim_depth} - 1")
+    endmacro()
+endif()

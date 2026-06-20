@@ -15,7 +15,7 @@
 # include "PredefinedYesNo.hpp"
 
 SIV3D_DISABLE_MSVC_WARNINGS_PUSH(4324 26495)
-# include <ThirdParty/nanoflann/nanoflann.hpp>
+# include <nanoflann.hpp>
 SIV3D_DISABLE_MSVC_WARNINGS_POP()
 
 namespace s3d

@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # include "CDragDrop.hpp"
-# include <ThirdParty/GLFW/GLFW_Siv3D_DragDropBridge.h>
+# include <GLFW/GLFW_Siv3D_DragDropBridge.h>
 # include <unordered_map>
 # include <mutex>
 # include <AppKit/AppKit.h>

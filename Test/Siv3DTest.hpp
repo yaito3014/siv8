@@ -23,7 +23,7 @@
 	//
 	// nanobench
 	//
-	# include <ThirdParty/nanobench/nanobench.h>
+	# include <nanobench.h>
 	using ankerl::nanobench::Bench;
 	using ankerl::nanobench::doNotOptimizeAway;
 
@@ -35,7 +35,7 @@
 # if SIV3D_COMPILER(APPLE_CLANG) // Xcode では色付けを無効化
 #   define DOCTEST_CONFIG_COLORS_NONE
 # endif
-# include <ThirdParty/doctest/doctest.h>
+# include <doctest/doctest.h>
 
 void RunTest();
 

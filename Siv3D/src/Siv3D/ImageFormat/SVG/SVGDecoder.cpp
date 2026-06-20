@@ -13,7 +13,7 @@
 # include <Siv3D/IReader.hpp>
 # include <Siv3D/EngineLog.hpp>
 # include <Siv3D/SVG.hpp>
-# include <ThirdParty/lunasvg/lunasvg.h>
+# include <lunasvg.h>
 
 namespace s3d
 {

@@ -15,7 +15,7 @@
 #	define PHMAP_HAVE_SSE2 1
 #	define PHMAP_HAVE_SSSE3 1
 # endif
-# include <ThirdParty/parallel_hashmap/btree.h>
+# include <parallel_hashmap/btree.h>
 
 namespace s3d
 {

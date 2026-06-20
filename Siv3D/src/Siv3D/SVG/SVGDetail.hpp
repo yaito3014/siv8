@@ -11,7 +11,7 @@
 
 # pragma once
 # include <Siv3D/SVG.hpp>
-# include <ThirdParty/lunasvg/lunasvg.h>
+# include <lunasvg.h>
 
 namespace s3d
 {

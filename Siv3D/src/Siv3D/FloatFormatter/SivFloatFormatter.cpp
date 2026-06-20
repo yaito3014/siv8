@@ -12,7 +12,7 @@
 # include <charconv>
 # include <Siv3D/FloatFormatter.hpp>
 # include <Siv3D/String.hpp>
-# include <ThirdParty/double-conversion/double-to-string.h>
+# include <double-conversion/double-to-string.h>
 
 namespace s3d
 {

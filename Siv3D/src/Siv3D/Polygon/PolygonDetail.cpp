@@ -1415,7 +1415,7 @@ namespace s3d
 		}
 
 		boost::geometry::correct(polygon);
-		
+
 		MultiCwOpenPolygon solvedPolygons;
 		boost::geometry::dissolve(polygon, solvedPolygons);
 

@@ -12,7 +12,7 @@
 # pragma once
 # include "HardwareRNG.hpp"
 SIV3D_DISABLE_MSVC_WARNINGS_PUSH(4244)
-# include <ThirdParty/pcg/pcg_random.hpp>
+# include <pcg_random.hpp>
 SIV3D_DISABLE_MSVC_WARNINGS_POP()
 
 namespace s3d

@@ -12,7 +12,7 @@
 # include <Siv3D/Compression.hpp>
 # include <Siv3D/BinaryFileReader.hpp>
 # include <Siv3D/BinaryFileWriter.hpp>
-# include <ThirdParty/zstd/zstd.h>
+# include <zstd.h>
 
 namespace s3d
 {

@@ -15,7 +15,7 @@
 # if SIV3D_CPU(X86_64)
 
 # include <cstring>
-# include <ThirdParty/cpu_features/cpuinfo_x86.h>
+# include <cpu_features/cpuinfo_x86.h>
 
 namespace s3d
 {

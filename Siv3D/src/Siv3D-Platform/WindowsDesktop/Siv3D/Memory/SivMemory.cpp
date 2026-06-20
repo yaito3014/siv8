@@ -12,5 +12,5 @@
 # include <Siv3D/Platform.hpp>
 
 # if (SIV3D_USE_MIMALLOC)
-#	include <ThirdParty-prebuilt/mimalloc/mimalloc-new-delete.h>
+#	include <mimalloc-new-delete.h>
 # endif

@@ -11,7 +11,7 @@
 
 # pragma once
 # include <Siv3D/MathParser.hpp>
-# include <ThirdParty/muparser/muParser.h>
+# include <muParser.h>
 
 namespace s3d
 {

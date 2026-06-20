@@ -9,7 +9,7 @@
 //
 //-----------------------------------------------
 
-# include <ThirdParty/libmorton/morton.h>
+# include <libmorton/morton.h>
 # include <Siv3D/Morton.hpp>
 
 namespace s3d

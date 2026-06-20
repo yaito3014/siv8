@@ -14,7 +14,7 @@
 # include <Siv3D/MemoryWriter.hpp>
 # include <Siv3D/ImageProcessing.hpp>
 # include <Siv3D/EngineLog.hpp>
-# include <ThirdParty/bc7enc_rdo/rdo_bc_encoder.h>
+# include <rdo_bc_encoder.h>
 
 namespace s3d
 {

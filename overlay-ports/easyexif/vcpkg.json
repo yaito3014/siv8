@@ -1,0 +1,17 @@
+{
+  "name": "easyexif",
+  "version-date": "2022-10-07",
+  "description": "easyexif (Siv3D overlay): same upstream as the registry port, but installs a CMake config exporting unofficial::easyexif::easyexif so find_package works.",
+  "homepage": "https://github.com/mayanklahiri/easyexif",
+  "license": "BSD-2-Clause",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

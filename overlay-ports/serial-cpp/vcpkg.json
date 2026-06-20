@@ -1,0 +1,17 @@
+{
+  "name": "serial-cpp",
+  "version-string": "gbionics-2ab9e20",
+  "description": "gbionics/serial_cpp — modern C++ fork of wjwwood/serial (the exact version Siv3D vendored). Provides the serial_cpp::serial_cpp CMake target.",
+  "homepage": "https://github.com/gbionics/serial_cpp",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

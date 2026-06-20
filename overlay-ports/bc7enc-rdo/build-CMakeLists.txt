@@ -1,0 +1,44 @@
+cmake_minimum_required(VERSION 3.16)
+project(bc7enc_rdo CXX)
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+# Only the core encoder TUs the engine compiled when vendored. Upstream's
+# test.cpp (a CLI main), bc7decomp_ref.cpp, lodepng.cpp and miniz are excluded.
+add_library(bc7enc_rdo STATIC
+    bc7decomp.cpp
+    bc7enc.cpp
+    ert.cpp
+    rdo_bc_encoder.cpp
+    rgbcx.cpp
+    utils.cpp
+)
+target_compile_features(bc7enc_rdo PUBLIC cxx_std_17)
+target_include_directories(bc7enc_rdo PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+
+install(TARGETS bc7enc_rdo EXPORT unofficial-bc7enc-rdo-targets
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+
+# Public headers, flat — they include each other as "sibling.h".
+install(FILES
+    bc7decomp.h
+    bc7enc.h
+    dds_defs.h
+    ert.h
+    rdo_bc_encoder.h
+    rgbcx.h
+    rgbcx_table4.h
+    utils.h
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+
+install(EXPORT unofficial-bc7enc-rdo-targets
+    NAMESPACE unofficial::bc7enc-rdo::
+    DESTINATION share/unofficial-bc7enc-rdo)
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/unofficial-bc7enc-rdo-config.cmake"
+    "include(\"\${CMAKE_CURRENT_LIST_DIR}/unofficial-bc7enc-rdo-targets.cmake\")\n")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/unofficial-bc7enc-rdo-config.cmake"
+    DESTINATION share/unofficial-bc7enc-rdo)

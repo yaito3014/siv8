@@ -1,67 +1,112 @@
 @PACKAGE_INIT@
 
-# Siv3D is a static library, so its dependencies (linked PRIVATE, exported as
-# $<LINK_ONLY:...>) must still be resolvable in the consuming project at link
-# time: from the system, or from the engine build's vcpkg_installed prefix —
-# put it on CMAKE_PREFIX_PATH (same triplet and runtime library) — see
-# WindowsDesktop/CMakeLists.txt for an example.
-include(CMakeFindDependencyMacro)
-
-# When the dependencies come from a vcpkg install tree but this project is
-# configured without the vcpkg toolchain, the shim restores the toolchain
-# behaviors the port configs rely on (per-port vcpkg-cmake-wrapper dispatch,
-# <triplet>/debug search paths). It activates only if a vcpkg installed tree
-# is found on CMAKE_PREFIX_PATH and backs off under the real toolchain.
-include("${CMAKE_CURRENT_LIST_DIR}/VcpkgShim.cmake")
-vcpkg_shim_autodetect()
-
-# CONFIG for the same reason as the engine build: harfbuzz's config insists on
-# its own freetype, and a module-mode hit on a different copy would mix two
-# freetypes into one static link.
-find_dependency(Freetype CONFIG)
-find_dependency(harfbuzz CONFIG)
-find_dependency(PNG)
-find_dependency(libjpeg-turbo CONFIG)
-find_dependency(ZLIB)
-find_dependency(OpenCV COMPONENTS core imgproc)
-find_dependency(mimalloc CONFIG)
-find_dependency(oniguruma CONFIG)
-find_dependency(Boost @SIV3D_BOOST_MIN_VERSION@ CONFIG COMPONENTS filesystem)
-@SIV3D_SKIA_FIND_DEPENDENCY@
-if(NOT WIN32)
-    find_dependency(glfw3 CONFIG)
-    find_dependency(Threads)
+# ----------------------------------------------------------------------------
+# Siv3D::Siv3D — the fat all-dependencies lib (default install). A raw archive,
+# so its usage requirements (C++23, flags, system libs) are attached here.
+# Defined only where the fat lib exists (an install prefix, not the build tree).
+# ----------------------------------------------------------------------------
+set(_siv3d_fat "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
+if(EXISTS "${_siv3d_fat}" AND NOT TARGET Siv3D::Siv3D)
+    if(NOT WIN32)
+        include(CMakeFindDependencyMacro)
+        find_dependency(Threads)
+    endif()
+    add_library(Siv3D::Siv3D STATIC IMPORTED)
+    set_target_properties(Siv3D::Siv3D PROPERTIES
+        IMPORTED_LOCATION "${_siv3d_fat}"
+        INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/Siv3D"
+        INTERFACE_COMPILE_FEATURES "cxx_std_23"
+        INTERFACE_COMPILE_OPTIONS "@SIV3D_FAT_COMPILE_OPTIONS@"
+        INTERFACE_LINK_LIBRARIES "@SIV3D_FAT_SYSTEM_LIBS@"
+    )
 endif()
+unset(_siv3d_fat)
 
-include("${CMAKE_CURRENT_LIST_DIR}/Siv3DTargets.cmake")
+# ----------------------------------------------------------------------------
+# Siv3D::Siv3DCore — engine archive + deps from the bundled vcpkg tree. Present
+# only with the 'Develop' component (detected via Siv3DCoreTargets.cmake).
+# ----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/Siv3DCoreTargets.cmake")
+    include(CMakeFindDependencyMacro)
 
-# The install tree may carry only a subset of configurations (typically Debug
-# and Release), but multi-config generators evaluate every project
-# configuration at generate time and error on a missing IMPORTED_LOCATION.
-# Map each missing configuration to an installed one; the mapping only takes
-# effect if that configuration is actually built (on MSVC, prefer installing
-# both Debug and Release so the CRT flavors match).
-get_target_property(_siv3d_configs Siv3D::Siv3D IMPORTED_CONFIGURATIONS)
-if(_siv3d_configs)
-    foreach(_siv3d_cfg DEBUG RELEASE MINSIZEREL RELWITHDEBINFO)
-        if(NOT "${_siv3d_cfg}" IN_LIST _siv3d_configs)
-            if(_siv3d_cfg STREQUAL "DEBUG")
-                set(_siv3d_pref RELEASE RELWITHDEBINFO MINSIZEREL)
-            else()
-                set(_siv3d_pref RELEASE RELWITHDEBINFO MINSIZEREL DEBUG)
-            endif()
-            foreach(_siv3d_candidate IN LISTS _siv3d_pref)
-                if("${_siv3d_candidate}" IN_LIST _siv3d_configs)
-                    set_target_properties(Siv3D::Siv3D PROPERTIES
-                        "MAP_IMPORTED_CONFIG_${_siv3d_cfg}" "${_siv3d_candidate}")
-                    break()
-                endif()
-            endforeach()
+    # Resolve deps from the bundled tree (no external vcpkg). Skipped in the
+    # build tree (no bundle), where the toolchain provides this.
+    set(_siv3d_vcpkg "${PACKAGE_PREFIX_DIR}/@SIV3D_VCPKG_BUNDLE_RELDIR@/@VCPKG_TARGET_TRIPLET@")
+    if(IS_DIRECTORY "${_siv3d_vcpkg}")
+        if(NOT DEFINED VCPKG_TARGET_TRIPLET)
+            set(VCPKG_TARGET_TRIPLET "@VCPKG_TARGET_TRIPLET@")
         endif()
-    endforeach()
-    unset(_siv3d_pref)
-    unset(_siv3d_candidate)
+        set(VCPKG_INSTALLED_DIR "${PACKAGE_PREFIX_DIR}/@SIV3D_VCPKG_BUNDLE_RELDIR@")
+        set(_VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}")
+        list(PREPEND CMAKE_PREFIX_PATH "${_siv3d_vcpkg}")
+        include("${CMAKE_CURRENT_LIST_DIR}/Siv3DVcpkgShim.cmake")
+    endif()
+    unset(_siv3d_vcpkg)
+
+    # Freetype via CONFIG so harfbuzz reuses the same target.
+    find_dependency(Freetype CONFIG)
+    find_dependency(harfbuzz CONFIG)
+    find_dependency(PNG)
+    find_dependency(libjpeg-turbo CONFIG)
+    find_dependency(ZLIB)
+    find_dependency(absl)
+    find_dependency(directxmath)
+    find_dependency(nlohmann_json)
+    find_dependency(nanoflann)
+    find_dependency(fmt CONFIG)
+    find_dependency(toml11 CONFIG)
+    find_dependency(OpenCV COMPONENTS core imgproc)
+    find_dependency(mimalloc CONFIG)
+    find_dependency(oniguruma CONFIG)
+    find_dependency(double-conversion CONFIG)
+    find_dependency(muparser CONFIG)
+    find_dependency(simdutf CONFIG)
+    find_dependency(zstd CONFIG)
+    find_dependency(lunasvg CONFIG)
+    find_dependency(CpuFeatures CONFIG)
+    find_dependency(Boost @SIV3D_BOOST_MIN_VERSION@ CONFIG COMPONENTS filesystem)
+    find_dependency(unofficial-easyexif CONFIG)
+    find_dependency(serial_cpp CONFIG)
+    find_dependency(pffft CONFIG)
+    find_dependency(unofficial-r8brain-free-src CONFIG)
+    find_dependency(unofficial-bc7enc-rdo CONFIG)
+    find_dependency(unofficial-levenshtein-sse CONFIG)
+    find_dependency(unofficial-rectpack2d CONFIG)
+    find_dependency(unofficial-skia CONFIG)
+    find_dependency(msdfgen CONFIG)
+    if(NOT WIN32)
+        find_dependency(glfw3 CONFIG)
+        find_dependency(Threads)
+    else()
+        find_dependency(unofficial-wintoast CONFIG)
+    endif()
+
+    include("${CMAKE_CURRENT_LIST_DIR}/Siv3DCoreTargets.cmake")
+
+    # Map any unbuilt configuration to an installed one so multi-config
+    # generators do not error on a missing IMPORTED_LOCATION.
+    get_target_property(_siv3d_configs Siv3D::Siv3DCore IMPORTED_CONFIGURATIONS)
+    if(_siv3d_configs)
+        foreach(_siv3d_cfg DEBUG RELEASE MINSIZEREL RELWITHDEBINFO)
+            if(NOT "${_siv3d_cfg}" IN_LIST _siv3d_configs)
+                if(_siv3d_cfg STREQUAL "DEBUG")
+                    set(_siv3d_pref RELEASE RELWITHDEBINFO MINSIZEREL)
+                else()
+                    set(_siv3d_pref RELEASE RELWITHDEBINFO MINSIZEREL DEBUG)
+                endif()
+                foreach(_siv3d_candidate IN LISTS _siv3d_pref)
+                    if("${_siv3d_candidate}" IN_LIST _siv3d_configs)
+                        set_target_properties(Siv3D::Siv3DCore PROPERTIES
+                            "MAP_IMPORTED_CONFIG_${_siv3d_cfg}" "${_siv3d_candidate}")
+                        break()
+                    endif()
+                endforeach()
+            endif()
+        endforeach()
+        unset(_siv3d_pref)
+        unset(_siv3d_candidate)
+    endif()
+    unset(_siv3d_configs)
 endif()
-unset(_siv3d_configs)
 
 check_required_components(Siv3D)

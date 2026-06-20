@@ -15,7 +15,7 @@
 # include <Siv3D/SIMD.hpp>
 
 # if SIV3D_INTRINSIC(SSE)
-#	include <ThirdParty/levenshtein-sse/levenshtein-sse.hpp>
+#	include <levenshtein-sse.hpp>
 # endif
 
 namespace s3d

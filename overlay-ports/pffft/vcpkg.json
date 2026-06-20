@@ -1,0 +1,17 @@
+{
+  "name": "pffft",
+  "version-string": "marton78-a4b0359",
+  "description": "PFFFT (Siv3D overlay): the marton78/pffft fork (the 'PFFFT DOUBLE' source in Siv3D's ThirdParty.md), which provides the double-precision pffft_double the engine's r8brain resampler uses. The registry port is jpommier/pffft (float-only).",
+  "homepage": "https://github.com/marton78/pffft",
+  "license": "BSD-3-Clause",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}
