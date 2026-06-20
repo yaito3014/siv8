@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 # ============================================================================
-# Siv3D sample application (CMake port of Siv3D-Test.vcxproj). This is the
+# Siv3D sample application (Windows + macOS). This is the
 # top-level project; it pulls in the engine one of two ways:
 #
 #   - add_subdirectory (default): build the engine from source, in-tree, using
@@ -97,7 +97,18 @@ if(WIN32)
     set_target_properties(Siv3D-App PROPERTIES WIN32_EXECUTABLE ON)
     # Engine resources (icon + optional embedded assets) and the manifest that
     # switches the process code page to UTF-8.
-    target_sources(Siv3D-App PRIVATE App/Resource.rc codepage.manifest)
+    target_sources(Siv3D-App PRIVATE Resource.rc codepage.manifest)
+elseif(APPLE)
+    # Build a .app bundle (Info.plist + icon). NOTE: staging the runtime assets
+    # (resources/engine, resources/example) into Contents/Resources and the
+    # prebuilt dylibs (resources/dll) into the bundle is not yet wired here —
+    # complete and verify on macOS.
+    set_target_properties(Siv3D-App PROPERTIES
+        MACOSX_BUNDLE ON
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist"
+    )
+    target_sources(Siv3D-App PRIVATE icon.icns)
+    set_source_files_properties(icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 endif()
 
 if(MSVC)
@@ -109,24 +120,24 @@ if(MSVC)
     )
 endif()
 
-# F5 in Visual Studio runs from App/ (engine/, example/ assets), like the
-# vcxproj. Outside the IDE, run the exe with App/ as the working directory.
+# F5 in Visual Studio runs from resources/ (engine/, example/ assets). Outside
+# the IDE, run the exe with resources/ as the working directory.
 set_target_properties(Siv3D-App PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/App"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources"
     VS_DEBUGGER_ENVIRONMENT "SIV3D_APP_LAUNCHED_FROM_IDE=1"
 )
 
 # Outside a debugger the engine chdirs to the exe's own directory at startup
-# (SetWorkingDirectory in Siv3DMainHelper.cpp), so stage a runnable copy in
-# App/ — the CMake equivalent of the vcxproj's post-build xcopy. With the
-# static triplet the exe is self-contained (any *.dll the script picks up
-# would come from a dynamic-triplet build). App/ holds the most recently
-# built configuration.
-add_custom_command(TARGET Siv3D-App POST_BUILD
-    COMMAND ${CMAKE_COMMAND}
-        -DEXE=$<TARGET_FILE:Siv3D-App>
-        -DSRC_DIR=$<TARGET_FILE_DIR:Siv3D-App>
-        -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/App
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyAppBinaries.cmake"
-    COMMENT "Staging Siv3D-App and runtime DLLs into App/"
-)
+# (SetWorkingDirectory in Siv3DMainHelper.cpp), so stage a runnable copy into
+# resources/ — the CMake equivalent of the vcxproj's post-build xcopy. With the
+# static triplet the exe is self-contained. (macOS ships a .app bundle instead.)
+if(WIN32)
+    add_custom_command(TARGET Siv3D-App POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -DEXE=$<TARGET_FILE:Siv3D-App>
+            -DSRC_DIR=$<TARGET_FILE_DIR:Siv3D-App>
+            -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/resources
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyAppBinaries.cmake"
+        COMMENT "Staging Siv3D-App into resources/"
+    )
+endif()
