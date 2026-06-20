@@ -8,7 +8,7 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
 endif()
 
 # Options gating vcpkg manifest features must be set before project().
-option(SIV3D_BUILD_TESTS "Build the Siv3D-Test target" OFF)
+option(SIV3D_BUILD_TESTS "Build the Siv3D-Test target" ON)
 if(SIV3D_BUILD_TESTS)
     list(APPEND VCPKG_MANIFEST_FEATURES "tests")
 endif()

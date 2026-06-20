@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.25)
 get_filename_component(_siv3d_engine_default "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 set(SIV3D_ENGINE_DIR "${_siv3d_engine_default}" CACHE PATH "Siv3D engine source directory")
 option(SIV3D_APP_USE_FIND_PACKAGE "Consume an installed Siv3D via find_package instead of building it in-tree" OFF)
-option(SIV3D_APP_BUILD_TESTS "Compile ../Test into the app so RunTest() is available (needs the engine 'tests' feature)" OFF)
+option(SIV3D_APP_BUILD_TESTS "Compile ../Test into the app so RunTest() is available (needs the engine 'tests' feature)" ON)
 
 # ---- pre-project() setup; must match the engine build ----
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
