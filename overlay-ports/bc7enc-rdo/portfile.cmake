@@ -28,4 +28,4 @@ file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/include")
 
 # bc7enc_rdo's files carry MIT / public-domain headers; record provenance.
 file(WRITE "${CURRENT_PACKAGES_DIR}/share/${PORT}/copyright"
-    "bc7enc_rdo by Rich Geldreich — MIT License.\nUpstream: https://github.com/richgel999/bc7enc_rdo\nPinned commit: dbe416d28a5530b4e8cc45b14bf034dc6b96bbde\nLocal patch: ert.h adds <cstdint> (see 0001-ert-include-cstdint.patch).\n")
+    "bc7enc_rdo by Rich Geldreich — MIT License.\nUpstream: https://github.com/richgel999/bc7enc_rdo\nPinned commit: dbe416d28a5530b4e8cc45b14bf034dc6b96bbde\nSource unmodified; <cstdint> is force-included via a compile option (see build-CMakeLists.txt).\n")
