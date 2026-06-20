@@ -12,6 +12,7 @@ vcpkg_from_github(
     HEAD_REF master
     PATCHES
         0001-ert-include-cstdint.patch
+        0002-cstdint-headers.patch
 )
 
 # Upstream has no build system and bundles a CLI (test.cpp) plus PNG/zip helpers
