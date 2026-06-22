@@ -141,20 +141,11 @@ file(GLOB_RECURSE SIV3D_COMMON_SOURCES CONFIGURE_DEPENDS
 if(UNIX AND NOT APPLE)
     set(SIV3D_LINUX_UNIMPLEMENTED
         "Siv3D/ChildProcess/SivChildProcess\\.cpp"
-        "Siv3D/Clipboard/ClipboardFactory\\.cpp"
         "Siv3D/Cursor/CursorFactory\\.cpp"
         "Siv3D/CursorStyle/CursorStyleFactory\\.cpp"
         "Siv3D/DirectoryWatcher/SivDirectoryWatcher\\.cpp"
-        "Siv3D/DragDrop/DragDropFactory\\.cpp"
         "Siv3D/Keyboard/KeyboardFactory\\.cpp"
-        "Siv3D/MediaTranscoder/MediaTranscoderFactory\\.cpp"
         "Siv3D/Mouse/MouseFactory\\.cpp"
-        "Siv3D/NativeShare/NativeShareFactory\\.cpp"
-        "Siv3D/Notifications/NotificationsFactory\\.cpp"
-        "Siv3D/Notifications/SivNotifications\\.cpp"
-        "Siv3D/Pentablet/PentabletFactory\\.cpp"
-        "Siv3D/System/SystemFactory\\.cpp"
-        "Siv3D/TextToSpeech/TextToSpeechFactory\\.cpp"
         "Siv3D/Window/WindowFactory\\.cpp"
     )
     foreach(pattern IN LISTS SIV3D_LINUX_UNIMPLEMENTED)
@@ -293,6 +284,12 @@ elseif(APPLE)
 elseif(UNIX)
     find_package(glfw3 CONFIG REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE glfw)
+    # OpenGL backend: glad (GL 4.1 loader) + system GL + X11 (GLFW native access).
+    find_package(glad CONFIG REQUIRED)
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(Siv3DCore PRIVATE glad::glad OpenGL::GL)
+    find_package(X11 REQUIRED)
+    target_link_libraries(Siv3DCore PRIVATE ${X11_LIBRARIES})
     # stduuid's system generator (UUIDValue) calls uuid_generate from libuuid,
     # which ships a pkg-config file (uuid.pc) but no CMake package.
     find_package(PkgConfig REQUIRED)

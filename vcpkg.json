@@ -70,6 +70,13 @@
       "platform": "!windows"
     },
     {
+      "name": "glad",
+      "platform": "linux",
+      "features": [
+        "gl-api-41"
+      ]
+    },
+    {
       "name": "wintoast",
       "platform": "windows"
     }
