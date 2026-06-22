@@ -16,6 +16,7 @@
 # include <Siv3D/FreestandingMessageBox/FreestandingMessageBox.hpp>
 # include <Siv3D/System/ExitCode.hpp>
 # include <Siv3D/EngineLog.hpp>
+# include <Siv3D/FileSystem.hpp>
 
 void Main();
 
@@ -31,6 +32,16 @@ int main(int argc, char* argv[])
 	std::clog << "Siv3D for Linux\n";
 
 	detail::init::InitCommandLines(argc, argv);
+
+	// Resolve relative resource paths against the executable's directory rather
+	// than the shell's current directory (mirrors WindowsDesktop's
+	// SetWorkingDirectory() and the macOS startup chdir). The engine loads its
+	// own resources (shaders, fonts) via relative paths during System::init(),
+	// so this must happen before it.
+	if (const FilePath workingDirectory = FileSystem::GetExecutableDirectory())
+	{
+		FileSystem::ChangeCurrentDirectory(workingDirectory);
+	}
 
 	Siv3DEngine engine;
 
