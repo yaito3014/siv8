@@ -175,8 +175,11 @@ elseif(APPLE)
     )
 elseif(UNIX)
     # TODO(linux): no Window/Renderer backend yet — builds common code only.
+    # Linux-only platform code lives under Linux/ (Time, FileSystem, UserInfo, …);
+    # macOS_Linux/ holds code shared with the macOS port.
     file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS
         "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
+        "${SIV3D_SRC}/Siv3D-Platform/Linux/*.cpp"
     )
     # The GLFW-based input layer lives under macOS/ only for now.
     list(FILTER SIV3D_PLATFORM_SOURCES EXCLUDE REGEX "/macOS_Linux/Siv3D/(CursorStyle|Keyboard|Mouse)/")
@@ -229,7 +232,10 @@ elseif(APPLE)
         "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux"
     )
 elseif(UNIX)
-    target_include_directories(Siv3DCore PRIVATE "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux")
+    target_include_directories(Siv3DCore PRIVATE
+        "${SIV3D_SRC}/Siv3D-Platform/Linux"
+        "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux"
+    )
 endif()
 
 target_compile_definitions(Siv3DCore PRIVATE
@@ -287,6 +293,11 @@ elseif(APPLE)
 elseif(UNIX)
     find_package(glfw3 CONFIG REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE glfw)
+    # stduuid's system generator (UUIDValue) calls uuid_generate from libuuid,
+    # which ships a pkg-config file (uuid.pc) but no CMake package.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(UUID REQUIRED IMPORTED_TARGET uuid)
+    target_link_libraries(Siv3DCore PRIVATE PkgConfig::UUID)
 endif()
 
 # zstd is built with ZSTD_MULTITHREAD -> needs pthread on POSIX.
@@ -426,7 +437,11 @@ if(SIV3D_BUILD_TESTS)
     find_package(doctest CONFIG REQUIRED)
     find_package(nanobench CONFIG REQUIRED)
     file(GLOB_RECURSE SIV3D_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Test/*.cpp")
-    if(SIV3D_TEST_SOURCES)
+    # Standalone test exe is the Linux/macOS test vehicle. On Windows, linking
+    # Siv3DCore pulls in Siv3DMainHelper (the GUI entry point expecting a user
+    # Main()), so a bare console test exe can't link — Windows runs the tests
+    # compiled into Siv3D-App via RunTest() (SIV3D_APP_BUILD_TESTS) instead.
+    if(SIV3D_TEST_SOURCES AND NOT WIN32)
         add_executable(Siv3D-Test ${SIV3D_TEST_SOURCES})
         target_link_libraries(Siv3D-Test PRIVATE Siv3D::Siv3DCore doctest::doctest nanobench::nanobench)
     endif()

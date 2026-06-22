@@ -405,6 +405,8 @@ CTestTestfile.cmake
 _deps
 build/
 build-*/
+# vcpkg manifest-mode install tree (when configuring at the repo root)
+vcpkg_installed/
 
 # Ninja
 # https://github.com/github/gitignore/blob/master/Global/Ninja.gitignore

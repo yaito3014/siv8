@@ -98,10 +98,14 @@ if(WIN32)
     # Engine resources (icon + optional embedded assets) and the manifest that
     # switches the process code page to UTF-8.
     target_sources(Siv3D-App PRIVATE Resource.rc codepage.manifest)
+    # Resource.rc embeds files by paths relative to the staged asset tree (e.g.
+    # `engine/...`), which lives under app/. Put it on the RC include path
+    # so rc.exe resolves them (CMake forwards include dirs to the RC compiler).
+    target_include_directories(Siv3D-App PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/app")
 elseif(APPLE)
     # Build a .app bundle (Info.plist + icon). NOTE: staging the runtime assets
-    # (resources/engine, resources/example) into Contents/Resources and the
-    # prebuilt dylibs (resources/dll) into the bundle is not yet wired here —
+    # (app/engine, app/example) into Contents/Resources and the
+    # prebuilt dylibs (app/dll) into the bundle is not yet wired here —
     # complete and verify on macOS.
     set_target_properties(Siv3D-App PROPERTIES
         MACOSX_BUNDLE ON
@@ -120,24 +124,24 @@ if(MSVC)
     )
 endif()
 
-# F5 in Visual Studio runs from resources/ (engine/, example/ assets). Outside
-# the IDE, run the exe with resources/ as the working directory.
+# F5 in Visual Studio runs from app/ (engine/, example/ assets). Outside
+# the IDE, run the exe with app/ as the working directory.
 set_target_properties(Siv3D-App PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/app"
     VS_DEBUGGER_ENVIRONMENT "SIV3D_APP_LAUNCHED_FROM_IDE=1"
 )
 
 # Outside a debugger the engine chdirs to the exe's own directory at startup
 # (SetWorkingDirectory in Siv3DMainHelper.cpp), so stage a runnable copy into
-# resources/ — the CMake equivalent of the vcxproj's post-build xcopy. With the
+# app/ — the CMake equivalent of the vcxproj's post-build xcopy. With the
 # static triplet the exe is self-contained. (macOS ships a .app bundle instead.)
 if(WIN32)
     add_custom_command(TARGET Siv3D-App POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             -DEXE=$<TARGET_FILE:Siv3D-App>
             -DSRC_DIR=$<TARGET_FILE_DIR:Siv3D-App>
-            -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/resources
+            -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/app
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyAppBinaries.cmake"
-        COMMENT "Staging Siv3D-App into resources/"
+        COMMENT "Staging Siv3D-App into app/"
     )
 endif()

@@ -1,0 +1,40 @@
+//-----------------------------------------------
+//
+//	This file is part of the Siv3D Engine.
+//
+//	Copyright (c) 2008-2026 Ryo Suzuki
+//	Copyright (c) 2016-2026 OpenSiv3D Project
+//
+//	Licensed under the MIT License.
+//
+//-----------------------------------------------
+
+# include <array>
+# include <Siv3D/String.hpp>
+# include <Siv3D/Array.hpp>
+
+namespace s3d
+{
+	namespace detail
+	{
+		struct FilePathCache
+		{
+			/// @brief 起動ディレクトリ
+			FilePath launchDirectory;
+
+			/// @brief 実行ファイルのパス
+			FilePath executablePath;
+
+			/// @brief 実行ファイルのディレクトリ
+			FilePath executableDirectory;
+
+			/// @brief 特殊フォルダのパス
+			std::array<FilePath, 12> specialFolderPaths;
+
+			/// @brief リソースファイルのパス一覧
+			Array<FilePath> resourceFilePaths;
+
+			FilePathCache();
+		};
+	}
+}

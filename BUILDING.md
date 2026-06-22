@@ -25,7 +25,7 @@ that is already green. Dependencies come from vcpkg manifest mode
 - Triplet: **`x64-windows-static`** (static CRT `/MT`). The App CMakeLists sets
   this and `CMAKE_MSVC_RUNTIME_LIBRARY` automatically on Windows.
 
-## Build — Windows
+## Build — Windows (Release verified green)
 
 ```bat
 cd App
@@ -36,10 +36,18 @@ cmake --build build --config Release
 - Default mode is `add_subdirectory`: one configure builds the engine in-tree
   from the engine's own `vcpkg.json`. No install step.
 - `tests` is ON by default (`SIV3D_APP_BUILD_TESTS`), which appends the `tests`
-  feature and compiles `Test/` into the app so `RunTest()` is available.
-- Output: a GUI-subsystem `Siv3D-App.exe`, post-build staged into
-  `App/resources/` (the working dir with `engine/`, `example/` assets). Run it
-  from there, or F5 in VS (working dir is wired to `resources/`).
+  feature and compiles `Test/` into the app so `RunTest()` is available. The
+  standalone `Siv3D-Test` exe target is **not** built on Windows (it can't link
+  against the GUI entry point in `Siv3DMainHelper`); Windows runs tests in-app.
+- Output: a GUI-subsystem `Siv3D-App.exe` (~37 MB, self-contained static CRT),
+  post-build staged into `App/app/` (the self-contained run directory, with the
+  `engine/`, `example/` assets and `dll/` next to the exe). **Run it from there**
+  — `App\app\Siv3D-App.exe` — or F5 in VS (working dir is wired to `app/`). The
+  build-output `build/Release/Siv3D-App.exe` is **not** runnable in place: the
+  engine `chdir`s to the exe's own folder and loads `engine/...` relative to it,
+  so it only works from `App/app/`.
+- `Resource.rc` embeds assets by paths relative to the staged tree (`engine/…`),
+  so `App/CMakeLists.txt` puts `App/app/` on the RC `/I` include path.
 
 To consume an already-installed/exported engine instead of building it in-tree:
 
@@ -47,16 +55,63 @@ To consume an already-installed/exported engine instead of building it in-tree:
 cmake -B build -DSIV3D_APP_USE_FIND_PACKAGE=ON -DCMAKE_PREFIX_PATH=<prefix>
 ```
 
-## Build — Linux (reference, already green)
+## Build — Linux (reference)
 
-Linux has no graphics backend yet, so the **engine library** builds but the app
-does not fully link. Use it to verify compilation of shared/cross-platform code.
+Linux has no graphics backend yet, so the **engine library (`Siv3DCore`) builds
+green** but the `Siv3D-Test` executable does **not** fully link. Use the library
+target to verify compilation of shared/cross-platform code.
 
 ```bash
-cd /root/siv8          # in the "siv8" docker container (Ubuntu, gcc 15.2)
-cmake -B build3        # triplet x64-linux, Release, SIV3D_BUILD_TESTS=ON
-cmake --build build3
+cd /root/siv8                          # in the "siv8" docker container (Ubuntu, gcc 15.2)
+cmake -B build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+  -DVCPKG_TARGET_TRIPLET=x64-linux -DSIV3D_BUILD_TESTS=ON
+cmake --build build --target Siv3DCore    # <- green
+cmake --build build                       # full link; fails on the backend gap below (expected)
 ```
+
+### Linux platform-source layout
+
+Platform code for Linux comes from two trees (see the `elseif(UNIX)` blocks in
+the root `CMakeLists.txt`):
+
+- **`Siv3D-Platform/macOS_Linux/`** — code shared with the macOS port
+  (DateTime, EnvironmentVariable, BinaryFile*, the shared `FileSystem` subset:
+  `FullPath`/`CurrentDirectory`/`Size`/timestamps/`RemoveContents`, …).
+- **`Siv3D-Platform/Linux/`** — **Linux-only** implementations:
+  - `Time/` — `clock_gettime(CLOCK_MONOTONIC_RAW)` (macOS uses the Apple-only
+    `clock_gettime_nsec_np`); `UTCOffsetMinutes` via `localtime_r().tm_gmtoff`.
+  - `FileSystem/` — the `macOS/*.mm` complement ported to POSIX +
+    `std::filesystem` + XDG special folders (`user-dirs.dirs`) + `/proc/self/exe`
+    + a freedesktop trash impl.
+  - `UserInfo/` — `getpwuid`/`gethostname`/`LANG`; `IsRunningInVisualStudio`/
+    `IsRunningInXcode` → `false`.
+  - `Resource/` — `Resource()`/`EnumResourceFiles()`; resource root is the
+    `resources/` dir next to the executable (no app bundle on Linux).
+  - `FreestandingMessageBox/` — falls back to `std::cerr` (no GUI backend).
+  - `System/` — `OpenInBrowser()` via `fork`+`execlp("xdg-open", …)`.
+
+`UUIDValue` pulls `uuid_generate` from system **libuuid**; the `elseif(UNIX)`
+link block finds it with pkg-config (`pkg_check_modules(UUID REQUIRED
+IMPORTED_TARGET uuid)` → `PkgConfig::UUID`) — libuuid ships `uuid.pc` but no
+CMake package, and the vcpkg toolchain provides the `pkgconf` used to read it.
+
+### Why `Siv3D-Test` still doesn't link (expected)
+
+`Siv3DEngine.cpp` references every `ISiv3D*::Create()` device/graphics/window/
+input factory, and those factory TUs are deliberately excluded on Linux
+(`SIV3D_LINUX_UNIMPLEMENTED` in `CMakeLists.txt`). So nothing that links the
+engine into an executable can resolve them yet. The **only** remaining undefined
+symbols are:
+
+- **Graphics/window/input/device factories** — `ISiv3D{Window,System,Renderer,
+  Renderer2D,Shader,EngineShader,Texture,Mouse,Keyboard,Cursor,CursorStyle,
+  DragDrop,Clipboard,Pentablet,MediaTranscoder,NativeShare,Notifications,
+  TextToSpeech}::Create()`. The big backend port; tracked by `TODO(linux)`.
+- **`main`** — the `Siv3DMain` entry-point bootstrap, not built on Linux.
+
+(The earlier `Resource`/`OpenInBrowser`/`FreestandingMessageBox::ShowError`/
+`uuid_generate` gaps are now closed — see the `Linux/` tree above.)
 
 ## Windows-specific items that are UNVERIFIED on Linux
 
@@ -108,5 +163,5 @@ Boost.Geometry extension NOT in vcpkg, used by `PolygonDetail.cpp`, tied to the
 ## macOS (not yet complete)
 
 `App/CMakeLists.txt` builds a `.app` bundle (Info.plist + icon) but does NOT yet
-stage runtime assets (`resources/engine`, `resources/example`) or the prebuilt
+stage runtime assets (`app/engine`, `app/example`) or the prebuilt
 dylibs into the bundle — see the `NOTE:` in the `elseif(APPLE)` block.
