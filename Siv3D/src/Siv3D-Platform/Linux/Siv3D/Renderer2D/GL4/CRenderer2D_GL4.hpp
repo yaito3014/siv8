@@ -400,6 +400,8 @@ namespace s3d
 
 		GLint m_patLocType = -1;
 
+		GLint m_patLocFbHeight = -1;
+
 		GLuint m_lineProgram = 0;
 
 		GLint m_lineLocTransform0 = -1;

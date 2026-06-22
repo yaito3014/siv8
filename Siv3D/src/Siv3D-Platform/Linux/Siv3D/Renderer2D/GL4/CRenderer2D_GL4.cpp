@@ -91,40 +91,109 @@ void main()
 )";
 
 		// Patterns are computed in screen space (gl_FragCoord) transformed by the
-		// packed uvTransform; mask selects primary (vertex color) vs background.
-		// Matches Pattern::PolkaDot(0)/Grid(2)/Checker(3); others TODO(linux).
+		// packed uvTransform, then mixed between primary (vertex color) and
+		// background. These are faithful ports of the engine's reference pattern
+		// shaders (engine/shader/{metal,d3d11}/2d.* — PS_PatternPolkaDot etc.), so
+		// shape, sizing and smoothstep edge-AA match D3D11/Metal exactly. u_pt0/u_pt1
+		// are the packed uvTransform (u_pt1.zw = param0/param1); u_patType is the
+		// PatternType enum (PolkaDot=0, Stripe=1, Grid=2, Checker=3, Triangle=4,
+		// HexGrid=5). gl_FragCoord.y is flipped to the reference's top-left origin.
 		constexpr StringView PatternPSCode =
 UR"(#version 410 core
 in vec4 v_color;
 in vec2 v_uv;
 out vec4 o_color;
-uniform vec4 u_pt0;
-uniform vec4 u_pt1;
-uniform vec4 u_patBg;
+uniform vec4 u_pt0;          // (m11, m12, m31, m32)
+uniform vec4 u_pt1;          // (m21, m22, param0, param1)
+uniform vec4 u_patBg;        // background color (straight alpha)
 uniform int u_patType;
+uniform float u_patFbHeight; // framebuffer height, for gl_FragCoord.y flip
+
+vec2 patUV(vec2 f)
+{
+	return vec2(u_pt0.z, u_pt0.w) + (f.x * vec2(u_pt0.x, u_pt0.y)) + (f.y * vec2(u_pt1.x, u_pt1.y));
+}
+vec2 patIntegral(vec2 v)
+{
+	v /= 2.0;
+	return (floor(v) + max((2.0 * fract(v) - 1.0), 0.0));
+}
+float patChecker(vec2 p, vec2 hv)
+{
+	vec2 fw = fwidth(p);
+	float w = max(fw.x, fw.y);
+	vec2 i = (patIntegral(p + (0.5 * w)) - patIntegral(p - (0.5 * w)));
+	i *= hv;
+	i /= w;
+	return (i.x + i.y - (2.0 * i.x * i.y));
+}
+vec2 patSkew(vec2 v) // square lattice -> equilateral-triangle lattice
+{
+	return vec2((v.x + (v.y * 0.57735027)), (v.y * 1.15470054));
+}
+float patHex(vec2 p)
+{
+	vec2 HEX = vec2(1.0, 1.73205081);
+	vec4 t = (floor(vec4(p, (p - vec2(0.5, 1.0))) / HEX.xyxy) + vec4(0.5));
+	vec4 h = vec4((p - (t.xy * HEX)), (p - ((t.zw + vec2(0.5)) * HEX)));
+	vec2 hx = abs((dot(h.xy, h.xy) < dot(h.zw, h.zw)) ? h.xy : h.zw);
+	return max(dot(hx, (HEX * 0.5)), hx.x);
+}
 void main()
 {
-	vec2 f = gl_FragCoord.xy;
-	vec2 c = vec2(u_pt0.z, u_pt0.w) + (f.x * vec2(u_pt0.x, u_pt0.y)) + (f.y * vec2(u_pt1.x, u_pt1.y));
+	vec2 f = vec2(gl_FragCoord.x, (u_patFbHeight - gl_FragCoord.y));
+	vec2 uv = patUV(f);
 	float p0 = u_pt1.z;
-	float mask = 0.0;
-	if (u_patType == 3) { vec2 cc = floor(c); mask = mod((cc.x + cc.y), 2.0); }				// Checker
-	else if (u_patType == 2) { vec2 d = min(fract(c), (vec2(1.0) - fract(c))); mask = (((d.x < p0) || (d.y < p0)) ? 1.0 : 0.0); } // Grid
-	else if (u_patType == 0) { float dd = length(fract(c) - vec2(0.5)); mask = ((dd < p0) ? 1.0 : 0.0); } // PolkaDot
-	else if (u_patType == 1) { mask = ((fract(c.x) < (p0 * 2.0)) ? 1.0 : 0.0); }				// Stripe
-	else if (u_patType == 4) { float ta = (c.x - c.y / 1.7320508); float tb = (c.y * 2.0 / 1.7320508); mask = (((fract(ta) + fract(tb)) < 1.0) ? 1.0 : 0.0); } // Triangle (equilateral tiling)
-	else if (u_patType == 5) {																	// HexGrid (border lines)
-		vec2 rr = vec2(1.0, 1.7320508);
-		vec2 hh = (rr * 0.5);
-		vec2 aa = (mod(c, rr) - hh);
-		vec2 bb = (mod((c - hh), rr) - hh);
-		vec2 gv = ((dot(aa, aa) < dot(bb, bb)) ? aa : bb);
-		vec2 q = abs(gv);
-		float hd = max(dot(q, normalize(vec2(1.0, 1.7320508))), q.x);
-		mask = ((hd > p0) ? 1.0 : 0.0);
+	float p1 = u_pt1.w;
+	vec4 primary = v_color;                                 // premultiplied in the VS
+	vec4 bg = vec4((u_patBg.rgb * u_patBg.a), u_patBg.a);    // premultiply background
+
+	if (u_patType == 0)            // PolkaDot
+	{
+		float value = length((2.0 * fract(uv)) - 1.0);
+		float fw = (length(vec2(dFdx(value), dFdy(value))) * 0.70710678);
+		float c = smoothstep((p0 - fw), (p0 + fw), value);
+		o_color = mix(primary, bg, c);
 	}
-	vec4 bg = vec4((u_patBg.rgb * u_patBg.a), u_patBg.a);
-	o_color = mix(bg, v_color, mask);
+	else if (u_patType == 1)       // Stripe
+	{
+		float u = uv.x;
+		float fw = fwidth(u);
+		float value = abs((2.0 * fract(u)) - 1.0);
+		float ts = ((p0 * (1.0 + (2.0 * fw))) - fw);
+		o_color = mix(primary, bg, smoothstep((ts - fw), (ts + fw), value));
+	}
+	else if (u_patType == 2)       // Grid
+	{
+		vec2 fw = fwidth(uv);
+		vec2 value = abs((2.0 * fract(uv)) - 1.0);
+		vec2 ts = ((vec2(p0) * (vec2(1.0) + fw)) - fw);
+		vec2 t1 = smoothstep((ts - fw), (ts + fw), value);
+		o_color = mix(primary, bg, min(t1.x, t1.y));
+	}
+	else if (u_patType == 3)       // Checker
+	{
+		o_color = mix(primary, bg, patChecker(uv, vec2(p0, p1)));
+	}
+	else if (u_patType == 4)       // Triangle
+	{
+		vec2 fw = (fwidth(uv) * 0.25);
+		vec2 s1 = patSkew(uv + vec2(-fw.x, -fw.y));
+		vec2 s2 = patSkew(uv + vec2( fw.x,  fw.y));
+		vec2 s3 = patSkew(uv + vec2(-fw.x,  fw.y));
+		vec2 s4 = patSkew(uv + vec2( fw.x, -fw.y));
+		vec4 fa = fract(vec4(s1, s2));
+		vec4 fb = fract(vec4(s3, s4));
+		vec4 ss = vec4(step(fa.x, fa.y), step(fa.z, fa.w), step(fb.x, fb.y), step(fb.z, fb.w));
+		o_color = mix(primary, bg, dot(ss, vec4(0.25)));
+	}
+	else                           // HexGrid (5)
+	{
+		vec2 fw = fwidth(uv);
+		float w = (max(fw.x, fw.y) * 0.5);
+		float ts = (p0 * (1.0 + (2.0 * w)));
+		o_color = mix(bg, primary, smoothstep((ts - w), (ts + w), patHex(uv)));
+	}
 }
 )";
 
@@ -243,6 +312,7 @@ void main()
 		m_patLocPt1			= ::glGetUniformLocation(m_patternProgram, "u_pt1");
 		m_patLocBg			= ::glGetUniformLocation(m_patternProgram, "u_patBg");
 		m_patLocType		= ::glGetUniformLocation(m_patternProgram, "u_patType");
+		m_patLocFbHeight	= ::glGetUniformLocation(m_patternProgram, "u_patFbHeight");
 
 		m_lineProgram = LinkProgram(LinePSCode);
 		m_lineLocTransform0	= ::glGetUniformLocation(m_lineProgram, "u_t0");
@@ -369,6 +439,7 @@ void main()
 				::glUniform4f(m_patLocPt1, p[1].x, p[1].y, p[1].z, p[1].w);
 				::glUniform4f(m_patLocBg, p[2].x, p[2].y, p[2].z, p[2].w);
 				::glUniform1i(m_patLocType, command.patternType);
+				::glUniform1f(m_patLocFbHeight, static_cast<float>(frameBufferSize.y));
 			}
 			else if (command.program == Program::Line)
 			{
