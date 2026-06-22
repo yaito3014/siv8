@@ -112,7 +112,17 @@ void main()
 	else if (u_patType == 2) { vec2 d = min(fract(c), (vec2(1.0) - fract(c))); mask = (((d.x < p0) || (d.y < p0)) ? 1.0 : 0.0); } // Grid
 	else if (u_patType == 0) { float dd = length(fract(c) - vec2(0.5)); mask = ((dd < p0) ? 1.0 : 0.0); } // PolkaDot
 	else if (u_patType == 1) { mask = ((fract(c.x) < (p0 * 2.0)) ? 1.0 : 0.0); }				// Stripe
-	// u_patType == 4 (Triangle) / 5 (HexGrid): TODO(linux) — need triangular/hex tilings.
+	else if (u_patType == 4) { float ta = (c.x - c.y / 1.7320508); float tb = (c.y * 2.0 / 1.7320508); mask = (((fract(ta) + fract(tb)) < 1.0) ? 1.0 : 0.0); } // Triangle (equilateral tiling)
+	else if (u_patType == 5) {																	// HexGrid (border lines)
+		vec2 rr = vec2(1.0, 1.7320508);
+		vec2 hh = (rr * 0.5);
+		vec2 aa = (mod(c, rr) - hh);
+		vec2 bb = (mod((c - hh), rr) - hh);
+		vec2 gv = ((dot(aa, aa) < dot(bb, bb)) ? aa : bb);
+		vec2 q = abs(gv);
+		float hd = max(dot(q, normalize(vec2(1.0, 1.7320508))), q.x);
+		mask = ((hd > p0) ? 1.0 : 0.0);
+	}
 	vec4 bg = vec4((u_patBg.rgb * u_patBg.a), u_patBg.a);
 	o_color = mix(bg, v_color, mask);
 }
