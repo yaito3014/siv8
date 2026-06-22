@@ -10,6 +10,7 @@
 
 # pragma once
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
+# include <Siv3D/Renderer2D/Vertex2DBuilder.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBufferPointer.hpp>
 # include <Siv3D/Array.hpp>
 # include <Siv3D/Mat3x2.hpp>
@@ -32,71 +33,171 @@ namespace s3d
 
 		void init() override;
 
-		// --- implemented (solid shapes) ---
-		void addTriangle(const Float2(&points)[3], const Float4& color) override;
-		void addTriangle(const Float2(&points)[3], const Float4(&colors)[3]) override;
-		void addRect(const FloatRect& rect, const Float4& color) override;
-		void addRect(const FloatRect& rect, const Float4(&colors)[4]) override;
-		void addCircle(const Float2& center, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override;
-		void addLine(LineCap startCap, LineCap endCap, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override;
-
 		void flush() override;
 
-		Float4 getColorMul() const override;
-		void setColorMul(const Float4& color) override;
-		Float3 getColorAdd() const override;
-		void setColorAdd(const Float3& color) override;
-		float getMaxScaling() const noexcept override;
-		const Mat3x2& getLocalTransform() const override;
-		void setLocalTransform(const Mat3x2& matrix) override;
-		const Mat3x2& getCameraTransform() const override;
-		void setCameraTransform(const Mat3x2& matrix) override;
+		////////////////////////////////////////////////////////////////
+		//	solid-color shapes (tessellated by the common Vertex2DBuilder)
+		////////////////////////////////////////////////////////////////
 
-		// --- not yet implemented (Phase 1+): no-op so the engine links/runs ---
-		void addLine(const LineStyle& style, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override {}
-		void addArrow(LineCap startCap, const Float2& start, const Float2& end, float thickness, const Float2& headSize, const Float4(&colors)[2]) override {}
+		void addLine(LineCap startCap, LineCap endCap, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override
+		{
+			discard(Vertex2DBuilder::BuildLine(bufferCreator(), startCap, endCap, start, end, thickness, colors, getMaxScaling()));
+		}
+		void addLine(const LineStyle& style, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override
+		{
+			discard(Vertex2DBuilder::BuildLine(bufferCreator(), style, start, end, thickness, colors, getMaxScaling()));
+		}
+		void addArrow(LineCap startCap, const Float2& start, const Float2& end, float thickness, const Float2& headSize, const Float4(&colors)[2]) override
+		{
+			discard(Vertex2DBuilder::BuildArrow(bufferCreator(), startCap, start, end, thickness, headSize, colors, getMaxScaling()));
+		}
+		void addTriangle(const Float2(&points)[3], const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildTriangle(bufferCreator(), points, color));
+		}
+		void addTriangle(const Float2(&points)[3], const Float4(&colors)[3]) override
+		{
+			discard(Vertex2DBuilder::BuildTriangle(bufferCreator(), points, colors));
+		}
+		void addRect(const FloatRect& rect, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildRect(bufferCreator(), rect, color));
+		}
+		void addRect(const FloatRect& rect, const Float4(&colors)[4]) override
+		{
+			discard(Vertex2DBuilder::BuildRect(bufferCreator(), rect, colors));
+		}
+		void addRectFrame(const FloatRect& innerRect, float thickness, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
+		{
+			discard(Vertex2DBuilder::BuildRectFrame(bufferCreator(), innerRect, thickness, colorType, color0, color1));
+		}
+		void addCircle(const Float2& center, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
+		{
+			discard(Vertex2DBuilder::BuildCircle(bufferCreator(), center, r, colorType, color0, color1, getMaxScaling()));
+		}
+		void addCircleFrame(const Float2& center, float rInner, float thickness, const Float4& innerColor, const Float4& outerColor) override
+		{
+			discard(Vertex2DBuilder::BuildCircleFrame(bufferCreator(), center, rInner, thickness, innerColor, outerColor, getMaxScaling()));
+		}
+		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) override
+		{
+			discard(Vertex2DBuilder::BuildCirclePie(bufferCreator(), center, r, startAngle, angle, innerColor, outerColor, getMaxScaling()));
+		}
+		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
+		{
+			discard(Vertex2DBuilder::BuildCircleArc(bufferCreator(), lineCap, center, rInner, startAngle, angle, thickness, colorType, color0, color1, getMaxScaling()));
+		}
+		void addCircleSegment(const Float2& center, float r, float startAngle, float angle, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildCircleSegment(bufferCreator(), center, r, startAngle, angle, color, getMaxScaling()));
+		}
+		void addEllipse(const Float2& center, float a, float b, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
+		{
+			discard(Vertex2DBuilder::BuildEllipse(bufferCreator(), center, a, b, colorType, color0, color1, getMaxScaling()));
+		}
+		void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const Float4& innerColor, const Float4& outerColor) override
+		{
+			discard(Vertex2DBuilder::BuildEllipseFrame(bufferCreator(), center, a, b, innerThickness, outerThickness, innerColor, outerColor, getMaxScaling()));
+		}
+		void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) override
+		{
+			discard(Vertex2DBuilder::BuildEllipsePie(bufferCreator(), center, rx, ry, startAngle, angle, innerColor, outerColor, getMaxScaling()));
+		}
+		void addSuperEllipse(const Float2& center, float a, float b, float n, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
+		{
+			discard(Vertex2DBuilder::BuildSuperEllipse(bufferCreator(), center, a, b, n, colorType, color0, color1, getMaxScaling()));
+		}
+		void addQuad(const FloatQuad& quad, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildQuad(bufferCreator(), quad, color));
+		}
+		void addQuad(const FloatQuad& quad, const Float4(&colors)[4]) override
+		{
+			discard(Vertex2DBuilder::BuildQuad(bufferCreator(), quad, colors));
+		}
+		void addRoundRect(const FloatRect& rect, float r, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, color, getMaxScaling()));
+		}
+		void addRoundRect(const FloatRect& rect, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
+		{
+			discard(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, colorType, color0, color1, getMaxScaling()));
+		}
+		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, color, getMaxScaling()));
+		}
+		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
+		{
+			discard(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, colorType, color0, color1, getMaxScaling()));
+		}
+		void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildPolygon(bufferCreator(), vertices, triangleIndices, offset, color));
+		}
+		void addPolygon(std::span<const Float2> vertices, std::span<const Vertex2D::IndexType> indices, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildPolygon(bufferCreator(), vertices, indices, color));
+		}
+		void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildPolygonTransformed(bufferCreator(), vertices, triangleIndices, s, c, offset, color));
+		}
+		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildShape2DFrame(bufferCreator(), vertices, thickness, color, getMaxScaling()));
+		}
+		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, color, getMaxScaling()));
+		}
+		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, const Float4& colorStart, const Float4& colorEnd) override
+		{
+			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, colorStart, colorEnd, getMaxScaling()));
+		}
+		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, std::span<const ColorF> colors) override
+		{
+			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, colors, getMaxScaling()));
+		}
+
+		////////////////////////////////////////////////////////////////
+		//	render state
+		////////////////////////////////////////////////////////////////
+
+		Float4 getColorMul() const override { return m_colorMul; }
+		void setColorMul(const Float4& color) override { m_colorMul = color; }
+		Float3 getColorAdd() const override { return m_colorAdd; }
+		void setColorAdd(const Float3& color) override { m_colorAdd = color; }
+		float getMaxScaling() const noexcept override { return 1.0f; }
+		const Mat3x2& getLocalTransform() const override { return m_localTransform; }
+		void setLocalTransform(const Mat3x2& matrix) override { m_localTransform = matrix; }
+		const Mat3x2& getCameraTransform() const override { return m_cameraTransform; }
+		void setCameraTransform(const Mat3x2& matrix) override { m_cameraTransform = matrix; }
+
+		////////////////////////////////////////////////////////////////
+		//	not yet implemented (Phase 1+): no-op so the engine links/runs
+		////////////////////////////////////////////////////////////////
+
 		void addTriangle(const Float2(&points)[3], const PatternParameters& pattern) override {}
 		void addRect(const FloatRect& rect, const PatternParameters& pattern) override {}
-		void addRectFrame(const FloatRect& innerRect, float thickness, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addRectFrame(const FloatRect& innerRect, float thickness, const PatternParameters& pattern) override {}
 		void addCircle(const Float2& center, float r, const PatternParameters& pattern) override {}
-		void addCircleFrame(const Float2& center, float rInner, float thickness, const Float4& innerColor, const Float4& outerColor) override {}
 		void addCircleFrame(const Float2& center, float rInner, float thickness, const PatternParameters& pattern) override {}
-		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) override {}
 		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override {}
-		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const PatternParameters& pattern) override {}
-		void addCircleSegment(const Float2& center, float r, float startAngle, float angle, const Float4& color) override {}
 		void addCircleSegment(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override {}
-		void addEllipse(const Float2& center, float a, float b, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addEllipse(const Float2& center, float a, float b, const PatternParameters& pattern) override {}
-		void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const Float4& innerColor, const Float4& outerColor) override {}
 		void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const PatternParameters& pattern) override {}
-		void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) override {}
 		void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const PatternParameters& pattern) override {}
-		void addSuperEllipse(const Float2& center, float a, float b, float n, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addSuperEllipse(const Float2& center, float a, float b, float n, const PatternParameters& pattern) override {}
-		void addQuad(const FloatQuad& quad, const Float4& color) override {}
-		void addQuad(const FloatQuad& quad, const Float4(&colors)[4]) override {}
 		void addQuad(const FloatQuad& quad, const PatternParameters& pattern) override {}
-		void addRoundRect(const FloatRect& rect, float r, const Float4& color) override {}
-		void addRoundRect(const FloatRect& rect, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addRoundRect(const FloatRect& rect, float r, const PatternParameters& pattern) override {}
-		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const Float4& color) override {}
-		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const PatternParameters& pattern) override {}
-		void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const Float4& color) override {}
 		void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const PatternParameters& pattern) override {}
-		void addPolygon(std::span<const Float2> vertices, std::span<const Vertex2D::IndexType> indices, const Float4& color) override {}
 		void addPolygon(std::span<const Float2> vertices, std::span<const Vertex2D::IndexType> indices, const PatternParameters& pattern) override {}
-		void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const Float4& color) override {}
 		void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const PatternParameters& pattern) override {}
-		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const Float4& color) override {}
 		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const PatternParameters& pattern) override {}
-		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const Float4& color) override {}
-		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, const Float4& colorStart, const Float4& colorEnd) override {}
 		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const PatternParameters& pattern) override {}
-		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, std::span<const ColorF> colors) override {}
 		void addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color) override {}
 		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color) override {}
 		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4(&colors)[4]) override {}
@@ -106,22 +207,22 @@ namespace s3d
 		void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override {}
-		BlendState getBlendState() const override { return {}; }
+		BlendState getBlendState() const override { return{}; }
 		void setBlendState(const BlendState& state) override {}
-		RasterizerState getRasterizerState() const override { return {}; }
+		RasterizerState getRasterizerState() const override { return{}; }
 		void setRasterizerState(const RasterizerState& state) override {}
-		SamplerState getVSSamplerState(uint32 slot) const override { return {}; }
+		SamplerState getVSSamplerState(uint32 slot) const override { return{}; }
 		void setVSSamplerState(uint32 slot, const SamplerState& state) override {}
-		SamplerState getPSSamplerState(uint32 slot) const override { return {}; }
+		SamplerState getPSSamplerState(uint32 slot) const override { return{}; }
 		void setPSSamplerState(uint32 slot, const SamplerState& state) override {}
-		Optional<Rect> getScissorRect() const override { return {}; }
+		Optional<Rect> getScissorRect() const override { return{}; }
 		void setScissorRect(const Optional<Rect>& rect) override {}
-		Optional<Rect> getViewport() const override { return {}; }
+		Optional<Rect> getViewport() const override { return{}; }
 		void setViewport(const Optional<Rect>& viewport) override {}
 		void setSDFParameters(const std::array<Float4, 3>& params) override {}
-		Optional<VertexShader> getCustomVS() const override { return {}; }
+		Optional<VertexShader> getCustomVS() const override { return{}; }
 		void setCustomVS(const Optional<VertexShader>& vs) override {}
-		Optional<PixelShader> getCustomPS() const override { return {}; }
+		Optional<PixelShader> getCustomPS() const override { return{}; }
 		void setCustomPS(const Optional<PixelShader>& ps) override {}
 		const Texture& getShadowTexture() const noexcept override { static const Texture t; return t; }
 
@@ -129,6 +230,23 @@ namespace s3d
 
 		[[nodiscard]]
 		Vertex2DBufferPointer createBuffer(Vertex2D::IndexType vertexCount, Vertex2D::IndexType indexCount);
+
+		// Callable adaptor for Vertex2DBuilder's BufferCreatorFunc (FunctionRef);
+		// a temporary of this binds to the FunctionRef for the duration of a Build call.
+		struct BufferCreator
+		{
+			CRenderer2D_GL4* self;
+
+			Vertex2DBufferPointer operator()(Vertex2D::IndexType vertexCount, Vertex2D::IndexType indexCount) const
+			{
+				return self->createBuffer(vertexCount, indexCount);
+			}
+		};
+
+		[[nodiscard]]
+		BufferCreator bufferCreator() { return BufferCreator{ this }; }
+
+		static void discard(Vertex2D::IndexType) noexcept {} // swallow the [[nodiscard]] index count
 
 		Array<Vertex2D> m_vertices;
 

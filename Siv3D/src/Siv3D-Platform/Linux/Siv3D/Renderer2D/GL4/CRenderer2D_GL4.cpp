@@ -11,8 +11,6 @@
 # include "CRenderer2D_GL4.hpp"
 # include <cstddef>
 # include <Siv3D/Unicode.hpp>
-# include <Siv3D/Renderer2D/Vertex2DBuilder.hpp>
-# include <Siv3D/Renderer/IRenderer.hpp>
 # include <Siv3D/Window/IWindow.hpp>
 # include <Siv3D/WindowState.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
@@ -152,36 +150,6 @@ void main()
 		return{ (m_vertices.data() + vertexBase), (m_indices.data() + indexBase), vertexBase };
 	}
 
-	void CRenderer2D_GL4::addTriangle(const Float2(&points)[3], const Float4& color)
-	{
-		Vertex2DBuilder::BuildTriangle([this](Vertex2D::IndexType v, Vertex2D::IndexType i) { return createBuffer(v, i); }, points, color);
-	}
-
-	void CRenderer2D_GL4::addTriangle(const Float2(&points)[3], const Float4(&colors)[3])
-	{
-		Vertex2DBuilder::BuildTriangle([this](Vertex2D::IndexType v, Vertex2D::IndexType i) { return createBuffer(v, i); }, points, colors);
-	}
-
-	void CRenderer2D_GL4::addRect(const FloatRect& rect, const Float4& color)
-	{
-		Vertex2DBuilder::BuildRect([this](Vertex2D::IndexType v, Vertex2D::IndexType i) { return createBuffer(v, i); }, rect, color);
-	}
-
-	void CRenderer2D_GL4::addRect(const FloatRect& rect, const Float4(&colors)[4])
-	{
-		Vertex2DBuilder::BuildRect([this](Vertex2D::IndexType v, Vertex2D::IndexType i) { return createBuffer(v, i); }, rect, colors);
-	}
-
-	void CRenderer2D_GL4::addCircle(const Float2& center, const float r, const Float4& color0, const Float4& color1, const ColorFillDirection colorType)
-	{
-		Vertex2DBuilder::BuildCircle([this](Vertex2D::IndexType v, Vertex2D::IndexType i) { return createBuffer(v, i); }, center, r, colorType, color0, color1, getMaxScaling());
-	}
-
-	void CRenderer2D_GL4::addLine(const LineCap startCap, const LineCap endCap, const Float2& start, const Float2& end, const float thickness, const Float4(&colors)[2])
-	{
-		Vertex2DBuilder::BuildLine([this](Vertex2D::IndexType v, Vertex2D::IndexType i) { return createBuffer(v, i); }, startCap, endCap, start, end, thickness, colors, getMaxScaling());
-	}
-
 	void CRenderer2D_GL4::flush()
 	{
 		if (m_indices.isEmpty())
@@ -218,22 +186,4 @@ void main()
 		m_vertices.clear();
 		m_indices.clear();
 	}
-
-	Float4 CRenderer2D_GL4::getColorMul() const { return m_colorMul; }
-
-	void CRenderer2D_GL4::setColorMul(const Float4& color) { m_colorMul = color; }
-
-	Float3 CRenderer2D_GL4::getColorAdd() const { return m_colorAdd; }
-
-	void CRenderer2D_GL4::setColorAdd(const Float3& color) { m_colorAdd = color; }
-
-	float CRenderer2D_GL4::getMaxScaling() const noexcept { return 1.0f; }
-
-	const Mat3x2& CRenderer2D_GL4::getLocalTransform() const { return m_localTransform; }
-
-	void CRenderer2D_GL4::setLocalTransform(const Mat3x2& matrix) { m_localTransform = matrix; }
-
-	const Mat3x2& CRenderer2D_GL4::getCameraTransform() const { return m_cameraTransform; }
-
-	void CRenderer2D_GL4::setCameraTransform(const Mat3x2& matrix) { m_cameraTransform = matrix; }
 }
