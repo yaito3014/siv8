@@ -108,9 +108,11 @@ void main()
 	vec2 c = vec2(u_pt0.z, u_pt0.w) + (f.x * vec2(u_pt0.x, u_pt0.y)) + (f.y * vec2(u_pt1.x, u_pt1.y));
 	float p0 = u_pt1.z;
 	float mask = 0.0;
-	if (u_patType == 3) { vec2 cc = floor(c); mask = mod((cc.x + cc.y), 2.0); }
-	else if (u_patType == 2) { vec2 d = min(fract(c), (vec2(1.0) - fract(c))); mask = (((d.x < p0) || (d.y < p0)) ? 1.0 : 0.0); }
-	else if (u_patType == 0) { float dd = length(fract(c) - vec2(0.5)); mask = ((dd < p0) ? 1.0 : 0.0); }
+	if (u_patType == 3) { vec2 cc = floor(c); mask = mod((cc.x + cc.y), 2.0); }				// Checker
+	else if (u_patType == 2) { vec2 d = min(fract(c), (vec2(1.0) - fract(c))); mask = (((d.x < p0) || (d.y < p0)) ? 1.0 : 0.0); } // Grid
+	else if (u_patType == 0) { float dd = length(fract(c) - vec2(0.5)); mask = ((dd < p0) ? 1.0 : 0.0); } // PolkaDot
+	else if (u_patType == 1) { mask = ((fract(c.x) < (p0 * 2.0)) ? 1.0 : 0.0); }				// Stripe
+	// u_patType == 4 (Triangle) / 5 (HexGrid): TODO(linux) — need triangular/hex tilings.
 	vec4 bg = vec4((u_patBg.rgb * u_patBg.a), u_patBg.a);
 	o_color = mix(bg, v_color, mask);
 }
