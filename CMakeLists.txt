@@ -261,9 +261,6 @@ target_link_libraries(Siv3DCore PUBLIC
     toml11::toml11
 )
 
-# CMake consumers use imported targets, so disable the MSBuild auto-link pragmas.
-target_compile_definitions(Siv3DCore INTERFACE SIV3D_NO_AUTOLINK)
-
 # SSE4.2 baseline (x86-64 only; PUBLIC so consumers of the SIMD headers get it).
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86|x86)$")
     target_compile_options(Siv3DCore PUBLIC "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>")
