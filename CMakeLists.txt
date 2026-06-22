@@ -141,12 +141,7 @@ file(GLOB_RECURSE SIV3D_COMMON_SOURCES CONFIGURE_DEPENDS
 if(UNIX AND NOT APPLE)
     set(SIV3D_LINUX_UNIMPLEMENTED
         "Siv3D/ChildProcess/SivChildProcess\\.cpp"
-        "Siv3D/Cursor/CursorFactory\\.cpp"
-        "Siv3D/CursorStyle/CursorStyleFactory\\.cpp"
         "Siv3D/DirectoryWatcher/SivDirectoryWatcher\\.cpp"
-        "Siv3D/Keyboard/KeyboardFactory\\.cpp"
-        "Siv3D/Mouse/MouseFactory\\.cpp"
-        "Siv3D/Window/WindowFactory\\.cpp"
     )
     foreach(pattern IN LISTS SIV3D_LINUX_UNIMPLEMENTED)
         list(FILTER SIV3D_COMMON_SOURCES EXCLUDE REGEX "${pattern}")
@@ -165,16 +160,14 @@ elseif(APPLE)
         "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
     )
 elseif(UNIX)
-    # TODO(linux): no Window/Renderer backend yet — builds common code only.
-    # Linux-only platform code lives under Linux/ (Time, FileSystem, UserInfo, …);
-    # macOS_Linux/ holds code shared with the macOS port.
+    # Linux backend (in progress): GLFW + OpenGL 4.1.
+    # Linux-only platform code lives under Linux/ (Window, input, GL renderer,
+    # Time, FileSystem, …); macOS_Linux/ holds code shared with the macOS port
+    # (incl. the GLFW-based CursorStyle/Keyboard/Mouse input classes).
     file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS
         "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
         "${SIV3D_SRC}/Siv3D-Platform/Linux/*.cpp"
     )
-    # The GLFW-based input layer lives under macOS/ only for now.
-    list(FILTER SIV3D_PLATFORM_SOURCES EXCLUDE REGEX "/macOS_Linux/Siv3D/(CursorStyle|Keyboard|Mouse)/")
-    message(WARNING "Siv3D: Linux has no graphics backend yet — common code only. See TODO(linux).")
 endif()
 
 # ============================================================================
