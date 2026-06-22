@@ -14,7 +14,10 @@ if(EXISTS "${_siv3d_fat}" AND NOT TARGET Siv3D::Siv3D)
     add_library(Siv3D::Siv3D STATIC IMPORTED)
     set_target_properties(Siv3D::Siv3D PROPERTIES
         IMPORTED_LOCATION "${_siv3d_fat}"
-        INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/Siv3D"
+        # Siv3D's own headers live under include/Siv3D; the bundled third-party
+        # headers its public API pulls in live in the sibling include/Siv3D-thirdparty
+        # (Siv3D-prefixed so it can't collide with a shared prefix's system copies).
+        INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/Siv3D;${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/Siv3D-thirdparty"
         INTERFACE_COMPILE_FEATURES "cxx_std_23"
         INTERFACE_COMPILE_OPTIONS "@SIV3D_FAT_COMPILE_OPTIONS@"
         INTERFACE_LINK_LIBRARIES "@SIV3D_FAT_SYSTEM_LIBS@"

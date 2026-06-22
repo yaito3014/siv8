@@ -342,6 +342,12 @@ endif()
 install(DIRECTORY "${SIV3D_INCLUDE}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
 
 # vcpkg headers the PUBLIC Siv3D headers include (private deps live in the fat lib).
+# These are third-party libraries, NOT Siv3D headers, so they go to a Siv3D-prefixed
+# *sibling* dir (include/Siv3D-thirdparty) rather than under include/Siv3D. The prefix
+# keeps them from colliding with system-installed copies in a shared prefix (e.g. a
+# system /usr/local/include/absl), while not pretending to be part of the Siv3D API.
+# The fat-lib target (Siv3DConfig.cmake.in) adds this dir as a second interface include.
+set(SIV3D_THIRDPARTY_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D-thirdparty")
 set(_siv3d_depinc "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include")
 install(DIRECTORY
         "${_siv3d_depinc}/nlohmann"
@@ -349,7 +355,7 @@ install(DIRECTORY
         "${_siv3d_depinc}/parallel_hashmap"
         "${_siv3d_depinc}/fmt"
         "${_siv3d_depinc}/toml11"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
+    DESTINATION "${SIV3D_THIRDPARTY_INCLUDEDIR}")
 install(FILES
         "${_siv3d_depinc}/mimalloc.h"
         "${_siv3d_depinc}/toml.hpp"
@@ -357,13 +363,13 @@ install(FILES
         "${_siv3d_depinc}/pcg_random.hpp"
         "${_siv3d_depinc}/pcg_extras.hpp"
         "${_siv3d_depinc}/pcg_uint128.hpp"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
+    DESTINATION "${SIV3D_THIRDPARTY_INCLUDEDIR}")
 # DirectXMath.h includes <sal.h>; ship the directxmath SAL shim where present.
 file(GLOB _siv3d_dxmath "${_siv3d_depinc}/DirectX*.h" "${_siv3d_depinc}/DirectX*.inl")
 if(EXISTS "${_siv3d_depinc}/sal.h")
     list(APPEND _siv3d_dxmath "${_siv3d_depinc}/sal.h")
 endif()
-install(FILES ${_siv3d_dxmath} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
+install(FILES ${_siv3d_dxmath} DESTINATION "${SIV3D_THIRDPARTY_INCLUDEDIR}")
 
 # ============================================================================
 # CMake package — find_package(Siv3D):
