@@ -100,8 +100,11 @@ if(WIN32)
     # WinMain() is provided by the Siv3D library; the app is a GUI-subsystem exe.
     set_target_properties(Siv3D-App PROPERTIES WIN32_EXECUTABLE ON)
     # Engine resources (icon + optional embedded assets) and the manifest that
-    # switches the process code page to UTF-8.
-    target_sources(Siv3D-App PRIVATE Resource.rc codepage.manifest)
+    # switches the process code page to UTF-8. Resource.rc references icon.ico by
+    # bare name, so they live together under platform/WindowsDesktop/.
+    target_sources(Siv3D-App PRIVATE
+        platform/WindowsDesktop/Resource.rc
+        platform/WindowsDesktop/codepage.manifest)
     # Resource.rc embeds files by paths relative to the staged asset tree (e.g.
     # `engine/...`), which lives under app/. Put it on the RC include path
     # so rc.exe resolves them (CMake forwards include dirs to the RC compiler).
@@ -113,10 +116,10 @@ elseif(APPLE)
     # complete and verify on macOS.
     set_target_properties(Siv3D-App PROPERTIES
         MACOSX_BUNDLE ON
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platform/macOS/Info.plist"
     )
-    target_sources(Siv3D-App PRIVATE icon.icns)
-    set_source_files_properties(icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(Siv3D-App PRIVATE platform/macOS/icon.icns)
+    set_source_files_properties(platform/macOS/icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 endif()
 
 if(MSVC)
