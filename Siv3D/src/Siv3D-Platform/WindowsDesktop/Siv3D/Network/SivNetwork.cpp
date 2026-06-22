@@ -10,9 +10,6 @@
 //-----------------------------------------------
 
 # include <Siv3D/Network.hpp>
-# ifndef NOMINMAX
-#	define	NOMINMAX
-# endif
 # ifndef STRICT
 #	define	STRICT
 # endif
