@@ -9,9 +9,11 @@
 //-----------------------------------------------
 
 # pragma once
+# include <array>
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBuilder.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBufferPointer.hpp>
+# include <Siv3D/Pattern/PatternParameters.hpp>
 # include <Siv3D/Array.hpp>
 # include <Siv3D/Mat3x2.hpp>
 # include <Siv3D/Texture.hpp>
@@ -178,10 +180,19 @@ namespace s3d
 		//	not yet implemented (Phase 1+): no-op so the engine links/runs
 		////////////////////////////////////////////////////////////////
 
-		void addTriangle(const Float2(&points)[3], const PatternParameters& pattern) override {}
-		void addRect(const FloatRect& rect, const PatternParameters& pattern) override {}
+		void addTriangle(const Float2(&points)[3], const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildTriangle(bufferCreator(), points, pattern.primaryColor), pattern);
+		}
+		void addRect(const FloatRect& rect, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildRect(bufferCreator(), rect, pattern.primaryColor), pattern);
+		}
 		void addRectFrame(const FloatRect& innerRect, float thickness, const PatternParameters& pattern) override {}
-		void addCircle(const Float2& center, float r, const PatternParameters& pattern) override {}
+		void addCircle(const Float2& center, float r, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildCircle(bufferCreator(), center, r, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
 		void addCircleFrame(const Float2& center, float rInner, float thickness, const PatternParameters& pattern) override {}
 		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override {}
 		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const PatternParameters& pattern) override {}
@@ -254,14 +265,17 @@ namespace s3d
 			Shape,		// solid/gradient shapes
 			Texture,	// sprites/emoji
 			MSDF,		// text glyphs (custom PS active)
+			Pattern,	// checker/grid/polka-dot fills
 		};
 
-		// A run of indices drawn with one program + texture.
+		// A run of indices drawn with one program + texture (+ pattern params).
 		struct DrawCommand
 		{
 			Program program = Program::Shape;
 			GLuint texture = 0;
 			uint32 indexCount = 0;
+			std::array<Float4, 3> patternParams{};	// (uvTransform packed, params, backgroundColor)
+			uint8 patternType = 0;
 		};
 
 		// Append `indexCount` indices, merging with the previous command when the
@@ -284,6 +298,22 @@ namespace s3d
 		}
 
 		void discard(Vertex2D::IndexType indexCount) { pushCommand(indexCount, Program::Shape, 0); } // shape draw
+
+		// Pattern fills carry per-draw params, so each is its own command (no merge).
+		void pushPatternCommand(Vertex2D::IndexType indexCount, const PatternParameters& pattern)
+		{
+			if (indexCount == 0)
+			{
+				return;
+			}
+
+			DrawCommand command;
+			command.program			= Program::Pattern;
+			command.indexCount		= indexCount;
+			command.patternParams	= pattern.toFloat4Array(1.0f / getMaxScaling());
+			command.patternType		= static_cast<uint8>(FromEnum(pattern.type));
+			m_commands.push_back(command);
+		}
 
 		// GL texture name for a Texture handle (via the Linux CTexture backend).
 		[[nodiscard]]
@@ -336,6 +366,22 @@ namespace s3d
 		GLint m_msdfLocColorMul = -1;
 
 		GLint m_msdfLocSampler = -1;
+
+		GLuint m_patternProgram = 0;
+
+		GLint m_patLocTransform0 = -1;
+
+		GLint m_patLocTransform1 = -1;
+
+		GLint m_patLocColorMul = -1;
+
+		GLint m_patLocPt0 = -1;
+
+		GLint m_patLocPt1 = -1;
+
+		GLint m_patLocBg = -1;
+
+		GLint m_patLocType = -1;
 
 		bool m_customPSActive = false;
 	};

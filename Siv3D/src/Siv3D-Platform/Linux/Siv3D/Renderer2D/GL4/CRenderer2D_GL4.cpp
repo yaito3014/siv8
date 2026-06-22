@@ -90,6 +90,32 @@ void main()
 }
 )";
 
+		// Patterns are computed in screen space (gl_FragCoord) transformed by the
+		// packed uvTransform; mask selects primary (vertex color) vs background.
+		// Matches Pattern::PolkaDot(0)/Grid(2)/Checker(3); others TODO(linux).
+		constexpr StringView PatternPSCode =
+UR"(#version 410 core
+in vec4 v_color;
+in vec2 v_uv;
+out vec4 o_color;
+uniform vec4 u_pt0;
+uniform vec4 u_pt1;
+uniform vec4 u_patBg;
+uniform int u_patType;
+void main()
+{
+	vec2 f = gl_FragCoord.xy;
+	vec2 c = vec2(u_pt0.z, u_pt0.w) + (f.x * vec2(u_pt0.x, u_pt0.y)) + (f.y * vec2(u_pt1.x, u_pt1.y));
+	float p0 = u_pt1.z;
+	float mask = 0.0;
+	if (u_patType == 3) { vec2 cc = floor(c); mask = mod((cc.x + cc.y), 2.0); }
+	else if (u_patType == 2) { vec2 d = min(fract(c), (vec2(1.0) - fract(c))); mask = (((d.x < p0) || (d.y < p0)) ? 1.0 : 0.0); }
+	else if (u_patType == 0) { float dd = length(fract(c) - vec2(0.5)); mask = ((dd < p0) ? 1.0 : 0.0); }
+	vec4 bg = vec4((u_patBg.rgb * u_patBg.a), u_patBg.a);
+	o_color = mix(bg, v_color, mask);
+}
+)";
+
 		[[nodiscard]]
 		static GLuint CompileShader(const GLenum type, const StringView code)
 		{
@@ -143,6 +169,7 @@ void main()
 	{
 		LOG_SCOPED_DEBUG("CRenderer2D_GL4::~CRenderer2D_GL4()");
 
+		if (m_patternProgram) { ::glDeleteProgram(m_patternProgram); }
 		if (m_msdfProgram) { ::glDeleteProgram(m_msdfProgram); }
 		if (m_textureProgram) { ::glDeleteProgram(m_textureProgram); }
 		if (m_program) { ::glDeleteProgram(m_program); }
@@ -171,6 +198,15 @@ void main()
 		m_msdfLocTransform1	= ::glGetUniformLocation(m_msdfProgram, "u_t1");
 		m_msdfLocColorMul	= ::glGetUniformLocation(m_msdfProgram, "u_colorMul");
 		m_msdfLocSampler	= ::glGetUniformLocation(m_msdfProgram, "u_tex");
+
+		m_patternProgram = LinkProgram(PatternPSCode);
+		m_patLocTransform0	= ::glGetUniformLocation(m_patternProgram, "u_t0");
+		m_patLocTransform1	= ::glGetUniformLocation(m_patternProgram, "u_t1");
+		m_patLocColorMul	= ::glGetUniformLocation(m_patternProgram, "u_colorMul");
+		m_patLocPt0			= ::glGetUniformLocation(m_patternProgram, "u_pt0");
+		m_patLocPt1			= ::glGetUniformLocation(m_patternProgram, "u_pt1");
+		m_patLocBg			= ::glGetUniformLocation(m_patternProgram, "u_patBg");
+		m_patLocType		= ::glGetUniformLocation(m_patternProgram, "u_patType");
 
 		::glGenVertexArrays(1, &m_vao);
 		::glBindVertexArray(m_vao);
@@ -271,12 +307,24 @@ void main()
 			case Program::MSDF:
 				program = m_msdfProgram; locT0 = m_msdfLocTransform0; locT1 = m_msdfLocTransform1; locColorMul = m_msdfLocColorMul; locSampler = m_msdfLocSampler;
 				break;
+			case Program::Pattern:
+				program = m_patternProgram; locT0 = m_patLocTransform0; locT1 = m_patLocTransform1; locColorMul = m_patLocColorMul;
+				break;
 			}
 
 			::glUseProgram(program);
 			::glUniform4f(locT0, t0[0], t0[1], t0[2], t0[3]);
 			::glUniform4f(locT1, t1[0], t1[1], t1[2], t1[3]);
 			::glUniform4f(locColorMul, m_colorMul.x, m_colorMul.y, m_colorMul.z, m_colorMul.w);
+
+			if (command.program == Program::Pattern)
+			{
+				const auto& p = command.patternParams;
+				::glUniform4f(m_patLocPt0, p[0].x, p[0].y, p[0].z, p[0].w);
+				::glUniform4f(m_patLocPt1, p[1].x, p[1].y, p[1].z, p[1].w);
+				::glUniform4f(m_patLocBg, p[2].x, p[2].y, p[2].z, p[2].w);
+				::glUniform1i(m_patLocType, command.patternType);
+			}
 
 			if (command.texture != 0)
 			{
