@@ -123,7 +123,6 @@ file(GLOB_RECURSE SIV3D_TP_SOURCES CONFIGURE_DEPENDS
     "${SIV3D_SRC}/ThirdParty/*.cc"
 )
 
-# GLFW comes from the overlay fork (overlay-ports/glfw3), not vendored.
 if(WIN32)
     list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/oscpack/ip/posix/")
 else()
@@ -160,10 +159,8 @@ elseif(APPLE)
         "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
     )
 elseif(UNIX)
-    # Linux backend (in progress): GLFW + OpenGL 4.1.
-    # Linux-only platform code lives under Linux/ (Window, input, GL renderer,
-    # Time, FileSystem, …); macOS_Linux/ holds code shared with the macOS port
-    # (incl. the GLFW-based CursorStyle/Keyboard/Mouse input classes).
+    # Linux (GLFW + OpenGL 4.1): Linux/ is Linux-only; macOS_Linux/ is shared
+    # with the macOS port (incl. the GLFW input classes).
     file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS
         "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
         "${SIV3D_SRC}/Siv3D-Platform/Linux/*.cpp"
@@ -186,8 +183,11 @@ target_compile_features(Siv3DCore PUBLIC cxx_std_23)
 # EXPORT_NO_SYSTEM: keep the public ThirdParty headers ahead of system/vcpkg copies.
 set_target_properties(Siv3DCore PROPERTIES CXX_EXTENSIONS OFF DEBUG_POSTFIX d EXPORT_NO_SYSTEM TRUE)
 
-# PUBLIC via genex so the flags stay in the exported interface.
-target_compile_options(Siv3DCore PUBLIC "$<$<CXX_COMPILER_ID:MSVC>:/utf-8;/Zc:__cplusplus;/MP>")
+# PUBLIC (via genex) so consumers parse the headers the same way; /MP is just
+# build-speed for our own TUs (VS generator), so it stays PRIVATE.
+target_compile_options(Siv3DCore
+    PUBLIC  "$<$<CXX_COMPILER_ID:MSVC>:/utf-8;/Zc:__cplusplus>"
+    PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/MP>")
 if(APPLE)
     set_target_properties(Siv3DCore PROPERTIES
         OBJCXX_STANDARD 23
@@ -300,12 +300,7 @@ endif()
 # Fat library: libSiv3D.a — engine + every dependency, content-deduped.
 # Default ON for a top-level build, OFF under add_subdirectory.
 # ============================================================================
-if(PROJECT_IS_TOP_LEVEL)
-    set(_siv3d_fat_default ON)
-else()
-    set(_siv3d_fat_default OFF)
-endif()
-option(SIV3D_FAT_LIB "Build the fat libSiv3D.a bundling all deps" ${_siv3d_fat_default})
+option(SIV3D_FAT_LIB "Build the fat libSiv3D.a bundling all deps" ${PROJECT_IS_TOP_LEVEL})
 if(SIV3D_FAT_LIB)
     set(_siv3d_fat "${CMAKE_BINARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
     if(MSVC)
@@ -332,21 +327,16 @@ endif()
 # ============================================================================
 # Install: fat libSiv3D.a + headers (usable from any build system, or CMake).
 # ============================================================================
-if(NOT SIV3D_FAT_LIB)
-    message(WARNING "Siv3D: SIV3D_FAT_LIB is OFF — the default install has no library.")
-else()
+if(SIV3D_FAT_LIB)
     install(FILES "${_siv3d_fat}" DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
 # Public headers, nested under include/Siv3D to avoid polluting a shared prefix.
 install(DIRECTORY "${SIV3D_INCLUDE}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
 
-# vcpkg headers the PUBLIC Siv3D headers include (private deps live in the fat lib).
-# These are third-party libraries, NOT Siv3D headers, so they go to a Siv3D-prefixed
-# *sibling* dir (include/Siv3D-thirdparty) rather than under include/Siv3D. The prefix
-# keeps them from colliding with system-installed copies in a shared prefix (e.g. a
-# system /usr/local/include/absl), while not pretending to be part of the Siv3D API.
-# The fat-lib target (Siv3DConfig.cmake.in) adds this dir as a second interface include.
+# Third-party headers the public Siv3D headers include go to a sibling
+# include/Siv3D-thirdparty (the Siv3D- prefix avoids colliding with system copies
+# in a shared prefix), added as a 2nd interface include by Siv3DConfig.cmake.in.
 set(SIV3D_THIRDPARTY_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D-thirdparty")
 set(_siv3d_depinc "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include")
 install(DIRECTORY
@@ -433,10 +423,9 @@ if(SIV3D_BUILD_TESTS)
     find_package(doctest CONFIG REQUIRED)
     find_package(nanobench CONFIG REQUIRED)
     file(GLOB_RECURSE SIV3D_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Test/*.cpp")
-    # Standalone test exe is the Linux/macOS test vehicle. On Windows, linking
-    # Siv3DCore pulls in Siv3DMainHelper (the GUI entry point expecting a user
-    # Main()), so a bare console test exe can't link — Windows runs the tests
-    # compiled into Siv3D-App via RunTest() (SIV3D_APP_BUILD_TESTS) instead.
+    # Linux/macOS test vehicle. On Windows, Siv3DCore drags in Siv3DMainHelper
+    # (GUI entry expecting a user Main()), so a console test exe can't link —
+    # Windows runs the tests via RunTest() inside Siv3D-App instead.
     if(SIV3D_TEST_SOURCES AND NOT WIN32)
         add_executable(Siv3D-Test ${SIV3D_TEST_SOURCES})
         target_link_libraries(Siv3D-Test PRIVATE Siv3D::Siv3DCore doctest::doctest nanobench::nanobench)

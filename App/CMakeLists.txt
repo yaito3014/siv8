@@ -1,17 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
-# ============================================================================
-# Siv3D sample application (Windows + macOS). This is the
-# top-level project; it pulls in the engine one of two ways:
-#
-#   - add_subdirectory (default): build the engine from source, in-tree, using
-#     the engine's own vcpkg manifest. No install, one configure/build:
-#       cmake -B build && cmake --build build
-#
-#   - find_package: consume an installed or build-tree-exported Siv3D:
-#       cmake -B build -DSIV3D_APP_USE_FIND_PACKAGE=ON -DCMAKE_PREFIX_PATH=<prefix>
-#       cmake -B build -DSIV3D_APP_USE_FIND_PACKAGE=ON -DSiv3D_DIR=<repo>/build
-# ============================================================================
+# Siv3D sample application — the top-level project. Pulls in the engine via
+# either add_subdirectory (default: build in-tree) or find_package
+# (-DSIV3D_APP_USE_FIND_PACKAGE=ON: consume an installed/exported Siv3D).
 get_filename_component(_siv3d_engine_default "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 set(SIV3D_ENGINE_DIR "${_siv3d_engine_default}" CACHE PATH "Siv3D engine source directory")
 option(SIV3D_APP_USE_FIND_PACKAGE "Consume an installed Siv3D via find_package instead of building it in-tree" OFF)
@@ -32,8 +23,7 @@ if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
 endif()
 
 if(SIV3D_APP_USE_FIND_PACKAGE)
-    # Reuse the engine build's installed dependency tree (configs for every dep,
-    # including the overlay forks) instead of installing a second copy.
+    # Reuse the engine build's installed dependency tree (incl. overlay forks).
     if(WIN32)
         set(_siv3d_app_dep_triplet "x64-windows-static")
     elseif(APPLE)
@@ -45,8 +35,7 @@ if(SIV3D_APP_USE_FIND_PACKAGE)
         list(PREPEND CMAKE_PREFIX_PATH "${SIV3D_ENGINE_DIR}/build/vcpkg_installed/${_siv3d_app_dep_triplet}")
     endif()
 else()
-    # Build the engine in-tree: drive vcpkg from the engine's manifest so its
-    # deps (and the overlay-ports / vcpkg-configuration.json) resolve here.
+    # Build in-tree: drive vcpkg from the engine's manifest.
     if(NOT DEFINED VCPKG_MANIFEST_DIR)
         set(VCPKG_MANIFEST_DIR "${SIV3D_ENGINE_DIR}" CACHE PATH "Siv3D vcpkg manifest dir")
     endif()
@@ -61,8 +50,7 @@ if(WIN32)
     enable_language(RC)
 endif()
 
-# A user-wide `vcpkg integrate install` would inject the classic-mode tree
-# (include path + autolinked libs), shadowing the engine's headers.
+# Stop a user-wide `vcpkg integrate install` from shadowing the engine's headers.
 set(CMAKE_VS_GLOBALS "VcpkgEnabled=false")
 
 # ---- pull in the engine: Siv3D::Siv3DCore ----
@@ -83,15 +71,13 @@ endif()
 add_executable(Siv3D-App ${SIV3D_APP_SOURCES})
 target_link_libraries(Siv3D-App PRIVATE Siv3D::Siv3DCore)
 
-# Main.cpp includes the test harness (<Siv3DTest.hpp> -> doctest/nanobench) only
-# under this define, so the app builds without the test-only deps when off.
+# Main.cpp pulls in the test harness only under this define.
 if(SIV3D_APP_BUILD_TESTS)
     target_compile_definitions(Siv3D-App PRIVATE SIV3D_APP_BUILD_TESTS)
 endif()
 
-# Same build-throughput trick as the vcxproj (pch.h just includes <Siv3D.hpp>).
-# MSVC only: under GCC the force-included PCH plus Main.cpp's direct
-# `# include <Siv3D.hpp>` double-parses the headers (.ipp redefinitions).
+# PCH (pch.h just includes <Siv3D.hpp>). MSVC only: GCC double-parses the
+# headers (force-included PCH + Main.cpp's own <Siv3D.hpp> -> .ipp redefinitions).
 if(MSVC)
 	target_precompile_headers(Siv3D-App PRIVATE pch.h)
 endif()
@@ -99,20 +85,17 @@ endif()
 if(WIN32)
     # WinMain() is provided by the Siv3D library; the app is a GUI-subsystem exe.
     set_target_properties(Siv3D-App PROPERTIES WIN32_EXECUTABLE ON)
-    # Engine resources (icon + optional embedded assets) and the manifest that
-    # switches the process code page to UTF-8. Resource.rc references icon.ico by
-    # bare name, so they live together under platform/WindowsDesktop/.
+    # Icon/embedded-asset resources + UTF-8 code-page manifest. (Resource.rc
+    # references icon.ico by bare name, so they live together.)
     target_sources(Siv3D-App PRIVATE
         platform/WindowsDesktop/Resource.rc
         platform/WindowsDesktop/codepage.manifest)
-    # Resource.rc embeds files by paths relative to the staged asset tree (e.g.
-    # `engine/...`), which lives under app/. Put it on the RC include path
-    # so rc.exe resolves them (CMake forwards include dirs to the RC compiler).
+    # Resource.rc embeds engine/... assets relative to app/; put app/ on the RC
+    # include path so rc.exe resolves them.
     target_include_directories(Siv3D-App PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/app")
 elseif(APPLE)
-    # Build a .app bundle (Info.plist + icon). NOTE: staging the runtime assets
-    # (app/engine, app/example) into Contents/Resources and the
-    # prebuilt dylibs (app/dll) into the bundle is not yet wired here —
+    # .app bundle (Info.plist + icon). NOTE: staging the runtime assets
+    # (app/engine, app/example) and the dylibs into the bundle isn't wired yet —
     # complete and verify on macOS.
     set_target_properties(Siv3D-App PROPERTIES
         MACOSX_BUNDLE ON
@@ -131,18 +114,14 @@ if(MSVC)
     )
 endif()
 
-# F5 in Visual Studio runs from app/ (engine/, example/ assets). Outside
-# the IDE, run the exe with app/ as the working directory.
+# F5 in Visual Studio runs from app/ (the engine/ + example/ assets).
 set_target_properties(Siv3D-App PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/app"
     VS_DEBUGGER_ENVIRONMENT "SIV3D_APP_LAUNCHED_FROM_IDE=1"
 )
 
-# Stage a runnable copy of the exe into app/ (which holds the engine/ and
-# example/ assets), so it can be launched in place — the CMake equivalent of the
-# vcxproj's post-build xcopy. The Linux Resource() reads engine resources from
-# the exe's own directory (App/app/engine/...); run via App/app/Siv3D-App.
-# (macOS ships a .app bundle instead.)
+# Stage the exe into app/ (next to the engine/ + example/ assets) so it runs in
+# place: App/app/Siv3D-App. (macOS ships a .app bundle instead.)
 if(WIN32)
     add_custom_command(TARGET Siv3D-App POST_BUILD
         COMMAND ${CMAKE_COMMAND}
