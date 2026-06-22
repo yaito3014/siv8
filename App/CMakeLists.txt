@@ -22,6 +22,12 @@ if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
+# macOS: UniformTypeIdentifiers (Clipboard/Dialog) needs 11+, and the metal-cpp
+# APIs target a recent SDK. Set a sane floor unless the caller overrode it.
+if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
+endif()
+
 if(SIV3D_APP_USE_FIND_PACKAGE)
     # Reuse the engine build's installed dependency tree (incl. overlay forks).
     if(WIN32)
@@ -94,15 +100,51 @@ if(WIN32)
     # include path so rc.exe resolves them.
     target_include_directories(Siv3D-App PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/app")
 elseif(APPLE)
-    # .app bundle (Info.plist + icon). NOTE: staging the runtime assets
-    # (app/engine, app/example) and the dylibs into the bundle isn't wired yet —
-    # complete and verify on macOS.
+    # .app bundle (Info.plist + icon). NOTE: everything below is UNVERIFIED —
+    # wired by reference (no macOS to build/run on). pdfium (app/dll/dll/
+    # libpdfium.dylib) is still not linked/staged — see the TODO in the engine.
     set_target_properties(Siv3D-App PROPERTIES
         MACOSX_BUNDLE ON
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platform/macOS/Info.plist"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "dev.siv3d.app"
     )
     target_sources(Siv3D-App PRIVATE platform/macOS/icon.icns)
     set_source_files_properties(platform/macOS/icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+
+    # The Metal renderer's newDefaultLibrary() looks up the engine shaders by
+    # name from a default.metallib in Contents/Resources, so compile the two
+    # engine .metal sources into one and bundle it.
+    set(_siv3d_metal_dir "${CMAKE_CURRENT_SOURCE_DIR}/app/engine/shader/metal")
+    set(_siv3d_metallib  "${CMAKE_CURRENT_BINARY_DIR}/default.metallib")
+    add_custom_command(OUTPUT "${_siv3d_metallib}"
+        COMMAND xcrun -sdk macosx metal -c "${_siv3d_metal_dir}/2d.metal"
+                -o "${CMAKE_CURRENT_BINARY_DIR}/2d.air"
+        COMMAND xcrun -sdk macosx metal -c "${_siv3d_metal_dir}/fullscreen_triangle.metal"
+                -o "${CMAKE_CURRENT_BINARY_DIR}/fullscreen_triangle.air"
+        COMMAND xcrun -sdk macosx metallib "${CMAKE_CURRENT_BINARY_DIR}/2d.air"
+                "${CMAKE_CURRENT_BINARY_DIR}/fullscreen_triangle.air" -o "${_siv3d_metallib}"
+        DEPENDS "${_siv3d_metal_dir}/2d.metal" "${_siv3d_metal_dir}/fullscreen_triangle.metal"
+        COMMENT "Compiling engine Metal shaders -> default.metallib" VERBATIM)
+    target_sources(Siv3D-App PRIVATE "${_siv3d_metallib}")
+    set_source_files_properties("${_siv3d_metallib}" PROPERTIES
+        GENERATED TRUE MACOSX_PACKAGE_LOCATION Resources)
+
+    # Stage runtime assets to cover both load paths: engine/ + example/ into
+    # Contents/Resources (Resource()-based loads), and the built .app copied next
+    # to the committed loose trees in app/ (the engine chdirs to the bundle's
+    # parent dir, so relative paths like "example/..." resolve there).
+    add_custom_command(TARGET Siv3D-App POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/app/engine"
+            "$<TARGET_BUNDLE_CONTENT_DIR:Siv3D-App>/Resources/engine"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/app/example"
+            "$<TARGET_BUNDLE_CONTENT_DIR:Siv3D-App>/Resources/example"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "$<TARGET_BUNDLE_DIR:Siv3D-App>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/app/$<TARGET_BUNDLE_DIR_NAME:Siv3D-App>"
+        COMMENT "Staging assets into Siv3D-App.app and app/"
+    )
 endif()
 
 if(MSVC)

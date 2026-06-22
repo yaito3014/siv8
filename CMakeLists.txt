@@ -266,14 +266,18 @@ if(WIN32)
     )
     target_compile_definitions(Siv3DCore PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE)
 elseif(APPLE)
-    find_library(COCOA_LIB    Cocoa     REQUIRED)
-    find_library(METAL_LIB    Metal     REQUIRED)
-    find_library(METALKIT_LIB MetalKit  REQUIRED)
-    find_library(QUARTZ_LIB   QuartzCore REQUIRED)
-    find_library(IOKIT_LIB    IOKit     REQUIRED)
-    target_link_libraries(Siv3DCore PRIVATE
-        ${COCOA_LIB} ${METAL_LIB} ${METALKIT_LIB} ${QUARTZ_LIB} ${IOKIT_LIB}
-    )
+    # GLFW is the macOS window/input backend (found above for all non-Windows).
+    target_link_libraries(Siv3DCore PRIVATE glfw)
+    # System frameworks the macOS platform .mm sources import (Cocoa pulls in
+    # AppKit/Foundation). UNVERIFIED — wired by inspecting the imports, not built.
+    set(SIV3D_MACOS_FRAMEWORKS
+        Cocoa Metal MetalKit QuartzCore IOKit CoreFoundation CoreGraphics
+        CoreServices UniformTypeIdentifiers DiskArbitration SystemConfiguration
+        ApplicationServices UserNotifications AudioToolbox)
+    foreach(_fw IN LISTS SIV3D_MACOS_FRAMEWORKS)
+        find_library(SIV3D_FW_${_fw} ${_fw} REQUIRED)
+        target_link_libraries(Siv3DCore PRIVATE "${SIV3D_FW_${_fw}}")
+    endforeach()
 elseif(UNIX)
     find_package(glfw3 CONFIG REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE glfw)
@@ -381,7 +385,11 @@ endif()
 if(WIN32)
     set(SIV3D_FAT_SYSTEM_LIBS "d3d11;dxgi;dxguid;d3dcompiler;winmm;ws2_32;imm32;version")
 elseif(APPLE)
-    set(SIV3D_FAT_SYSTEM_LIBS "-framework Cocoa;-framework Metal;-framework MetalKit;-framework QuartzCore;-framework IOKit")
+    # Mirror the engine's framework set so find_package consumers link them too.
+    set(SIV3D_FAT_SYSTEM_LIBS "")
+    foreach(_fw IN LISTS SIV3D_MACOS_FRAMEWORKS)
+        list(APPEND SIV3D_FAT_SYSTEM_LIBS "-framework ${_fw}")
+    endforeach()
 else()
     set(SIV3D_FAT_SYSTEM_LIBS "Threads::Threads;${CMAKE_DL_LIBS};m")
 endif()
