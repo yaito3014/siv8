@@ -198,10 +198,10 @@ namespace s3d
 		void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const PatternParameters& pattern) override {}
 		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const PatternParameters& pattern) override {}
 		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const PatternParameters& pattern) override {}
-		void addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color) override {}
-		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color) override {}
-		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4(&colors)[4]) override {}
-		void addTexturedRoundRect(const Texture& texture, const FloatRect& rect, float w, float h, float r, const FloatRect& uvRect, const Float4& color) override {}
+		void addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color) override;
+		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color) override;
+		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4(&colors)[4]) override;
+		void addTexturedRoundRect(const Texture& texture, const FloatRect& rect, float w, float h, float r, const FloatRect& uvRect, const Float4& color) override;
 		void addCircleShadow(const Circle& circle, float blur, const Float4& color, bool fill) override {}
 		void addRectShadow(const FloatRect& rect, float blur, const Float4& color, bool fill) override {}
 		void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) override {}
@@ -246,11 +246,43 @@ namespace s3d
 		[[nodiscard]]
 		BufferCreator bufferCreator() { return BufferCreator{ this }; }
 
-		static void discard(Vertex2D::IndexType) noexcept {} // swallow the [[nodiscard]] index count
+		// A run of indices drawn with one program/texture (texture 0 => shape program).
+		struct DrawCommand
+		{
+			GLuint texture = 0;
+			uint32 indexCount = 0;
+		};
+
+		// Append `indexCount` indices to the batch, merging with the previous
+		// command when the texture matches.
+		void pushCommand(Vertex2D::IndexType indexCount, GLuint texture)
+		{
+			if (indexCount == 0)
+			{
+				return;
+			}
+
+			if ((not m_commands.isEmpty()) && (m_commands.back().texture == texture))
+			{
+				m_commands.back().indexCount += indexCount;
+			}
+			else
+			{
+				m_commands.push_back({ texture, indexCount });
+			}
+		}
+
+		void discard(Vertex2D::IndexType indexCount) { pushCommand(indexCount, 0); } // shape draw
+
+		// GL texture name for a Texture handle (via the Linux CTexture backend).
+		[[nodiscard]]
+		GLuint glTextureOf(const Texture& texture);
 
 		Array<Vertex2D> m_vertices;
 
 		Array<Vertex2D::IndexType> m_indices;
+
+		Array<DrawCommand> m_commands;
 
 		Float4 m_colorMul = { 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -273,5 +305,15 @@ namespace s3d
 		GLint m_locTransform1 = -1;
 
 		GLint m_locColorMul = -1;
+
+		GLuint m_textureProgram = 0;
+
+		GLint m_texLocTransform0 = -1;
+
+		GLint m_texLocTransform1 = -1;
+
+		GLint m_texLocColorMul = -1;
+
+		GLint m_texLocSampler = -1;
 	};
 }
