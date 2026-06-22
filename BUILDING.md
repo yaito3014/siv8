@@ -70,7 +70,8 @@ cd /root/siv8/App
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-linux
-cmake --build build -j8                 # -> App/build/Siv3D-App (and Siv3D-Test)
+cmake --build build -j8                 # builds Siv3D-App (+ Siv3D-Test)
+./app/Siv3D-App                         # post-build stages the exe into App/app/; run it there
 ```
 
 Dependencies: `glfw3` (Siv3D fork, overlay-port — provides `glfwGetKeysSiv3D`
@@ -94,7 +95,10 @@ the root `CMakeLists.txt`):
   - `UserInfo/` — `getpwuid`/`gethostname`/`LANG`; `IsRunningInVisualStudio`/
     `IsRunningInXcode` → `false`.
   - `Resource/` — `Resource()`/`EnumResourceFiles()`; resource root is the
-    `resources/` dir next to the executable (no app bundle on Linux).
+    exe's own directory (`App/app/`), so engine resources resolve to
+    `App/app/engine/…` (no app bundle on Linux). A post-build step stages the
+    exe into `App/app/` next to the committed `engine/`+`example/` assets, so it
+    runs in place.
   - `FreestandingMessageBox/` — falls back to `std::cerr` (no GUI backend).
   - `System/` — `CSystem` (engine orchestration) + `OpenInBrowser()` via
     `fork`+`execlp("xdg-open", …)`.

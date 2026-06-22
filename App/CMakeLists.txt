@@ -135,10 +135,11 @@ set_target_properties(Siv3D-App PROPERTIES
     VS_DEBUGGER_ENVIRONMENT "SIV3D_APP_LAUNCHED_FROM_IDE=1"
 )
 
-# Outside a debugger the engine chdirs to the exe's own directory at startup
-# (SetWorkingDirectory in Siv3DMainHelper.cpp), so stage a runnable copy into
-# app/ — the CMake equivalent of the vcxproj's post-build xcopy. With the
-# static triplet the exe is self-contained. (macOS ships a .app bundle instead.)
+# Stage a runnable copy of the exe into app/ (which holds the engine/ and
+# example/ assets), so it can be launched in place — the CMake equivalent of the
+# vcxproj's post-build xcopy. The Linux Resource() reads engine resources from
+# the exe's own directory (App/app/engine/...); run via App/app/Siv3D-App.
+# (macOS ships a .app bundle instead.)
 if(WIN32)
     add_custom_command(TARGET Siv3D-App POST_BUILD
         COMMAND ${CMAKE_COMMAND}
@@ -146,6 +147,12 @@ if(WIN32)
             -DSRC_DIR=$<TARGET_FILE_DIR:Siv3D-App>
             -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/app
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyAppBinaries.cmake"
+        COMMENT "Staging Siv3D-App into app/"
+    )
+elseif(UNIX AND NOT APPLE)
+    add_custom_command(TARGET Siv3D-App POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:Siv3D-App> "${CMAKE_CURRENT_SOURCE_DIR}/app/"
         COMMENT "Staging Siv3D-App into app/"
     )
 endif()

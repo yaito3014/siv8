@@ -26,9 +26,8 @@ namespace s3d
 
 	FilePath Resource(const FilePathView path)
 	{
-		// Linux にアプリケーションバンドルは無いので、実行ファイル隣の resources/ をリソースルートとする。
-		const FilePath resourceDirectory = (FileSystem::GetExecutableDirectory() + U"resources/");
-
-		return (resourceDirectory + path);
+		// Linux にアプリケーションバンドルは無いので、実行ファイルのあるディレクトリ（App/app/）を
+		// リソースルートとする。エンジンリソースは `engine/...` として参照される。
+		return (FileSystem::GetExecutableDirectory() + path);
 	}
 }

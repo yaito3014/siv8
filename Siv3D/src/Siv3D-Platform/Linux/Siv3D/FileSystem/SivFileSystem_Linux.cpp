@@ -303,10 +303,10 @@ namespace s3d
 				}
 			}
 
-			// リソースファイル（実行ファイルの隣の resources/ ディレクトリ）。
+			// エンジンリソース（実行ファイルの隣の engine/ ディレクトリ）。
 			resourceFilePaths = [this]()
 			{
-				const FilePath resourcePath = (executableDirectory + U"resources/");
+				const FilePath resourcePath = (executableDirectory + U"engine/");
 
 				Array<FilePath> paths = FileSystem::DirectoryContents(resourcePath, Recursive::Yes);
 
@@ -329,7 +329,7 @@ namespace s3d
 
 		bool IsResourcePath(const FilePathView path) noexcept
 		{
-			const FilePath resourceDirectory = (detail::init::g_filePathCache.executableDirectory + U"resources/");
+			const FilePath resourceDirectory = (detail::init::g_filePathCache.executableDirectory + U"engine/");
 			return FullPath(path).starts_with(resourceDirectory);
 		}
 
