@@ -90,7 +90,11 @@ if(SIV3D_APP_BUILD_TESTS)
 endif()
 
 # Same build-throughput trick as the vcxproj (pch.h just includes <Siv3D.hpp>).
-target_precompile_headers(Siv3D-App PRIVATE pch.h)
+# MSVC only: under GCC the force-included PCH plus Main.cpp's direct
+# `# include <Siv3D.hpp>` double-parses the headers (.ipp redefinitions).
+if(MSVC)
+	target_precompile_headers(Siv3D-App PRIVATE pch.h)
+endif()
 
 if(WIN32)
     # WinMain() is provided by the Siv3D library; the app is a GUI-subsystem exe.
