@@ -53,6 +53,13 @@ namespace s3d
 		::glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 		::glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
+		// Multisampled default framebuffer so 2D edges match the D3D11/Metal scene
+		// buffer, which uses Scene::DefaultMSAASampleCount (x4). Without this, thin
+		// AA'd primitives (lines, circle arcs) alias and read as slightly fatter.
+		// (Until a dedicated scene FBO/letterbox exists on Linux, MSAA lives on the
+		// window framebuffer; GL resolves it on swap when GL_MULTISAMPLE is enabled.)
+		::glfwWindowHint(GLFW_SAMPLES, 4);
+
 		// ウィンドウの作成
 		{
 			m_glfwWindow = ::glfwCreateWindow(800, 600, Unicode::ToUTF8(m_windowTitle.actual).c_str(), nullptr, nullptr);

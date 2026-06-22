@@ -50,6 +50,10 @@ namespace s3d
 
 		::glfwSwapInterval(m_vSyncEnabled ? 1 : 0);
 
+		// The window framebuffer is multisampled (GLFW_SAMPLES in CWindow) to match
+		// the D3D11/Metal x4 scene MSAA; enable it so 2D edges resolve smoothly.
+		::glEnable(GL_MULTISAMPLE);
+
 		LOG_INFO(fmt::format("ℹ️ OpenGL {}.{} renderer", GLVersion.major, GLVersion.minor));
 	}
 
