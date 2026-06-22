@@ -116,6 +116,29 @@ void main()
 }
 )";
 
+		// Line styles: v_uv.x is distance along the line in thickness-units (phase
+		// already folded in via dotOffset), v_uv.y is across [0,1]. Hard-edged
+		// dash/dot patterns; matches LineType Dotted(1)/Dashed(2)/LongDash(3)/
+		// DashDot(4)/RoundDot(5).
+		constexpr StringView LinePSCode =
+UR"(#version 410 core
+in vec4 v_color;
+in vec2 v_uv;
+out vec4 o_color;
+uniform int u_lineType;
+void main()
+{
+	float u = v_uv.x;
+	float a = 1.0;
+	if (u_lineType == 1) { a = ((mod(u, 2.0) < 1.0) ? 1.0 : 0.0); }
+	else if (u_lineType == 2) { a = ((mod(u, 4.0) < 2.0) ? 1.0 : 0.0); }
+	else if (u_lineType == 3) { a = ((mod(u, 6.0) < 4.0) ? 1.0 : 0.0); }
+	else if (u_lineType == 4) { float m = mod(u, 6.0); a = (((m < 3.0) || ((m > 4.0) && (m < 5.0))) ? 1.0 : 0.0); }
+	else if (u_lineType == 5) { float t = abs(1.0 - mod(u, 2.0)); float across = (abs(v_uv.y - 0.5) * 2.0); a = (((t * t + across * across) < 1.0) ? 1.0 : 0.0); }
+	o_color = (v_color * a);
+}
+)";
+
 		[[nodiscard]]
 		static GLuint CompileShader(const GLenum type, const StringView code)
 		{
@@ -169,6 +192,7 @@ void main()
 	{
 		LOG_SCOPED_DEBUG("CRenderer2D_GL4::~CRenderer2D_GL4()");
 
+		if (m_lineProgram) { ::glDeleteProgram(m_lineProgram); }
 		if (m_patternProgram) { ::glDeleteProgram(m_patternProgram); }
 		if (m_msdfProgram) { ::glDeleteProgram(m_msdfProgram); }
 		if (m_textureProgram) { ::glDeleteProgram(m_textureProgram); }
@@ -207,6 +231,12 @@ void main()
 		m_patLocPt1			= ::glGetUniformLocation(m_patternProgram, "u_pt1");
 		m_patLocBg			= ::glGetUniformLocation(m_patternProgram, "u_patBg");
 		m_patLocType		= ::glGetUniformLocation(m_patternProgram, "u_patType");
+
+		m_lineProgram = LinkProgram(LinePSCode);
+		m_lineLocTransform0	= ::glGetUniformLocation(m_lineProgram, "u_t0");
+		m_lineLocTransform1	= ::glGetUniformLocation(m_lineProgram, "u_t1");
+		m_lineLocColorMul	= ::glGetUniformLocation(m_lineProgram, "u_colorMul");
+		m_lineLocType		= ::glGetUniformLocation(m_lineProgram, "u_lineType");
 
 		::glGenVertexArrays(1, &m_vao);
 		::glBindVertexArray(m_vao);
@@ -310,6 +340,9 @@ void main()
 			case Program::Pattern:
 				program = m_patternProgram; locT0 = m_patLocTransform0; locT1 = m_patLocTransform1; locColorMul = m_patLocColorMul;
 				break;
+			case Program::Line:
+				program = m_lineProgram; locT0 = m_lineLocTransform0; locT1 = m_lineLocTransform1; locColorMul = m_lineLocColorMul;
+				break;
 			}
 
 			::glUseProgram(program);
@@ -324,6 +357,10 @@ void main()
 				::glUniform4f(m_patLocPt1, p[1].x, p[1].y, p[1].z, p[1].w);
 				::glUniform4f(m_patLocBg, p[2].x, p[2].y, p[2].z, p[2].w);
 				::glUniform1i(m_patLocType, command.patternType);
+			}
+			else if (command.program == Program::Line)
+			{
+				::glUniform1i(m_lineLocType, command.patternType);
 			}
 
 			if (command.texture != 0)

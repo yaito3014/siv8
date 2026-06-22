@@ -14,6 +14,7 @@
 # include <Siv3D/Renderer2D/Vertex2DBuilder.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBufferPointer.hpp>
 # include <Siv3D/Pattern/PatternParameters.hpp>
+# include <Siv3D/LineStyle.hpp>
 # include <Siv3D/Array.hpp>
 # include <Siv3D/Mat3x2.hpp>
 # include <Siv3D/Texture.hpp>
@@ -47,7 +48,16 @@ namespace s3d
 		}
 		void addLine(const LineStyle& style, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override
 		{
-			discard(Vertex2DBuilder::BuildLine(bufferCreator(), style, start, end, thickness, colors, getMaxScaling()));
+			const Vertex2D::IndexType indexCount = Vertex2DBuilder::BuildLine(bufferCreator(), style, start, end, thickness, colors, getMaxScaling());
+
+			if (style.type == LineType::Solid)
+			{
+				pushCommand(indexCount, Program::Shape, 0);
+			}
+			else
+			{
+				pushCommand(indexCount, Program::Line, 0, static_cast<uint8>(FromEnum(style.type)));
+			}
 		}
 		void addArrow(LineCap startCap, const Float2& start, const Float2& end, float thickness, const Float2& headSize, const Float4(&colors)[2]) override
 		{
@@ -266,6 +276,7 @@ namespace s3d
 			Texture,	// sprites/emoji
 			MSDF,		// text glyphs (custom PS active)
 			Pattern,	// checker/grid/polka-dot fills
+			Line,		// dashed/dotted line styles
 		};
 
 		// A run of indices drawn with one program + texture (+ pattern params).
@@ -279,21 +290,27 @@ namespace s3d
 		};
 
 		// Append `indexCount` indices, merging with the previous command when the
-		// program and texture match.
-		void pushCommand(Vertex2D::IndexType indexCount, Program program, GLuint texture)
+		// program, texture and subtype (line/pattern type) all match.
+		void pushCommand(Vertex2D::IndexType indexCount, Program program, GLuint texture, uint8 subType = 0)
 		{
 			if (indexCount == 0)
 			{
 				return;
 			}
 
-			if ((not m_commands.isEmpty()) && (m_commands.back().program == program) && (m_commands.back().texture == texture))
+			if ((not m_commands.isEmpty()) && (m_commands.back().program == program)
+				&& (m_commands.back().texture == texture) && (m_commands.back().patternType == subType))
 			{
 				m_commands.back().indexCount += indexCount;
 			}
 			else
 			{
-				m_commands.push_back({ program, texture, indexCount });
+				DrawCommand command;
+				command.program		= program;
+				command.texture		= texture;
+				command.indexCount	= indexCount;
+				command.patternType	= subType;
+				m_commands.push_back(command);
 			}
 		}
 
@@ -382,6 +399,16 @@ namespace s3d
 		GLint m_patLocBg = -1;
 
 		GLint m_patLocType = -1;
+
+		GLuint m_lineProgram = 0;
+
+		GLint m_lineLocTransform0 = -1;
+
+		GLint m_lineLocTransform1 = -1;
+
+		GLint m_lineLocColorMul = -1;
+
+		GLint m_lineLocType = -1;
 
 		bool m_customPSActive = false;
 	};
