@@ -12,6 +12,7 @@
 # include <Siv3D/Error/InternalEngineError.hpp>
 # include <Siv3D/Window/IWindow.hpp>
 # include <Siv3D/WindowState.hpp>
+# include <Siv3D/Renderer2D/IRenderer2D.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
 # include <Siv3D/EngineLog.hpp>
 # include <Siv3D/Scene/SceneUtility.hpp>
@@ -69,6 +70,8 @@ namespace s3d
 
 	void CRenderer_GL4::flush()
 	{
+		SIV3D_ENGINE(Renderer2D)->flush();
+
 		::glFlush();
 	}
 

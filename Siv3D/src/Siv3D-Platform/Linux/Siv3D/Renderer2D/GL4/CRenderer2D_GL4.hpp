@@ -10,33 +10,55 @@
 
 # pragma once
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
+# include <Siv3D/Renderer2D/Vertex2DBufferPointer.hpp>
+# include <Siv3D/Array.hpp>
 # include <Siv3D/Mat3x2.hpp>
 # include <Siv3D/Texture.hpp>
 # include <Siv3D/BlendState.hpp>
 # include <Siv3D/RasterizerState.hpp>
 # include <Siv3D/SamplerState.hpp>
+# include <Siv3D/Common/OpenGL.hpp>
 
 namespace s3d
 {
-	// TODO(linux): real 2D rendering. Phase 0 is a no-op renderer so the engine
-	// links and runs; only the scene clear-color is shown (see CRenderer_GL4).
+	// Phase 1 (in progress): a minimal real 2D renderer. Solid-colored shapes are
+	// tessellated by the common Vertex2DBuilder and drawn with a single shape
+	// program; patterns/textures/text are still no-op (TODO(linux)).
 	class CRenderer2D_GL4 final : public ISiv3DRenderer2D
 	{
 	public:
 
-		void init() override {}
-		void addLine(LineCap startCap, LineCap endCap, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override {}
+		~CRenderer2D_GL4() override;
+
+		void init() override;
+
+		// --- implemented (solid shapes) ---
+		void addTriangle(const Float2(&points)[3], const Float4& color) override;
+		void addTriangle(const Float2(&points)[3], const Float4(&colors)[3]) override;
+		void addRect(const FloatRect& rect, const Float4& color) override;
+		void addRect(const FloatRect& rect, const Float4(&colors)[4]) override;
+		void addCircle(const Float2& center, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override;
+		void addLine(LineCap startCap, LineCap endCap, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override;
+
+		void flush() override;
+
+		Float4 getColorMul() const override;
+		void setColorMul(const Float4& color) override;
+		Float3 getColorAdd() const override;
+		void setColorAdd(const Float3& color) override;
+		float getMaxScaling() const noexcept override;
+		const Mat3x2& getLocalTransform() const override;
+		void setLocalTransform(const Mat3x2& matrix) override;
+		const Mat3x2& getCameraTransform() const override;
+		void setCameraTransform(const Mat3x2& matrix) override;
+
+		// --- not yet implemented (Phase 1+): no-op so the engine links/runs ---
 		void addLine(const LineStyle& style, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override {}
 		void addArrow(LineCap startCap, const Float2& start, const Float2& end, float thickness, const Float2& headSize, const Float4(&colors)[2]) override {}
-		void addTriangle(const Float2(&points)[3], const Float4& color) override {}
-		void addTriangle(const Float2(&points)[3], const Float4(&colors)[3]) override {}
 		void addTriangle(const Float2(&points)[3], const PatternParameters& pattern) override {}
-		void addRect(const FloatRect& rect, const Float4& color) override {}
-		void addRect(const FloatRect& rect, const Float4(&colors)[4]) override {}
 		void addRect(const FloatRect& rect, const PatternParameters& pattern) override {}
 		void addRectFrame(const FloatRect& innerRect, float thickness, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addRectFrame(const FloatRect& innerRect, float thickness, const PatternParameters& pattern) override {}
-		void addCircle(const Float2& center, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override {}
 		void addCircle(const Float2& center, float r, const PatternParameters& pattern) override {}
 		void addCircleFrame(const Float2& center, float rInner, float thickness, const Float4& innerColor, const Float4& outerColor) override {}
 		void addCircleFrame(const Float2& center, float rInner, float thickness, const PatternParameters& pattern) override {}
@@ -84,11 +106,6 @@ namespace s3d
 		void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override {}
-		void flush() override {}
-		Float4 getColorMul() const override { return {}; }
-		void setColorMul(const Float4& color) override {}
-		Float3 getColorAdd() const override { return {}; }
-		void setColorAdd(const Float3& color) override {}
 		BlendState getBlendState() const override { return {}; }
 		void setBlendState(const BlendState& state) override {}
 		RasterizerState getRasterizerState() const override { return {}; }
@@ -106,11 +123,37 @@ namespace s3d
 		void setCustomVS(const Optional<VertexShader>& vs) override {}
 		Optional<PixelShader> getCustomPS() const override { return {}; }
 		void setCustomPS(const Optional<PixelShader>& ps) override {}
-		const Mat3x2& getLocalTransform() const override { static const Mat3x2 m = Mat3x2::Identity(); return m; }
-		void setLocalTransform(const Mat3x2& matrix) override {}
-		const Mat3x2& getCameraTransform() const override { static const Mat3x2 m = Mat3x2::Identity(); return m; }
-		void setCameraTransform(const Mat3x2& matrix) override {}
-		float getMaxScaling() const noexcept override { return 1.0f; }
 		const Texture& getShadowTexture() const noexcept override { static const Texture t; return t; }
+
+	private:
+
+		[[nodiscard]]
+		Vertex2DBufferPointer createBuffer(Vertex2D::IndexType vertexCount, Vertex2D::IndexType indexCount);
+
+		Array<Vertex2D> m_vertices;
+
+		Array<Vertex2D::IndexType> m_indices;
+
+		Float4 m_colorMul = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+		Float3 m_colorAdd = { 0.0f, 0.0f, 0.0f };
+
+		Mat3x2 m_localTransform = Mat3x2::Identity();
+
+		Mat3x2 m_cameraTransform = Mat3x2::Identity();
+
+		GLuint m_vao = 0;
+
+		GLuint m_vbo = 0;
+
+		GLuint m_ibo = 0;
+
+		GLuint m_program = 0;
+
+		GLint m_locTransform0 = -1;
+
+		GLint m_locTransform1 = -1;
+
+		GLint m_locColorMul = -1;
 	};
 }
