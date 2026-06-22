@@ -223,7 +223,10 @@ namespace s3d
 		Optional<VertexShader> getCustomVS() const override { return{}; }
 		void setCustomVS(const Optional<VertexShader>& vs) override {}
 		Optional<PixelShader> getCustomPS() const override { return{}; }
-		void setCustomPS(const Optional<PixelShader>& ps) override {}
+		// The only custom-PS user in practice is text (ScopedCustomShader2D wraps
+		// the FontMSDF shader), so an active custom PS routes textured draws to
+		// the MSDF program. TODO(linux): honor arbitrary user pixel shaders.
+		void setCustomPS(const Optional<PixelShader>& ps) override { m_customPSActive = ps.has_value(); }
 		const Texture& getShadowTexture() const noexcept override { static const Texture t; return t; }
 
 	private:
@@ -246,33 +249,41 @@ namespace s3d
 		[[nodiscard]]
 		BufferCreator bufferCreator() { return BufferCreator{ this }; }
 
-		// A run of indices drawn with one program/texture (texture 0 => shape program).
+		enum class Program : uint8
+		{
+			Shape,		// solid/gradient shapes
+			Texture,	// sprites/emoji
+			MSDF,		// text glyphs (custom PS active)
+		};
+
+		// A run of indices drawn with one program + texture.
 		struct DrawCommand
 		{
+			Program program = Program::Shape;
 			GLuint texture = 0;
 			uint32 indexCount = 0;
 		};
 
-		// Append `indexCount` indices to the batch, merging with the previous
-		// command when the texture matches.
-		void pushCommand(Vertex2D::IndexType indexCount, GLuint texture)
+		// Append `indexCount` indices, merging with the previous command when the
+		// program and texture match.
+		void pushCommand(Vertex2D::IndexType indexCount, Program program, GLuint texture)
 		{
 			if (indexCount == 0)
 			{
 				return;
 			}
 
-			if ((not m_commands.isEmpty()) && (m_commands.back().texture == texture))
+			if ((not m_commands.isEmpty()) && (m_commands.back().program == program) && (m_commands.back().texture == texture))
 			{
 				m_commands.back().indexCount += indexCount;
 			}
 			else
 			{
-				m_commands.push_back({ texture, indexCount });
+				m_commands.push_back({ program, texture, indexCount });
 			}
 		}
 
-		void discard(Vertex2D::IndexType indexCount) { pushCommand(indexCount, 0); } // shape draw
+		void discard(Vertex2D::IndexType indexCount) { pushCommand(indexCount, Program::Shape, 0); } // shape draw
 
 		// GL texture name for a Texture handle (via the Linux CTexture backend).
 		[[nodiscard]]
@@ -315,5 +326,17 @@ namespace s3d
 		GLint m_texLocColorMul = -1;
 
 		GLint m_texLocSampler = -1;
+
+		GLuint m_msdfProgram = 0;
+
+		GLint m_msdfLocTransform0 = -1;
+
+		GLint m_msdfLocTransform1 = -1;
+
+		GLint m_msdfLocColorMul = -1;
+
+		GLint m_msdfLocSampler = -1;
+
+		bool m_customPSActive = false;
 	};
 }

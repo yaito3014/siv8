@@ -66,8 +66,27 @@ out vec4 o_color;
 uniform sampler2D u_tex;
 void main()
 {
-	vec4 t = texture(u_tex, vec2(v_uv.x, (1.0 - v_uv.y)));
+	vec4 t = texture(u_tex, v_uv);
 	o_color = (t * v_color);
+}
+)";
+
+		// MSDF text: median of the 3 distance channels, screen-space AA via fwidth.
+		// (The engine premultiplies the glyph color into the vertex color.)
+		constexpr StringView MSDFPSCode =
+UR"(#version 410 core
+in vec4 v_color;
+in vec2 v_uv;
+out vec4 o_color;
+uniform sampler2D u_tex;
+float median(vec3 c) { return max(min(c.r, c.g), min(max(c.r, c.g), c.b)); }
+void main()
+{
+	vec3 s = texture(u_tex, v_uv).rgb;
+	float sd = median(s);
+	float w = fwidth(sd);
+	float a = smoothstep((0.5 - w), (0.5 + w), sd);
+	o_color = (v_color * a);
 }
 )";
 
@@ -124,6 +143,7 @@ void main()
 	{
 		LOG_SCOPED_DEBUG("CRenderer2D_GL4::~CRenderer2D_GL4()");
 
+		if (m_msdfProgram) { ::glDeleteProgram(m_msdfProgram); }
 		if (m_textureProgram) { ::glDeleteProgram(m_textureProgram); }
 		if (m_program) { ::glDeleteProgram(m_program); }
 		if (m_ibo) { ::glDeleteBuffers(1, &m_ibo); }
@@ -145,6 +165,12 @@ void main()
 		m_texLocTransform1	= ::glGetUniformLocation(m_textureProgram, "u_t1");
 		m_texLocColorMul	= ::glGetUniformLocation(m_textureProgram, "u_colorMul");
 		m_texLocSampler		= ::glGetUniformLocation(m_textureProgram, "u_tex");
+
+		m_msdfProgram = LinkProgram(MSDFPSCode);
+		m_msdfLocTransform0	= ::glGetUniformLocation(m_msdfProgram, "u_t0");
+		m_msdfLocTransform1	= ::glGetUniformLocation(m_msdfProgram, "u_t1");
+		m_msdfLocColorMul	= ::glGetUniformLocation(m_msdfProgram, "u_colorMul");
+		m_msdfLocSampler	= ::glGetUniformLocation(m_msdfProgram, "u_tex");
 
 		::glGenVertexArrays(1, &m_vao);
 		::glBindVertexArray(m_vao);
@@ -183,22 +209,22 @@ void main()
 
 	void CRenderer2D_GL4::addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedCircle(bufferCreator(), circle, uv, color, getMaxScaling()), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedCircle(bufferCreator(), circle, uv, color, getMaxScaling()), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, color), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, color), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4(&colors)[4])
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, colors), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, colors), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::addTexturedRoundRect(const Texture& texture, const FloatRect& rect, const float w, const float h, const float r, const FloatRect& uvRect, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedRoundRect(bufferCreator(), rect, w, h, r, uvRect, color, getMaxScaling()), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedRoundRect(bufferCreator(), rect, w, h, r, uvRect, color, getMaxScaling()), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::flush()
@@ -231,22 +257,32 @@ void main()
 
 		for (const auto& command : m_commands)
 		{
-			if (command.texture == 0)
+			GLuint program = 0;
+			GLint locT0 = -1, locT1 = -1, locColorMul = -1, locSampler = -1;
+
+			switch (command.program)
 			{
-				::glUseProgram(m_program);
-				::glUniform4f(m_locTransform0, t0[0], t0[1], t0[2], t0[3]);
-				::glUniform4f(m_locTransform1, t1[0], t1[1], t1[2], t1[3]);
-				::glUniform4f(m_locColorMul, m_colorMul.x, m_colorMul.y, m_colorMul.z, m_colorMul.w);
+			case Program::Shape:
+				program = m_program; locT0 = m_locTransform0; locT1 = m_locTransform1; locColorMul = m_locColorMul;
+				break;
+			case Program::Texture:
+				program = m_textureProgram; locT0 = m_texLocTransform0; locT1 = m_texLocTransform1; locColorMul = m_texLocColorMul; locSampler = m_texLocSampler;
+				break;
+			case Program::MSDF:
+				program = m_msdfProgram; locT0 = m_msdfLocTransform0; locT1 = m_msdfLocTransform1; locColorMul = m_msdfLocColorMul; locSampler = m_msdfLocSampler;
+				break;
 			}
-			else
+
+			::glUseProgram(program);
+			::glUniform4f(locT0, t0[0], t0[1], t0[2], t0[3]);
+			::glUniform4f(locT1, t1[0], t1[1], t1[2], t1[3]);
+			::glUniform4f(locColorMul, m_colorMul.x, m_colorMul.y, m_colorMul.z, m_colorMul.w);
+
+			if (command.texture != 0)
 			{
-				::glUseProgram(m_textureProgram);
-				::glUniform4f(m_texLocTransform0, t0[0], t0[1], t0[2], t0[3]);
-				::glUniform4f(m_texLocTransform1, t1[0], t1[1], t1[2], t1[3]);
-				::glUniform4f(m_texLocColorMul, m_colorMul.x, m_colorMul.y, m_colorMul.z, m_colorMul.w);
 				::glActiveTexture(GL_TEXTURE0);
 				::glBindTexture(GL_TEXTURE_2D, command.texture);
-				::glUniform1i(m_texLocSampler, 0);
+				::glUniform1i(locSampler, 0);
 			}
 
 			::glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(command.indexCount), GL_UNSIGNED_SHORT,
