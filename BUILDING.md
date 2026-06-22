@@ -55,20 +55,27 @@ To consume an already-installed/exported engine instead of building it in-tree:
 cmake -B build -DSIV3D_APP_USE_FIND_PACKAGE=ON -DCMAKE_PREFIX_PATH=<prefix>
 ```
 
-## Build — Linux (reference)
+## Build — Linux (GLFW + OpenGL 4.1; links, not yet rendering)
 
-Linux has no graphics backend yet, so the **engine library (`Siv3DCore`) builds
-green** but the `Siv3D-Test` executable does **not** fully link. Use the library
-target to verify compilation of shared/cross-platform code.
+Linux now has a **GLFW + OpenGL 4.1 backend** and **links end-to-end**:
+`Siv3D-App` and `Siv3D-Test` both build into runnable ELF executables. This is
+**Phase 0** — the window opens and clears to the scene background color; real 2D
+rendering (shapes/sprites/text) is still a no-op (`TODO(linux)`). Built and
+link-verified in the headless `siv8` container; **not yet render-tested** (needs
+a real GPU/display).
 
 ```bash
-cd /root/siv8                          # in the "siv8" docker container (Ubuntu, gcc 15.2)
+# in the "siv8" docker container (Ubuntu, gcc 15.2). -j8 to parallelize.
+cd /root/siv8/App
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-  -DVCPKG_TARGET_TRIPLET=x64-linux -DSIV3D_BUILD_TESTS=ON
-cmake --build build --target Siv3DCore    # <- green
-cmake --build build                       # full link; fails on the backend gap below (expected)
+  -DVCPKG_TARGET_TRIPLET=x64-linux
+cmake --build build -j8                 # -> App/build/Siv3D-App (and Siv3D-Test)
 ```
+
+Dependencies: `glfw3` (Siv3D fork, overlay-port — provides `glfwGetKeysSiv3D`
+etc.) + `glad` (GL 4.1 loader) + system OpenGL/X11. The root `CMakeLists.txt`
+`elseif(UNIX)` block links `glad::glad`, `OpenGL::GL`, `X11`, and `PkgConfig::UUID`.
 
 ### Linux platform-source layout
 
@@ -89,29 +96,40 @@ the root `CMakeLists.txt`):
   - `Resource/` — `Resource()`/`EnumResourceFiles()`; resource root is the
     `resources/` dir next to the executable (no app bundle on Linux).
   - `FreestandingMessageBox/` — falls back to `std::cerr` (no GUI backend).
-  - `System/` — `OpenInBrowser()` via `fork`+`execlp("xdg-open", …)`.
+  - `System/` — `CSystem` (engine orchestration) + `OpenInBrowser()` via
+    `fork`+`execlp("xdg-open", …)`.
+  - `Window/` + `GLFW/` — `CWindow` (GLFW, OpenGL 4.1 core context) + the
+    `<Siv3D/GLFW/GLFW.hpp>` / `<Siv3D/Common/OpenGL.hpp>` loader headers.
+  - `Cursor/` — `CCursor` (GLFW). `Mouse`/`Keyboard`/`CursorStyle` reuse the
+    shared `macOS_Linux` GLFW input classes.
+  - `Renderer/GL4/` (`CRenderer_GL4` — clears + presents), plus no-op Phase-0
+    `Renderer2D`/`Shader`/`Texture`/`EngineShader`/`ConstantBuffer` GL4 stubs and
+    their factories.
+  - `Siv3DMain.cpp` — Linux entry point (`main` → engine init → user `Main`).
+  - Device services (Clipboard, DragDrop, MediaTranscoder, NativeShare,
+    Notifications, Pentablet, TextToSpeech) — no-op stubs.
 
 `UUIDValue` pulls `uuid_generate` from system **libuuid**; the `elseif(UNIX)`
 link block finds it with pkg-config (`pkg_check_modules(UUID REQUIRED
 IMPORTED_TARGET uuid)` → `PkgConfig::UUID`) — libuuid ships `uuid.pc` but no
 CMake package, and the vcpkg toolchain provides the `pkgconf` used to read it.
 
-### Why `Siv3D-Test` still doesn't link (expected)
+### Phase-0 status & what's next
 
-`Siv3DEngine.cpp` references every `ISiv3D*::Create()` device/graphics/window/
-input factory, and those factory TUs are deliberately excluded on Linux
-(`SIV3D_LINUX_UNIMPLEMENTED` in `CMakeLists.txt`). So nothing that links the
-engine into an executable can resolve them yet. The **only** remaining undefined
-symbols are:
+All `ISiv3D*::Create()` factories now resolve and the engine links. What works:
+window creation, GL context, the engine update loop, input polling, and a
+scene-background clear each frame. What's **not** done (Phase 1+, `TODO(linux)`):
+the GL4 `Renderer2D` is a no-op, so nothing actually draws yet; `Shader`/
+`Texture`/`EngineShader`/`ConstantBuffer` are stubs; the device services
+(clipboard/drag-drop/notifications/…) are stubs. Render validation needs a real
+GPU/display — the container can only confirm the build/link.
 
-- **Graphics/window/input/device factories** — `ISiv3D{Window,System,Renderer,
-  Renderer2D,Shader,EngineShader,Texture,Mouse,Keyboard,Cursor,CursorStyle,
-  DragDrop,Clipboard,Pentablet,MediaTranscoder,NativeShare,Notifications,
-  TextToSpeech}::Create()`. The big backend port; tracked by `TODO(linux)`.
-- **`main`** — the `Siv3DMain` entry-point bootstrap, not built on Linux.
-
-(The earlier `Resource`/`OpenInBrowser`/`FreestandingMessageBox::ShowError`/
-`uuid_generate` gaps are now closed — see the `Linux/` tree above.)
+`Siv3DMain.cpp` lives in `libSiv3DCore.a`, so it provides `main()` → user
+`Main()`. The standalone `Siv3D-Test` exe gets its `Main()` from
+`Test/TestMain/TestMain.cpp` (a subdirectory so the engine's recursive
+`Test/*.cpp` glob includes it but the App's non-recursive `../Test/*.cpp` glob
+does not — avoiding a clash with `App/Main.cpp`). `Siv3D-Test` stays gated off on
+Windows (tests run in-app there).
 
 ## Windows-specific items that are UNVERIFIED on Linux
 
