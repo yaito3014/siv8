@@ -10,6 +10,8 @@
 
 # include "CRenderer2D_GL4.hpp"
 # include <cstddef>
+# include <Siv3D/Image.hpp>
+# include <Siv3D/Resource.hpp>
 # include <Siv3D/Unicode.hpp>
 # include <Siv3D/Window/IWindow.hpp>
 # include <Siv3D/WindowState.hpp>
@@ -337,6 +339,16 @@ void main()
 		::glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex2D), reinterpret_cast<void*>(offsetof(Vertex2D, color)));
 
 		::glBindVertexArray(0);
+
+		// Box-shadow sprite for addCircleShadow/addRectShadow/addRoundRectShadow.
+		// (The Linux texture backend uploads the base image only; the mip pyramid
+		// the D3D11/Metal path supplies is ignored, so just load the 256px base.)
+		m_shadowTexture = std::make_unique<Texture>(Image{ Resource(U"engine/texture/box-shadow/256.png") });
+
+		if (m_shadowTexture->isEmpty())
+		{
+			throw InternalEngineError{ "Failed to create a box-shadow texture" };
+		}
 	}
 
 	Vertex2DBufferPointer CRenderer2D_GL4::createBuffer(const Vertex2D::IndexType vertexCount, const Vertex2D::IndexType indexCount)

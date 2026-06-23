@@ -10,6 +10,7 @@
 
 # pragma once
 # include <array>
+# include <memory>
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBuilder.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBufferPointer.hpp>
@@ -196,8 +197,9 @@ namespace s3d
 		//	keep the engine linking/running and silently drop the draw).
 		////////////////////////////////////////////////////////////////
 
-		// pattern fills: triangle/rect/circle work; frames/arcs/pies and the
-		// other complex shapes are not yet routed through the pattern program.
+		// pattern fills: the pattern program shades purely from gl_FragCoord, so
+		// every shape just tessellates its geometry (filled with the primary color)
+		// and routes through pushPatternCommand, exactly like the solid versions.
 		void addTriangle(const Float2(&points)[3], const PatternParameters& pattern) override
 		{
 			pushPatternCommand(Vertex2DBuilder::BuildTriangle(bufferCreator(), points, pattern.primaryColor), pattern);
@@ -206,37 +208,100 @@ namespace s3d
 		{
 			pushPatternCommand(Vertex2DBuilder::BuildRect(bufferCreator(), rect, pattern.primaryColor), pattern);
 		}
-		void addRectFrame(const FloatRect& innerRect, float thickness, const PatternParameters& pattern) override {}
+		void addRectFrame(const FloatRect& innerRect, float thickness, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildRectFrame(bufferCreator(), innerRect, thickness, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor), pattern);
+		}
 		void addCircle(const Float2& center, float r, const PatternParameters& pattern) override
 		{
 			pushPatternCommand(Vertex2DBuilder::BuildCircle(bufferCreator(), center, r, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
 		}
-		void addCircleFrame(const Float2& center, float rInner, float thickness, const PatternParameters& pattern) override {}
-		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override {}
-		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const PatternParameters& pattern) override {}
-		void addCircleSegment(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override {}
-		void addEllipse(const Float2& center, float a, float b, const PatternParameters& pattern) override {}
-		void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const PatternParameters& pattern) override {}
-		void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const PatternParameters& pattern) override {}
-		void addSuperEllipse(const Float2& center, float a, float b, float n, const PatternParameters& pattern) override {}
-		void addQuad(const FloatQuad& quad, const PatternParameters& pattern) override {}
-		void addRoundRect(const FloatRect& rect, float r, const PatternParameters& pattern) override {}
-		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const PatternParameters& pattern) override {}
-		void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const PatternParameters& pattern) override {}
-		void addPolygon(std::span<const Float2> vertices, std::span<const Vertex2D::IndexType> indices, const PatternParameters& pattern) override {}
-		void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const PatternParameters& pattern) override {}
-		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const PatternParameters& pattern) override {}
-		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const PatternParameters& pattern) override {}
+		void addCircleFrame(const Float2& center, float rInner, float thickness, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildCircleFrame(bufferCreator(), center, rInner, thickness, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildCirclePie(bufferCreator(), center, r, startAngle, angle, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildCircleArc(bufferCreator(), lineCap, center, rInner, startAngle, angle, thickness, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addCircleSegment(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildCircleSegment(bufferCreator(), center, r, startAngle, angle, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addEllipse(const Float2& center, float a, float b, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildEllipse(bufferCreator(), center, a, b, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildEllipseFrame(bufferCreator(), center, a, b, innerThickness, outerThickness, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildEllipsePie(bufferCreator(), center, rx, ry, startAngle, angle, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addSuperEllipse(const Float2& center, float a, float b, float n, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildSuperEllipse(bufferCreator(), center, a, b, n, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addQuad(const FloatQuad& quad, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildQuad(bufferCreator(), quad, pattern.primaryColor), pattern);
+		}
+		void addRoundRect(const FloatRect& rect, float r, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildPolygon(bufferCreator(), vertices, triangleIndices, offset, pattern.primaryColor), pattern);
+		}
+		void addPolygon(std::span<const Float2> vertices, std::span<const Vertex2D::IndexType> indices, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildPolygon(bufferCreator(), vertices, indices, pattern.primaryColor), pattern);
+		}
+		void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildPolygonTransformed(bufferCreator(), vertices, triangleIndices, s, c, offset, pattern.primaryColor), pattern);
+		}
+		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildShape2DFrame(bufferCreator(), vertices, thickness, pattern.primaryColor, getMaxScaling()), pattern);
+		}
+		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const PatternParameters& pattern) override
+		{
+			pushPatternCommand(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, pattern.primaryColor, getMaxScaling()), pattern);
+		}
 		// textured shapes: real (implemented in the .cpp via the texture program).
 		void addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color) override;
 		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color) override;
 		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4(&colors)[4]) override;
 		void addTexturedRoundRect(const Texture& texture, const FloatRect& rect, float w, float h, float r, const FloatRect& uvRect, const Float4& color) override;
 
-		// shadows + quad-warp: no-op (TODO(linux)).
-		void addCircleShadow(const Circle& circle, float blur, const Float4& color, bool fill) override {}
-		void addRectShadow(const FloatRect& rect, float blur, const Float4& color, bool fill) override {}
-		void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) override {}
+		// shadows: tessellated by the common builder and sampled from the box-shadow
+		// texture via the plain texture program (same as D3D11/Metal).
+		void addCircleShadow(const Circle& circle, float blur, const Float4& color, bool fill) override
+		{
+			pushCommand(Vertex2DBuilder::BuildCircleShadow(bufferCreator(), circle, blur, color, getMaxScaling(), fill), Program::Texture, glTextureOf(*m_shadowTexture));
+		}
+		void addRectShadow(const FloatRect& rect, float blur, const Float4& color, bool fill) override
+		{
+			pushCommand(Vertex2DBuilder::BuildRectShadow(bufferCreator(), rect, blur, color, fill), Program::Texture, glTextureOf(*m_shadowTexture));
+		}
+		void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) override
+		{
+			pushCommand(Vertex2DBuilder::BuildRoundRectShadow(bufferCreator(), roundRect, blur, color, getMaxScaling(), fill), Program::Texture, glTextureOf(*m_shadowTexture));
+		}
+
+		// quad-warp: no-op (TODO(linux)).
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override {}
 
@@ -262,7 +327,7 @@ namespace s3d
 		// the FontMSDF shader), so an active custom PS routes textured draws to
 		// the MSDF program. TODO(linux): honor arbitrary user pixel shaders.
 		void setCustomPS(const Optional<PixelShader>& ps) override { m_customPSActive = ps.has_value(); }
-		const Texture& getShadowTexture() const noexcept override { static const Texture t; return t; }
+		const Texture& getShadowTexture() const noexcept override { return *m_shadowTexture; }
 
 	private:
 
@@ -355,6 +420,9 @@ namespace s3d
 		Array<Vertex2D::IndexType> m_indices;
 
 		Array<DrawCommand> m_commands;
+
+		// Box-shadow sprite sampled by addCircleShadow/addRectShadow/addRoundRectShadow.
+		std::unique_ptr<Texture> m_shadowTexture;
 
 		Float4 m_colorMul = { 1.0f, 1.0f, 1.0f, 1.0f };
 
