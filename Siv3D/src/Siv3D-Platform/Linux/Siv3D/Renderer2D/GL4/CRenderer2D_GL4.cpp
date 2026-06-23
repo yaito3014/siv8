@@ -223,6 +223,68 @@ void main()
 )";
 
 		[[nodiscard]]
+		static GLenum ToGLBlendFactor(const BlendFactor f)
+		{
+			switch (f)
+			{
+			case BlendFactor::Zero:						return GL_ZERO;
+			case BlendFactor::One:						return GL_ONE;
+			case BlendFactor::SourceColor:				return GL_SRC_COLOR;
+			case BlendFactor::OneMinusSourceColor:		return GL_ONE_MINUS_SRC_COLOR;
+			case BlendFactor::SourceAlpha:				return GL_SRC_ALPHA;
+			case BlendFactor::OneMinusSourceAlpha:		return GL_ONE_MINUS_SRC_ALPHA;
+			case BlendFactor::DestinationAlpha:			return GL_DST_ALPHA;
+			case BlendFactor::OneMinusDestinationAlpha:	return GL_ONE_MINUS_DST_ALPHA;
+			case BlendFactor::DestinationColor:			return GL_DST_COLOR;
+			case BlendFactor::OneMinusDestinationColor:	return GL_ONE_MINUS_DST_COLOR;
+			case BlendFactor::SourceAlphaSaturated:		return GL_SRC_ALPHA_SATURATE;
+			case BlendFactor::BlendColor:				return GL_CONSTANT_COLOR;
+			case BlendFactor::OneMinusBlendColor:		return GL_ONE_MINUS_CONSTANT_COLOR;
+			case BlendFactor::Source1Color:				return GL_SRC1_COLOR;
+			case BlendFactor::OneMinusSource1Color:		return GL_ONE_MINUS_SRC1_COLOR;
+			case BlendFactor::Source1Alpha:				return GL_SRC1_ALPHA;
+			case BlendFactor::OneMinusSource1Alpha:		return GL_ONE_MINUS_SRC1_ALPHA;
+			default:									return GL_ONE;
+			}
+		}
+
+		[[nodiscard]]
+		static GLenum ToGLBlendOp(const BlendOperation op)
+		{
+			switch (op)
+			{
+			case BlendOperation::Add:				return GL_FUNC_ADD;
+			case BlendOperation::Subtract:			return GL_FUNC_SUBTRACT;
+			case BlendOperation::ReverseSubtract:	return GL_FUNC_REVERSE_SUBTRACT;
+			case BlendOperation::Min:				return GL_MIN;
+			case BlendOperation::Max:				return GL_MAX;
+			default:								return GL_FUNC_ADD;
+			}
+		}
+
+		[[nodiscard]]
+		static GLint ToGLWrap(const TextureAddressMode m)
+		{
+			switch (m)
+			{
+			case TextureAddressMode::Repeat:		return GL_REPEAT;
+			case TextureAddressMode::Mirror:		return GL_MIRRORED_REPEAT;
+			case TextureAddressMode::Clamp:			return GL_CLAMP_TO_EDGE;
+			case TextureAddressMode::BorderColor:	return GL_CLAMP_TO_BORDER;
+			case TextureAddressMode::MirrorClamp:	return GL_CLAMP_TO_EDGE; // GL_MIRROR_CLAMP_TO_EDGE is 4.4+
+			default:								return GL_CLAMP_TO_EDGE;
+			}
+		}
+
+		[[nodiscard]]
+		static GLint ToGLFilter(const TextureFilter f)
+		{
+			// Textures carry no mip chain on this backend, so use the non-mipmapped
+			// variants for both min and mag (a mipmap min filter would sample black).
+			return ((f == TextureFilter::Nearest) ? GL_NEAREST : GL_LINEAR);
+		}
+
+		[[nodiscard]]
 		static GLuint CompileShader(const GLenum type, const StringView code)
 		{
 			const std::string utf8 = Unicode::ToUTF8(code);
@@ -275,6 +337,7 @@ void main()
 	{
 		LOG_SCOPED_DEBUG("CRenderer2D_GL4::~CRenderer2D_GL4()");
 
+		for (auto& [key, sampler] : m_samplerCache) { ::glDeleteSamplers(1, &sampler); }
 		if (m_lineProgram) { ::glDeleteProgram(m_lineProgram); }
 		if (m_patternProgram) { ::glDeleteProgram(m_patternProgram); }
 		if (m_msdfProgram) { ::glDeleteProgram(m_msdfProgram); }
@@ -283,6 +346,26 @@ void main()
 		if (m_ibo) { ::glDeleteBuffers(1, &m_ibo); }
 		if (m_vbo) { ::glDeleteBuffers(1, &m_vbo); }
 		if (m_vao) { ::glDeleteVertexArrays(1, &m_vao); }
+	}
+
+	GLuint CRenderer2D_GL4::samplerObjectFor(const SamplerState& state)
+	{
+		const uint64 key = state.asValue();
+
+		if (const auto it = m_samplerCache.find(key); it != m_samplerCache.end())
+		{
+			return it->second;
+		}
+
+		GLuint sampler = 0;
+		::glGenSamplers(1, &sampler);
+		::glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, ToGLFilter(state.minFilter));
+		::glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, ToGLFilter(state.magFilter));
+		::glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, ToGLWrap(state.uAddressMode));
+		::glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, ToGLWrap(state.vAddressMode));
+		::glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, ToGLWrap(state.wAddressMode));
+		m_samplerCache.emplace(key, sampler);
+		return sampler;
 	}
 
 	void CRenderer2D_GL4::init()
@@ -404,19 +487,54 @@ void main()
 		::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
 		::glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_indices.size() * sizeof(Vertex2D::IndexType)), m_indices.data(), GL_STREAM_DRAW);
 
-		// vertex transform: (local * camera) then screen -> clip, packed like VSConstants2D.
+		// vertex transform base: (local * camera); the screen->clip part is folded in
+		// per-command since a custom viewport changes the screen mapping.
 		const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
-		const Mat3x2 matrix = ((m_localTransform * m_cameraTransform) * Mat3x2::Screen(SizeF{ frameBufferSize }));
-		const float t0[4] = { matrix._11, matrix._12, matrix._31, matrix._32 };
-		const float t1[4] = { matrix._21, matrix._22, 0.0f, 1.0f };
-
-		::glEnable(GL_BLEND);
-		::glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+		const Mat3x2 baseMatrix = (m_localTransform * m_cameraTransform);
 
 		size_t indexOffset = 0;
 
 		for (const auto& command : m_commands)
 		{
+			// --- render state ---
+			const BlendState& bs = command.blend;
+			if (bs.enabled) { ::glEnable(GL_BLEND); } else { ::glDisable(GL_BLEND); }
+			::glBlendFuncSeparate(ToGLBlendFactor(bs.sourceRGB), ToGLBlendFactor(bs.destinationRGB),
+				ToGLBlendFactor(bs.sourceAlpha), ToGLBlendFactor(bs.destinationAlpha));
+			::glBlendEquationSeparate(ToGLBlendOp(bs.rgbOperation), ToGLBlendOp(bs.alphaOperation));
+			::glColorMask(bs.writeR, bs.writeG, bs.writeB, bs.writeA);
+			if (bs.alphaToCoverageEnabled) { ::glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE); } else { ::glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE); }
+
+			const RasterizerState& rs = command.rasterizer;
+			switch (rs.cullMode)
+			{
+			case CullMode::None:	::glDisable(GL_CULL_FACE); break;
+			case CullMode::Front:	::glEnable(GL_CULL_FACE); ::glCullFace(GL_FRONT); break;
+			case CullMode::Back:	::glEnable(GL_CULL_FACE); ::glCullFace(GL_BACK); break;
+			}
+			::glPolygonMode(GL_FRONT_AND_BACK, ((rs.triangleFillMode == TriangleFillMode::Wireframe) ? GL_LINE : GL_FILL));
+
+			// viewport (GL window-space origin is bottom-left, so flip Y); the screen
+			// matrix maps scene (0,0)-(w,h) into it, like the D3D11 backend.
+			const Rect vp = command.viewport.value_or(Rect{ 0, 0, frameBufferSize.x, frameBufferSize.y });
+			::glViewport(vp.pos.x, (frameBufferSize.y - (vp.pos.y + vp.size.y)), vp.size.x, vp.size.y);
+
+			if (command.scissor)
+			{
+				const Rect& sc = *command.scissor;
+				::glEnable(GL_SCISSOR_TEST);
+				::glScissor(sc.pos.x, (frameBufferSize.y - (sc.pos.y + sc.size.y)), sc.size.x, sc.size.y);
+			}
+			else
+			{
+				::glDisable(GL_SCISSOR_TEST);
+			}
+
+			const Mat3x2 matrix = (baseMatrix * Mat3x2::Screen(vp.size.x, vp.size.y));
+			const float t0[4] = { matrix._11, matrix._12, matrix._31, matrix._32 };
+			const float t1[4] = { matrix._21, matrix._22, 0.0f, 1.0f };
+
+			// --- program + uniforms ---
 			GLuint program = 0;
 			GLint locT0 = -1, locT1 = -1, locColorMul = -1, locSampler = -1;
 
@@ -451,18 +569,25 @@ void main()
 				::glUniform4f(m_patLocPt1, p[1].x, p[1].y, p[1].z, p[1].w);
 				::glUniform4f(m_patLocBg, p[2].x, p[2].y, p[2].z, p[2].w);
 				::glUniform1i(m_patLocType, command.patternType);
-				::glUniform1f(m_patLocFbHeight, static_cast<float>(frameBufferSize.y));
+				::glUniform1f(m_patLocFbHeight, static_cast<float>(vp.size.y));
 			}
 			else if (command.program == Program::Line)
 			{
 				::glUniform1i(m_lineLocType, command.patternType);
 			}
 
-			if (command.texture != 0)
+			// Textured draws sample unit 0 through the command's PS sampler object;
+			// non-textured programs don't sample, so leave unit 0 unbound.
+			if ((command.program == Program::Texture) || (command.program == Program::MSDF))
 			{
 				::glActiveTexture(GL_TEXTURE0);
 				::glBindTexture(GL_TEXTURE_2D, command.texture);
+				::glBindSampler(0, samplerObjectFor(command.sampler));
 				::glUniform1i(locSampler, 0);
+			}
+			else
+			{
+				::glBindSampler(0, 0);
 			}
 
 			::glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(command.indexCount), GL_UNSIGNED_SHORT,
@@ -470,6 +595,16 @@ void main()
 
 			indexOffset += command.indexCount;
 		}
+
+		// Restore default GL state so the next frame's clear/draw isn't affected
+		// (glClear honors scissor + color mask).
+		::glBindSampler(0, 0);
+		::glDisable(GL_SCISSOR_TEST);
+		::glDisable(GL_CULL_FACE);
+		::glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+		::glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		::glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		::glViewport(0, 0, frameBufferSize.x, frameBufferSize.y);
 
 		::glBindVertexArray(0);
 

@@ -11,6 +11,7 @@
 # pragma once
 # include <array>
 # include <memory>
+# include <unordered_map>
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBuilder.hpp>
 # include <Siv3D/Renderer2D/Vertex2DBufferPointer.hpp>
@@ -305,20 +306,21 @@ namespace s3d
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override {}
 
-		// render state: not honored yet (GL pipeline state is fixed). Getters
-		// return defaults, setters are ignored (TODO(linux)).
-		BlendState getBlendState() const override { return{}; }
-		void setBlendState(const BlendState& state) override {}
-		RasterizerState getRasterizerState() const override { return{}; }
-		void setRasterizerState(const RasterizerState& state) override {}
-		SamplerState getVSSamplerState(uint32 slot) const override { return{}; }
-		void setVSSamplerState(uint32 slot, const SamplerState& state) override {}
-		SamplerState getPSSamplerState(uint32 slot) const override { return{}; }
-		void setPSSamplerState(uint32 slot, const SamplerState& state) override {}
-		Optional<Rect> getScissorRect() const override { return{}; }
-		void setScissorRect(const Optional<Rect>& rect) override {}
-		Optional<Rect> getViewport() const override { return{}; }
-		void setViewport(const Optional<Rect>& viewport) override {}
+		// render state: tracked here and snapshotted into each DrawCommand, then
+		// applied per-command in flush(). VS sampler state is stored for fidelity
+		// but never applied (this 2D renderer does no vertex-texture fetch).
+		BlendState getBlendState() const override { return m_currentBlendState; }
+		void setBlendState(const BlendState& state) override { m_currentBlendState = state; }
+		RasterizerState getRasterizerState() const override { return m_currentRasterizerState; }
+		void setRasterizerState(const RasterizerState& state) override { m_currentRasterizerState = state; }
+		SamplerState getVSSamplerState(uint32 slot) const override { return m_vsSamplerStates[(slot < MaxSamplerSlots) ? slot : 0]; }
+		void setVSSamplerState(uint32 slot, const SamplerState& state) override { if (slot < MaxSamplerSlots) { m_vsSamplerStates[slot] = state; } }
+		SamplerState getPSSamplerState(uint32 slot) const override { return m_psSamplerStates[(slot < MaxSamplerSlots) ? slot : 0]; }
+		void setPSSamplerState(uint32 slot, const SamplerState& state) override { if (slot < MaxSamplerSlots) { m_psSamplerStates[slot] = state; } }
+		Optional<Rect> getScissorRect() const override { return m_currentScissorRect; }
+		void setScissorRect(const Optional<Rect>& rect) override { m_currentScissorRect = rect; }
+		Optional<Rect> getViewport() const override { return m_currentViewport; }
+		void setViewport(const Optional<Rect>& viewport) override { m_currentViewport = viewport; }
 		void setSDFParameters(const std::array<Float4, 3>& params) override {}
 		Optional<VertexShader> getCustomVS() const override { return{}; }
 		void setCustomVS(const Optional<VertexShader>& vs) override {}
@@ -358,7 +360,8 @@ namespace s3d
 			Line,		// dashed/dotted line styles
 		};
 
-		// A run of indices drawn with one program + texture (+ pattern params).
+		// A run of indices drawn with one program + texture (+ pattern params) and a
+		// snapshot of the render state in effect when it was recorded.
 		struct DrawCommand
 		{
 			Program program = Program::Shape;
@@ -366,10 +369,36 @@ namespace s3d
 			uint32 indexCount = 0;
 			std::array<Float4, 3> patternParams{};	// (uvTransform packed, params, backgroundColor)
 			uint8 patternType = 0;
+			BlendState blend{ BlendState::Default2D };
+			RasterizerState rasterizer{ RasterizerState::Default2D };
+			SamplerState sampler{};					// PS sampler, slot 0 (the only one applied)
+			Optional<Rect> scissor;
+			Optional<Rect> viewport;
 		};
 
+		// True when two commands share every piece of render state, so their index
+		// runs can be drawn back-to-back without a state change.
+		[[nodiscard]]
+		bool sameState(const DrawCommand& a, const DrawCommand& b) const
+		{
+			return (a.program == b.program) && (a.texture == b.texture) && (a.patternType == b.patternType)
+				&& (a.blend == b.blend) && (a.rasterizer.asValue() == b.rasterizer.asValue())
+				&& (a.sampler.asValue() == b.sampler.asValue())
+				&& (a.scissor == b.scissor) && (a.viewport == b.viewport);
+		}
+
+		// Stamp the current render state onto a command being recorded.
+		void captureState(DrawCommand& command) const
+		{
+			command.blend		= m_currentBlendState;
+			command.rasterizer	= m_currentRasterizerState;
+			command.sampler		= m_psSamplerStates[0];
+			command.scissor		= m_currentScissorRect;
+			command.viewport	= m_currentViewport;
+		}
+
 		// Append `indexCount` indices, merging with the previous command when the
-		// program, texture and subtype (line/pattern type) all match.
+		// program, texture, subtype and render state all match.
 		void pushCommand(Vertex2D::IndexType indexCount, Program program, GLuint texture, uint8 subType = 0)
 		{
 			if (indexCount == 0)
@@ -377,18 +406,19 @@ namespace s3d
 				return;
 			}
 
-			if ((not m_commands.isEmpty()) && (m_commands.back().program == program)
-				&& (m_commands.back().texture == texture) && (m_commands.back().patternType == subType))
+			DrawCommand command;
+			command.program		= program;
+			command.texture		= texture;
+			command.indexCount	= indexCount;
+			command.patternType	= subType;
+			captureState(command);
+
+			if ((not m_commands.isEmpty()) && sameState(m_commands.back(), command))
 			{
 				m_commands.back().indexCount += indexCount;
 			}
 			else
 			{
-				DrawCommand command;
-				command.program		= program;
-				command.texture		= texture;
-				command.indexCount	= indexCount;
-				command.patternType	= subType;
 				m_commands.push_back(command);
 			}
 		}
@@ -408,12 +438,19 @@ namespace s3d
 			command.indexCount		= indexCount;
 			command.patternParams	= pattern.toFloat4Array(1.0f / getMaxScaling());
 			command.patternType		= static_cast<uint8>(FromEnum(pattern.type));
+			captureState(command);
 			m_commands.push_back(command);
 		}
 
 		// GL texture name for a Texture handle (via the Linux CTexture backend).
 		[[nodiscard]]
 		GLuint glTextureOf(const Texture& texture);
+
+		// GL sampler object for a SamplerState, created and cached on first use.
+		[[nodiscard]]
+		GLuint samplerObjectFor(const SamplerState& state);
+
+		static constexpr uint32 MaxSamplerSlots = 8;
 
 		Array<Vertex2D> m_vertices;
 
@@ -431,6 +468,22 @@ namespace s3d
 		Mat3x2 m_localTransform = Mat3x2::Identity();
 
 		Mat3x2 m_cameraTransform = Mat3x2::Identity();
+
+		// Current render state (snapshotted into each DrawCommand by captureState).
+		BlendState m_currentBlendState{ BlendState::Default2D };
+
+		RasterizerState m_currentRasterizerState{ RasterizerState::Default2D };
+
+		std::array<SamplerState, MaxSamplerSlots> m_psSamplerStates{};
+
+		std::array<SamplerState, MaxSamplerSlots> m_vsSamplerStates{};
+
+		Optional<Rect> m_currentScissorRect;
+
+		Optional<Rect> m_currentViewport;
+
+		// SamplerState (asValue) -> GL sampler object.
+		std::unordered_map<uint64, GLuint> m_samplerCache;
 
 		GLuint m_vao = 0;
 
