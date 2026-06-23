@@ -25,9 +25,12 @@
 
 namespace s3d
 {
-	// Phase 1 (in progress): a minimal real 2D renderer. Solid-colored shapes are
-	// tessellated by the common Vertex2DBuilder and drawn with a single shape
-	// program; patterns/textures/text are still no-op (TODO(linux)).
+	// Phase 1: a working 2D renderer. Solid/gradient shapes are tessellated by the
+	// common Vertex2DBuilder; textures/sprites, MSDF text, the six fill patterns,
+	// and dashed/dotted lines all render. Still no-op (TODO(linux)): pattern-fill
+	// frames/arcs/complex shapes, shadows, quad-warp, render state (blend/
+	// rasterizer/sampler/scissor/viewport), SDF outline/glow, and arbitrary custom
+	// shaders. See the "partially implemented" section below for the exact split.
 	class CRenderer2D_GL4 final : public ISiv3DRenderer2D
 	{
 	public:
@@ -187,9 +190,14 @@ namespace s3d
 		void setCameraTransform(const Mat3x2& matrix) override { m_cameraTransform = matrix; }
 
 		////////////////////////////////////////////////////////////////
-		//	not yet implemented (Phase 1+): no-op so the engine links/runs
+		//	partially implemented: pattern fills, textured shapes, shadows,
+		//	quad-warp, render state, and custom shaders. Methods carrying real
+		//	work are noted; the bare `{}` bodies are no-op TODO(linux) (they
+		//	keep the engine linking/running and silently drop the draw).
 		////////////////////////////////////////////////////////////////
 
+		// pattern fills: triangle/rect/circle work; frames/arcs/pies and the
+		// other complex shapes are not yet routed through the pattern program.
 		void addTriangle(const Float2(&points)[3], const PatternParameters& pattern) override
 		{
 			pushPatternCommand(Vertex2DBuilder::BuildTriangle(bufferCreator(), points, pattern.primaryColor), pattern);
@@ -219,15 +227,21 @@ namespace s3d
 		void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const PatternParameters& pattern) override {}
 		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const PatternParameters& pattern) override {}
 		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const PatternParameters& pattern) override {}
+		// textured shapes: real (implemented in the .cpp via the texture program).
 		void addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color) override;
 		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color) override;
 		void addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4(&colors)[4]) override;
 		void addTexturedRoundRect(const Texture& texture, const FloatRect& rect, float w, float h, float r, const FloatRect& uvRect, const Float4& color) override;
+
+		// shadows + quad-warp: no-op (TODO(linux)).
 		void addCircleShadow(const Circle& circle, float blur, const Float4& color, bool fill) override {}
 		void addRectShadow(const FloatRect& rect, float blur, const Float4& color, bool fill) override {}
 		void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override {}
 		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override {}
+
+		// render state: not honored yet (GL pipeline state is fixed). Getters
+		// return defaults, setters are ignored (TODO(linux)).
 		BlendState getBlendState() const override { return{}; }
 		void setBlendState(const BlendState& state) override {}
 		RasterizerState getRasterizerState() const override { return{}; }

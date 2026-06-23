@@ -13,8 +13,10 @@
 
 namespace s3d
 {
-	// TODO(linux): load the engine GLSL shaders. Phase 0 returns empty shaders
-	// (the no-op CRenderer2D_GL4 never binds them).
+	// Returns empty shaders. CRenderer2D_GL4 compiles and binds its own inline
+	// GLSL programs directly, so this engine-shader registry is bypassed rather
+	// than used; nothing depends on it yet (TODO(linux): wire it up if a future
+	// subsystem needs the shared engine shaders through this interface).
 	class CEngineShader_GL4 final : public ISiv3DEngineShader
 	{
 	public:
