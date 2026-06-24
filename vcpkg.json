@@ -48,6 +48,7 @@
     "zstd",
     "lunasvg",
     "muparser",
+    "oscpack",
     "cpu-features",
     "msdfgen",
     {

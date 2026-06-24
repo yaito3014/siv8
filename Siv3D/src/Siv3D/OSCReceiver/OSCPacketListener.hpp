@@ -13,7 +13,7 @@
 # include <mutex>
 # include <queue>
 # include <Siv3D/OSCReceivedMessage.hpp>
-# include <ThirdParty/oscpack/osc/OscPacketListener.h>
+# include <osc/OscPacketListener.h>
 
 namespace s3d
 {

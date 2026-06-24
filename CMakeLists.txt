@@ -75,6 +75,11 @@ if(NOT WIN32)
     find_package(glfw3 CONFIG REQUIRED)
 endif()
 
+# oscpack (OSC networking) comes from vcpkg (formerly vendored in ThirdParty/).
+# The port exports no CMake config, so locate the headers + static lib directly.
+find_path(OSCPACK_INCLUDE_DIR "osc/OscOutboundPacketStream.h" REQUIRED)
+find_library(OSCPACK_LIBRARY oscpack REQUIRED)
+
 # Fail early if a dynamic triplet was used (the static targets are absent).
 if(NOT TARGET mimalloc-static OR NOT TARGET zstd::libzstd_static)
     message(FATAL_ERROR
@@ -122,12 +127,6 @@ file(GLOB_RECURSE SIV3D_TP_SOURCES CONFIGURE_DEPENDS
     "${SIV3D_SRC}/ThirdParty/*.cpp"
     "${SIV3D_SRC}/ThirdParty/*.cc"
 )
-
-if(WIN32)
-    list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/oscpack/ip/posix/")
-else()
-    list(FILTER SIV3D_TP_SOURCES EXCLUDE REGEX "/ThirdParty/oscpack/ip/win32/")
-endif()
 
 # ============================================================================
 # Engine sources (common + per-platform)
@@ -240,6 +239,14 @@ if(MSVC)
 endif()
 
 target_link_libraries(Siv3DCore PRIVATE ${SIV3D_VCPKG_LIBS})
+
+# oscpack: no exported target, so wire the located headers/lib by hand. The static
+# library pulls in Winsock on Windows, so the consumer must link ws2_32 + winmm.
+target_include_directories(Siv3DCore PRIVATE ${OSCPACK_INCLUDE_DIR})
+target_link_libraries(Siv3DCore PRIVATE ${OSCPACK_LIBRARY})
+if(WIN32)
+    target_link_libraries(Siv3DCore PRIVATE ws2_32 winmm)
+endif()
 
 # PUBLIC: these appear in public Siv3D headers, so consumers need their includes
 # (and the shared include root also covers config-less pcg / parallel-hashmap).

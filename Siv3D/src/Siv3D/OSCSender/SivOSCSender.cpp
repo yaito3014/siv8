@@ -12,9 +12,9 @@
 # include <Siv3D/OSCSender.hpp>
 # include <Siv3D/OSCMessage.hpp>
 # include <Siv3D/IPv4Endpoint.hpp>
-# include <ThirdParty/oscpack/ip/IpEndpointName.h>
-# include <ThirdParty/oscpack/ip/UdpSocket.h>
-# include <ThirdParty/oscpack/osc/OscOutboundPacketStream.h>
+# include <ip/IpEndpointName.h>
+# include <ip/UdpSocket.h>
+# include <osc/OscOutboundPacketStream.h>
 
 namespace s3d
 {

@@ -13,7 +13,7 @@
 # include <Siv3D/OSCReceiver.hpp>
 # include "OSCPacketListener.hpp"
 # include <Siv3D/AsyncTask.hpp>
-# include <ThirdParty/oscpack/ip/UdpSocket.h>
+# include <ip/UdpSocket.h>
 
 namespace s3d
 {

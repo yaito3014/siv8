@@ -11,7 +11,7 @@
 
 # pragma once
 # include <Siv3D/OSCMessage.hpp>
-# include <ThirdParty/oscpack/osc/OscOutboundPacketStream.h>
+# include <osc/OscOutboundPacketStream.h>
 
 namespace s3d
 {

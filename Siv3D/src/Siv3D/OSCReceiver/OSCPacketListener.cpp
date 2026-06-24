@@ -107,8 +107,15 @@ namespace s3d
 					argument.value = Unicode::FromUTF8(arg->AsSymbolUnchecked());
 					break;
 				case osc::TypeTagValues::BLOB_TYPE_TAG:
-					argument.value = arg->AsBlobUnchecked();
-					break;
+					{
+						// Stock oscpack returns the blob via out-params; wrap it in a
+						// Siv3D Blob (the vendored copy had added an s3d::Blob overload).
+						const void* blobData = nullptr;
+						osc::osc_bundle_element_size_t blobSize = 0;
+						arg->AsBlobUnchecked(blobData, blobSize);
+						argument.value = Blob{ blobData, static_cast<size_t>(blobSize) };
+						break;
+					}
 				case osc::TypeTagValues::NIL_TYPE_TAG:
 				case osc::TypeTagValues::INFINITUM_TYPE_TAG:
 				case osc::TypeTagValues::ARRAY_BEGIN_TYPE_TAG:
