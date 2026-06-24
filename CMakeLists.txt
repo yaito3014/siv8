@@ -21,7 +21,7 @@ if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# C is required: the vendored ThirdParty tree (plutovg, miniaudio, ...) is C.
+# C is required: the vendored ThirdParty miniaudio implementation TU is C.
 project(Siv3D LANGUAGES C CXX VERSION 0.8.0)
 
 if(APPLE)
