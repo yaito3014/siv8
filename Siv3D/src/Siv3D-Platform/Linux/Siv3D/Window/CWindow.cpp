@@ -70,6 +70,23 @@ namespace s3d
 			}
 		}
 
+		// Log the windowing platform GLFW selected. On Linux a dual X11+Wayland
+		// build picks one at runtime, and the choice is otherwise invisible — it is
+		// the first thing worth knowing when triaging a display issue.
+		{
+			const char* glfwPlatformName = [] {
+				switch (::glfwGetPlatform())
+				{
+				case GLFW_PLATFORM_WAYLAND:	return "Wayland";
+				case GLFW_PLATFORM_X11:		return "X11";
+				case GLFW_PLATFORM_NULL:	return "Null";
+				default:					return "Unknown";
+				}
+			}();
+
+			LOG_INFO(fmt::format("ℹ️ GLFW platform: {}", glfwPlatformName));
+		}
+
 		::glfwSetWindowUserPointer(m_glfwWindow, this);
 		::glfwSetWindowSizeLimits(m_glfwWindow, m_state.minFrameBufferSize.x, m_state.minFrameBufferSize.y,
 								  GLFW_DONT_CARE, GLFW_DONT_CARE);
