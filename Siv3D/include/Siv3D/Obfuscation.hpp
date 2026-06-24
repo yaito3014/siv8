@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # pragma once
-# include <ThirdParty/Obfuscate/obfuscate.h>
+# include <obfuscate.h>
 
 # ifndef SIV3D_OBFUSCATE_DEFAULT_KEY
 #	define SIV3D_OBFUSCATE_DEFAULT_KEY AY_OBFUSCATE_DEFAULT_KEY

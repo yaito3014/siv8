@@ -66,6 +66,7 @@
     "bc7enc-rdo",
     "levenshtein-sse",
     "rectpack2d",
+    "obfuscate",
     {
       "name": "glfw3",
       "platform": "!windows",
