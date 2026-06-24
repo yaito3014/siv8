@@ -11,7 +11,7 @@
 
 # pragma once
 # include "Types.hpp"
-# include <ThirdParty/EnumBitmask/EnumBitmask.hpp>
+# include <EnumBitmask.hpp>
 
 namespace s3d
 {

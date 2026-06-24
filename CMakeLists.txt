@@ -72,6 +72,9 @@ find_package(unofficial-bc7enc-rdo CONFIG REQUIRED)
 find_package(unofficial-levenshtein-sse CONFIG REQUIRED)
 find_package(unofficial-rectpack2d CONFIG REQUIRED)
 find_package(unofficial-obfuscate CONFIG REQUIRED)
+find_package(unofficial-xoshiro-cpp CONFIG REQUIRED)
+find_package(unofficial-enumbitmask CONFIG REQUIRED)
+find_package(unofficial-libcpprime CONFIG REQUIRED)
 if(NOT WIN32)
     find_package(glfw3 CONFIG REQUIRED)
 endif()
@@ -258,6 +261,9 @@ target_link_libraries(Siv3DCore PUBLIC
     fmt::fmt
     toml11::toml11
     unofficial::obfuscate::obfuscate
+    unofficial::xoshiro-cpp::xoshiro-cpp
+    unofficial::enumbitmask::enumbitmask
+    unofficial::libcpprime::libcpprime
 )
 
 # SSE4.2 baseline (x86-64 only; PUBLIC so consumers of the SIMD headers get it).
@@ -370,7 +376,10 @@ install(FILES
         "${_siv3d_depinc}/pcg_extras.hpp"
         "${_siv3d_depinc}/pcg_uint128.hpp"
         "${_siv3d_depinc}/obfuscate.h"
+        "${_siv3d_depinc}/XoshiroCpp.hpp"
+        "${_siv3d_depinc}/EnumBitmask.hpp"
     DESTINATION "${SIV3D_THIRDPARTY_INCLUDEDIR}")
+install(DIRECTORY "${_siv3d_depinc}/libcpprime" DESTINATION "${SIV3D_THIRDPARTY_INCLUDEDIR}")
 # DirectXMath.h includes <sal.h>; ship the directxmath SAL shim where present.
 file(GLOB _siv3d_dxmath "${_siv3d_depinc}/DirectX*.h" "${_siv3d_depinc}/DirectX*.inl")
 if(EXISTS "${_siv3d_depinc}/sal.h")

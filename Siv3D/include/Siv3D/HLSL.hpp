@@ -15,7 +15,7 @@
 # include "Result.hpp"
 # include "ShaderStage.hpp"
 # include "Blob.hpp"
-# include <ThirdParty/EnumBitmask/EnumBitmask.hpp>
+# include <EnumBitmask.hpp>
 
 namespace s3d
 {

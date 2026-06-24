@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # pragma once
-# include <ThirdParty/Xoshiro-cpp/XoshiroCpp.hpp>
+# include <XoshiroCpp.hpp>
 # include "Common.hpp"
 # include "PCG64.hpp"
 

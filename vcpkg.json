@@ -67,6 +67,9 @@
     "levenshtein-sse",
     "rectpack2d",
     "obfuscate",
+    "xoshiro-cpp",
+    "enumbitmask",
+    "libcpprime",
     {
       "name": "glfw3",
       "platform": "!windows",

@@ -1,0 +1,17 @@
+{
+  "name": "xoshiro-cpp",
+  "version": "1.1",
+  "description": "Xoshiro-cpp (Reputeless): header-only xoshiro/xoroshiro PRNG (namespace XoshiroCpp). Siv3D overlay port: not in the registry; installs the header + a CMake config exporting unofficial::xoshiro-cpp::xoshiro-cpp.",
+  "homepage": "https://github.com/Reputeless/Xoshiro-cpp",
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}
