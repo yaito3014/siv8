@@ -3,14 +3,16 @@
 # distinct same-named ones are renamed so no symbols are lost. GNU/macOS ar.
 # Run with -P; vars: SIV3D_MAIN_LIB/DEP_LIBDIR/FATLIB_OUT/AR/RANLIB/WORK.
 
-if(NOT SIV3D_AR OR NOT SIV3D_MAIN_LIB OR NOT SIV3D_DEP_LIBDIR OR NOT SIV3D_FATLIB_OUT OR NOT SIV3D_WORK)
+if(NOT SIV3D_AR OR NOT SIV3D_MAIN_LIB OR NOT SIV3D_INPUTS_FILE OR NOT SIV3D_FATLIB_OUT OR NOT SIV3D_WORK)
     message(FATAL_ERROR "Siv3DFatLib: missing required -D arguments")
 endif()
 
 file(REMOVE_RECURSE "${SIV3D_WORK}")
 file(MAKE_DIRECTORY "${SIV3D_WORK}/ex")
 
-file(GLOB _deps "${SIV3D_DEP_LIBDIR}/*.a")
+# Dependency archives = the engine's transitive link closure (computed in
+# CMakeLists, written one path per line), not every lib vcpkg built.
+file(STRINGS "${SIV3D_INPUTS_FILE}" _deps)
 set(_inputs "${SIV3D_MAIN_LIB}" ${_deps})
 
 # 1) extract each input archive into its own dir (avoid cross-archive name clobber).
