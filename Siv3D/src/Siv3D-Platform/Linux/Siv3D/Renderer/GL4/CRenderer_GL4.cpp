@@ -13,6 +13,8 @@
 # include <Siv3D/Window/IWindow.hpp>
 # include <Siv3D/WindowState.hpp>
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
+# include <Siv3D/Shader/IShader.hpp>
+# include <Siv3D/EngineShader/IEngineShader.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
 # include <Siv3D/EngineLog.hpp>
 # include <Siv3D/Scene/SceneUtility.hpp>
@@ -84,6 +86,12 @@ namespace s3d
 		{
 			LOG_INFO(fmt::format("ℹ️ GL_VERSION: {}", glVersion));
 		}
+
+		// The GL context is now current; bring up the shader subsystems (mirrors
+		// CRenderer_Metal). CShader_GL4 sets up the program pipeline; CEngineShader_GL4
+		// compiles the built-in 2D GLSL shaders that CRenderer2D_GL4 binds.
+		SIV3D_ENGINE(Shader)->init();
+		SIV3D_ENGINE(EngineShader)->init();
 	}
 
 	void CRenderer_GL4::waitForFrame()
