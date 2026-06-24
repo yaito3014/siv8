@@ -67,6 +67,23 @@ namespace s3d
 		::glEnable(GL_MULTISAMPLE);
 
 		LOG_INFO(fmt::format("ℹ️ OpenGL {}.{} renderer", GLVersion.major, GLVersion.minor));
+
+		// Device strings make software rendering (e.g. GL_RENDERER "llvmpipe", from a
+		// Mesa EGL/driver fallback) vs real hardware acceleration obvious in the log.
+		if (const char* glVendor = reinterpret_cast<const char*>(::glGetString(GL_VENDOR)))
+		{
+			LOG_INFO(fmt::format("ℹ️ GL_VENDOR: {}", glVendor));
+		}
+
+		if (const char* glRenderer = reinterpret_cast<const char*>(::glGetString(GL_RENDERER)))
+		{
+			LOG_INFO(fmt::format("ℹ️ GL_RENDERER: {}", glRenderer));
+		}
+
+		if (const char* glVersion = reinterpret_cast<const char*>(::glGetString(GL_VERSION)))
+		{
+			LOG_INFO(fmt::format("ℹ️ GL_VERSION: {}", glVersion));
+		}
 	}
 
 	void CRenderer_GL4::waitForFrame()
