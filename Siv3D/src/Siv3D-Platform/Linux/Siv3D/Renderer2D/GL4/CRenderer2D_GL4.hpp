@@ -19,6 +19,10 @@
 # include <Siv3D/LineStyle.hpp>
 # include <Siv3D/Array.hpp>
 # include <Siv3D/Mat3x2.hpp>
+# include <Siv3D/ConstantBuffer.hpp>
+# include <Siv3D/VertexShader.hpp>
+# include <Siv3D/PixelShader.hpp>
+# include <Siv3D/Renderer2D/Renderer2DCommon.hpp>
 # include <Siv3D/Texture.hpp>
 # include <Siv3D/BlendState.hpp>
 # include <Siv3D/RasterizerState.hpp>
@@ -323,14 +327,14 @@ namespace s3d
 		void setScissorRect(const Optional<Rect>& rect) override { m_currentScissorRect = rect; }
 		Optional<Rect> getViewport() const override { return m_currentViewport; }
 		void setViewport(const Optional<Rect>& viewport) override { m_currentViewport = viewport; }
-		void setSDFParameters(const std::array<Float4, 3>& params) override {}
-		Optional<VertexShader> getCustomVS() const override { return{}; }
-		void setCustomVS(const Optional<VertexShader>& vs) override {}
-		Optional<PixelShader> getCustomPS() const override { return{}; }
-		// The only custom-PS user in practice is text (ScopedCustomShader2D wraps
-		// the FontMSDF shader), so an active custom PS routes textured draws to
-		// the MSDF program. TODO(linux): honor arbitrary user pixel shaders.
-		void setCustomPS(const Optional<PixelShader>& ps) override { m_customPSActive = ps.has_value(); }
+		void setSDFParameters(const std::array<Float4, 3>& params) override { m_sdfParams = params; }
+		Optional<VertexShader> getCustomVS() const override { return m_customVS; }
+		void setCustomVS(const Optional<VertexShader>& vs) override { m_customVS = vs; }
+		Optional<PixelShader> getCustomPS() const override { return m_customPS; }
+		// A custom VS/PS (e.g. text's FontMSDF variants via ScopedCustomShader2D, or a
+		// user shader) is captured per DrawCommand and bound in flush() instead of the
+		// engine shader for the draw type.
+		void setCustomPS(const Optional<PixelShader>& ps) override { m_customPS = ps; }
 		const Texture& getShadowTexture() const noexcept override { return *m_shadowTexture; }
 
 	private:
@@ -376,6 +380,8 @@ namespace s3d
 			SamplerState sampler{};					// PS sampler, slot 0 (the only one applied)
 			Optional<Rect> scissor;
 			Optional<Rect> viewport;
+			Optional<VertexShader::IDType> customVS;	// overrides the engine VS when set
+			Optional<PixelShader::IDType> customPS;		// overrides the engine PS when set (e.g. text)
 		};
 
 		// True when two commands share every piece of render state, so their index
@@ -386,7 +392,8 @@ namespace s3d
 			return (a.program == b.program) && (a.texture == b.texture) && (a.patternType == b.patternType)
 				&& (a.blend == b.blend) && (a.rasterizer.asValue() == b.rasterizer.asValue())
 				&& (a.sampler.asValue() == b.sampler.asValue())
-				&& (a.scissor == b.scissor) && (a.viewport == b.viewport);
+				&& (a.scissor == b.scissor) && (a.viewport == b.viewport)
+				&& (a.customVS == b.customVS) && (a.customPS == b.customPS);
 		}
 
 		// Stamp the current render state onto a command being recorded.
@@ -397,6 +404,8 @@ namespace s3d
 			command.sampler		= m_psSamplerStates[0];
 			command.scissor		= m_currentScissorRect;
 			command.viewport	= m_currentViewport;
+			command.customVS	= (m_customVS ? Optional<VertexShader::IDType>{ m_customVS->id() } : none);
+			command.customPS	= (m_customPS ? Optional<PixelShader::IDType>{ m_customPS->id() } : none);
 		}
 
 		// Append `indexCount` indices, merging with the previous command when the
@@ -493,62 +502,22 @@ namespace s3d
 
 		GLuint m_ibo = 0;
 
-		GLuint m_program = 0;
+		// Engine constant buffers (UBOs), bound to their block binding points
+		// (VSConstants2D@0, PSConstants2D@8, PSEffectConstants2D@9) and updated
+		// per DrawCommand in flush().
+		ConstantBuffer<VSConstants2D> m_vsConstants;
 
-		GLint m_locTransform0 = -1;
+		ConstantBuffer<PSConstants2D> m_psConstants;
 
-		GLint m_locTransform1 = -1;
+		ConstantBuffer<PSEffectConstants2D> m_psEffectConstants;
 
-		GLint m_locColorMul = -1;
+		// SDF text parameters (set via setSDFParameters), fed into PSConstants2D.
+		std::array<Float4, 3> m_sdfParams{ Float4{ 0.5f, 0.5f, 0.0f, 0.0f }, Float4{ 0.0f, 0.0f, 0.0f, 1.0f }, Float4{ 0.0f, 0.0f, 0.0f, 0.5f } };
 
-		GLuint m_textureProgram = 0;
+		// Active custom shaders (text's FontMSDF variants, or a user shader),
+		// captured into each DrawCommand and bound in flush().
+		Optional<VertexShader> m_customVS;
 
-		GLint m_texLocTransform0 = -1;
-
-		GLint m_texLocTransform1 = -1;
-
-		GLint m_texLocColorMul = -1;
-
-		GLint m_texLocSampler = -1;
-
-		GLuint m_msdfProgram = 0;
-
-		GLint m_msdfLocTransform0 = -1;
-
-		GLint m_msdfLocTransform1 = -1;
-
-		GLint m_msdfLocColorMul = -1;
-
-		GLint m_msdfLocSampler = -1;
-
-		GLuint m_patternProgram = 0;
-
-		GLint m_patLocTransform0 = -1;
-
-		GLint m_patLocTransform1 = -1;
-
-		GLint m_patLocColorMul = -1;
-
-		GLint m_patLocPt0 = -1;
-
-		GLint m_patLocPt1 = -1;
-
-		GLint m_patLocBg = -1;
-
-		GLint m_patLocType = -1;
-
-		GLint m_patLocFbHeight = -1;
-
-		GLuint m_lineProgram = 0;
-
-		GLint m_lineLocTransform0 = -1;
-
-		GLint m_lineLocTransform1 = -1;
-
-		GLint m_lineLocColorMul = -1;
-
-		GLint m_lineLocType = -1;
-
-		bool m_customPSActive = false;
+		Optional<PixelShader> m_customPS;
 	};
 }

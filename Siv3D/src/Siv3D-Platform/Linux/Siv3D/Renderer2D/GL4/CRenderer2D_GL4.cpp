@@ -20,6 +20,9 @@
 # include <Siv3D/Error/InternalEngineError.hpp>
 # include <Siv3D/EngineLog.hpp>
 # include <Siv3D/Texture/GL4/CTexture_GL4.hpp>
+# include <Siv3D/Shader/IShader.hpp>
+# include <Siv3D/Shader/GL4/CShader_GL4.hpp>
+# include <Siv3D/EngineShader/IEngineShader.hpp>
 
 namespace s3d
 {
@@ -338,11 +341,6 @@ void main()
 		LOG_SCOPED_DEBUG("CRenderer2D_GL4::~CRenderer2D_GL4()");
 
 		for (auto& [key, sampler] : m_samplerCache) { ::glDeleteSamplers(1, &sampler); }
-		if (m_lineProgram) { ::glDeleteProgram(m_lineProgram); }
-		if (m_patternProgram) { ::glDeleteProgram(m_patternProgram); }
-		if (m_msdfProgram) { ::glDeleteProgram(m_msdfProgram); }
-		if (m_textureProgram) { ::glDeleteProgram(m_textureProgram); }
-		if (m_program) { ::glDeleteProgram(m_program); }
 		if (m_ibo) { ::glDeleteBuffers(1, &m_ibo); }
 		if (m_vbo) { ::glDeleteBuffers(1, &m_vbo); }
 		if (m_vao) { ::glDeleteVertexArrays(1, &m_vao); }
@@ -372,38 +370,8 @@ void main()
 	{
 		LOG_SCOPED_DEBUG("CRenderer2D_GL4::init()");
 
-		m_program = LinkProgram(ShapePSCode);
-		m_locTransform0	= ::glGetUniformLocation(m_program, "u_t0");
-		m_locTransform1	= ::glGetUniformLocation(m_program, "u_t1");
-		m_locColorMul	= ::glGetUniformLocation(m_program, "u_colorMul");
-
-		m_textureProgram = LinkProgram(TexturePSCode);
-		m_texLocTransform0	= ::glGetUniformLocation(m_textureProgram, "u_t0");
-		m_texLocTransform1	= ::glGetUniformLocation(m_textureProgram, "u_t1");
-		m_texLocColorMul	= ::glGetUniformLocation(m_textureProgram, "u_colorMul");
-		m_texLocSampler		= ::glGetUniformLocation(m_textureProgram, "u_tex");
-
-		m_msdfProgram = LinkProgram(MSDFPSCode);
-		m_msdfLocTransform0	= ::glGetUniformLocation(m_msdfProgram, "u_t0");
-		m_msdfLocTransform1	= ::glGetUniformLocation(m_msdfProgram, "u_t1");
-		m_msdfLocColorMul	= ::glGetUniformLocation(m_msdfProgram, "u_colorMul");
-		m_msdfLocSampler	= ::glGetUniformLocation(m_msdfProgram, "u_tex");
-
-		m_patternProgram = LinkProgram(PatternPSCode);
-		m_patLocTransform0	= ::glGetUniformLocation(m_patternProgram, "u_t0");
-		m_patLocTransform1	= ::glGetUniformLocation(m_patternProgram, "u_t1");
-		m_patLocColorMul	= ::glGetUniformLocation(m_patternProgram, "u_colorMul");
-		m_patLocPt0			= ::glGetUniformLocation(m_patternProgram, "u_pt0");
-		m_patLocPt1			= ::glGetUniformLocation(m_patternProgram, "u_pt1");
-		m_patLocBg			= ::glGetUniformLocation(m_patternProgram, "u_patBg");
-		m_patLocType		= ::glGetUniformLocation(m_patternProgram, "u_patType");
-		m_patLocFbHeight	= ::glGetUniformLocation(m_patternProgram, "u_patFbHeight");
-
-		m_lineProgram = LinkProgram(LinePSCode);
-		m_lineLocTransform0	= ::glGetUniformLocation(m_lineProgram, "u_t0");
-		m_lineLocTransform1	= ::glGetUniformLocation(m_lineProgram, "u_t1");
-		m_lineLocColorMul	= ::glGetUniformLocation(m_lineProgram, "u_colorMul");
-		m_lineLocType		= ::glGetUniformLocation(m_lineProgram, "u_lineType");
+		// Shaders come from the engine-shader registry (CEngineShader_GL4), compiled
+		// in CRenderer_GL4::init(); flush() binds them via the program pipeline + UBOs.
 
 		::glGenVertexArrays(1, &m_vao);
 		::glBindVertexArray(m_vao);
@@ -452,22 +420,22 @@ void main()
 
 	void CRenderer2D_GL4::addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedCircle(bufferCreator(), circle, uv, color, getMaxScaling()), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedCircle(bufferCreator(), circle, uv, color, getMaxScaling()), Program::Texture, glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, color), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, color), Program::Texture, glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4(&colors)[4])
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, colors), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, colors), Program::Texture, glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::addTexturedRoundRect(const Texture& texture, const FloatRect& rect, const float w, const float h, const float r, const FloatRect& uvRect, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedRoundRect(bufferCreator(), rect, w, h, r, uvRect, color, getMaxScaling()), (m_customPSActive ? Program::MSDF : Program::Texture), glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedRoundRect(bufferCreator(), rect, w, h, r, uvRect, color, getMaxScaling()), Program::Texture, glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::flush()
@@ -491,6 +459,32 @@ void main()
 		// per-command since a custom viewport changes the screen mapping.
 		const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
 		const Mat3x2 baseMatrix = (m_localTransform * m_cameraTransform);
+
+		// Bind the program pipeline + engine constant buffers (UBOs) once for the
+		// batch; per command we update the UBO data and swap the pipeline's stages.
+		auto* const shader = static_cast<CShader_GL4*>(SIV3D_ENGINE(Shader));
+		auto* const engineShader = SIV3D_ENGINE(EngineShader);
+		const VertexShader::IDType shapeVS = engineShader->getVS(EngineVS::Shape2D).id();
+
+		const auto enginePSFor = [&](const DrawCommand& cmd) -> PixelShader::IDType
+		{
+			EnginePS ps = EnginePS::Shape2D;
+			switch (cmd.program)
+			{
+			case Program::Shape:	ps = EnginePS::Shape2D; break;
+			case Program::Texture:	ps = EnginePS::Texture2D; break;
+			case Program::MSDF:		ps = EnginePS::FontMSDF; break;
+			case Program::Pattern:	ps = static_cast<EnginePS>(static_cast<size_t>(EnginePS::PatternPolkaDot) + cmd.patternType); break;
+			case Program::Line:		ps = static_cast<EnginePS>(static_cast<size_t>(EnginePS::LineDot) + (cmd.patternType - 1)); break;
+			}
+			return engineShader->getPS(ps).id();
+		};
+
+		::glUseProgram(0);
+		::glBindProgramPipeline(shader->getPipeline());
+		shader->setConstantBufferVS(0, m_vsConstants._base());
+		shader->setConstantBufferPS(0, m_psConstants._base());
+		shader->setConstantBufferPS(1, m_psEffectConstants._base());
 
 		size_t indexOffset = 0;
 
@@ -531,59 +525,36 @@ void main()
 			}
 
 			const Mat3x2 matrix = (baseMatrix * Mat3x2::Screen(vp.size.x, vp.size.y));
-			const float t0[4] = { matrix._11, matrix._12, matrix._31, matrix._32 };
-			const float t1[4] = { matrix._21, matrix._22, 0.0f, 1.0f };
 
-			// --- program + uniforms ---
-			GLuint program = 0;
-			GLint locT0 = -1, locT1 = -1, locColorMul = -1, locSampler = -1;
+			// --- constants (UBOs) ---
+			m_vsConstants->transform[0]	= Float4{ matrix._11, matrix._12, matrix._31, matrix._32 };
+			m_vsConstants->transform[1]	= Float4{ matrix._21, matrix._22, 0.0f, 1.0f };
+			m_vsConstants->colorMul		= m_colorMul;
 
-			switch (command.program)
-			{
-			case Program::Shape:
-				program = m_program; locT0 = m_locTransform0; locT1 = m_locTransform1; locColorMul = m_locColorMul;
-				break;
-			case Program::Texture:
-				program = m_textureProgram; locT0 = m_texLocTransform0; locT1 = m_texLocTransform1; locColorMul = m_texLocColorMul; locSampler = m_texLocSampler;
-				break;
-			case Program::MSDF:
-				program = m_msdfProgram; locT0 = m_msdfLocTransform0; locT1 = m_msdfLocTransform1; locColorMul = m_msdfLocColorMul; locSampler = m_msdfLocSampler;
-				break;
-			case Program::Pattern:
-				program = m_patternProgram; locT0 = m_patLocTransform0; locT1 = m_patLocTransform1; locColorMul = m_patLocColorMul;
-				break;
-			case Program::Line:
-				program = m_lineProgram; locT0 = m_lineLocTransform0; locT1 = m_lineLocTransform1; locColorMul = m_lineLocColorMul;
-				break;
-			}
-
-			::glUseProgram(program);
-			::glUniform4f(locT0, t0[0], t0[1], t0[2], t0[3]);
-			::glUniform4f(locT1, t1[0], t1[1], t1[2], t1[3]);
-			::glUniform4f(locColorMul, m_colorMul.x, m_colorMul.y, m_colorMul.z, m_colorMul.w);
+			m_psConstants->colorAdd				= Float4{ m_colorAdd.x, m_colorAdd.y, m_colorAdd.z, 0.0f };
+			m_psConstants->sdfParam				= m_sdfParams[0];
+			m_psConstants->sdfOuterColorPMA		= m_sdfParams[1];
+			m_psConstants->sdfShadowColorPMA	= m_sdfParams[2];
 
 			if (command.program == Program::Pattern)
 			{
-				const auto& p = command.patternParams;
-				::glUniform4f(m_patLocPt0, p[0].x, p[0].y, p[0].z, p[0].w);
-				::glUniform4f(m_patLocPt1, p[1].x, p[1].y, p[1].z, p[1].w);
-				::glUniform4f(m_patLocBg, p[2].x, p[2].y, p[2].z, p[2].w);
-				::glUniform1i(m_patLocType, command.patternType);
-				::glUniform1f(m_patLocFbHeight, static_cast<float>(vp.size.y));
-			}
-			else if (command.program == Program::Line)
-			{
-				::glUniform1i(m_lineLocType, command.patternType);
+				m_psEffectConstants->setPattern(command.patternParams);
 			}
 
-			// Textured draws sample unit 0 through the command's PS sampler object;
-			// non-textured programs don't sample, so leave unit 0 unbound.
-			if ((command.program == Program::Texture) || (command.program == Program::MSDF))
+			m_vsConstants._update_if_dirty();
+			m_psConstants._update_if_dirty();
+			m_psEffectConstants._update_if_dirty();
+
+			// --- shaders: engine registry, or the command's captured custom shader ---
+			shader->setVS(command.customVS.value_or(shapeVS));
+			shader->setPS(command.customPS.value_or(enginePSFor(command)));
+
+			// --- texture / sampler (unit 0; the GLSL sampler defaults to unit 0) ---
+			if (command.texture != 0)
 			{
 				::glActiveTexture(GL_TEXTURE0);
 				::glBindTexture(GL_TEXTURE_2D, command.texture);
 				::glBindSampler(0, samplerObjectFor(command.sampler));
-				::glUniform1i(locSampler, 0);
 			}
 			else
 			{
@@ -599,6 +570,7 @@ void main()
 		// Restore default GL state so the next frame's clear/draw isn't affected
 		// (glClear honors scissor + color mask).
 		::glBindSampler(0, 0);
+		::glBindProgramPipeline(0);
 		::glDisable(GL_SCISSOR_TEST);
 		::glDisable(GL_CULL_FACE);
 		::glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
