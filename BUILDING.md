@@ -103,6 +103,31 @@ The app no longer has to be launched from `App/app/`: at startup it `chdir`s to
 the executable's own directory, so relative resource paths resolve against the
 exe regardless of the shell's CWD.
 
+### Runtime requirements (running the ELF on a Linux/WSL desktop)
+
+The build deps above are `-dev` packages; *running* the built `Siv3D-App` on a
+**different** machine (e.g. copied into a WSL distro) needs the corresponding
+**runtime** libraries on that machine. Several are loaded with `dlopen()` at
+runtime, so a missing one fails silently to a fallback rather than at link time.
+
+- **Graphics** — OpenGL + DRI (`libgl1`, `libgl1-mesa-dri`) and the windowing
+  client libs: X11 (`libx11-6 libxext6 libxrandr2 libxinerama1 libxcursor1
+  libxi6 libxkbcommon0`) and/or Wayland (`libwayland-client0 libwayland-cursor0
+  libwayland-egl1 libxkbcommon0`, plus `libdecor-0-0` **and a plugin** such as
+  `libdecor-0-plugin-1-gtk` for window decorations — without a plugin, older
+  libdecor can crash GLFW's Wayland init).
+- **Audio** — `libpulse0` (PulseAudio) and/or `libasound2` (ALSA). miniaudio
+  `dlopen`s these; with neither present it prints `Audio backend: Null` and runs
+  silently. On WSLg, installing `libpulse0` is enough — WSLg supplies the
+  PulseAudio server (`PULSE_SERVER`).
+
+WSLg notes: force software GL for reliable presentation —
+`LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe` (the default d3d12 path brings
+up a context but may not present this engine's draws). For host-GPU rendering
+use `GALLIUM_DRIVER=d3d12` (needs `/dev/dxg` + `/usr/lib/wsl/lib`, present in
+WSL2). Package names can vary by distro release (e.g. `libasound2t64` on newer
+Ubuntu).
+
 Dependencies: `glfw3` (Siv3D fork, overlay-port — provides `glfwGetKeysSiv3D`
 etc.) + `glad` (GL 4.1 loader) + system OpenGL/X11. The root `CMakeLists.txt`
 `elseif(UNIX)` block links `glad::glad`, `OpenGL::GL`, `X11`, and `PkgConfig::UUID`.
