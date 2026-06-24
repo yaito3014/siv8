@@ -281,10 +281,13 @@ elseif(APPLE)
 elseif(UNIX)
     find_package(glfw3 CONFIG REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE glfw)
-    # OpenGL backend: glad (GL 4.1 loader) + system GL + X11 (GLFW native access).
+    # OpenGL backend: glad (GL 4.1 loader) + system GL.
     find_package(glad CONFIG REQUIRED)
     find_package(OpenGL REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE glad::glad OpenGL::GL)
+    # X11 dev libs: needed when GLFW is built with its X11 backend (the default,
+    # and still present in a dual X11+Wayland build). The engine itself makes no
+    # direct Xlib/native calls -- GLFW carries the actual windowing link interface.
     find_package(X11 REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE ${X11_LIBRARIES})
     # stduuid's system generator (UUIDValue) calls uuid_generate from libuuid,

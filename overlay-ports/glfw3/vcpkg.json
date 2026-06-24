@@ -20,7 +20,9 @@
       "description": "Use Wayland display server",
       "supports": "linux",
       "dependencies": [
-        "wayland"
+        "wayland",
+        "wayland-protocols",
+        "libxkbcommon"
       ]
     }
   }

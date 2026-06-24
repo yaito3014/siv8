@@ -76,9 +76,10 @@ distro of the same release). Tested in the **`siv8` docker container**
 ```bash
 # One-time container setup (Ubuntu 26.04):
 apt-get install -y build-essential cmake ninja-build pkg-config git curl zip \
-  unzip tar autoconf automake libtool python3 bison flex \
+  unzip tar autoconf automake autoconf-archive libtool python3 bison flex \
   libgl-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
   libxcursor-dev libxi-dev libxkbcommon-dev uuid-dev libpulse-dev libasound2-dev \
+  libwayland-dev wayland-protocols libffi-dev \
   xvfb mesa-utils libgl1-mesa-dri imagemagick      # last row: headless render-verify only
 git clone https://github.com/microsoft/vcpkg.git /root/vcpkg   # FULL clone (see Prerequisites)
 /root/vcpkg/bootstrap-vcpkg.sh -disableMetrics

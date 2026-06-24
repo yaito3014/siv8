@@ -67,7 +67,13 @@
     "rectpack2d",
     {
       "name": "glfw3",
-      "platform": "!windows"
+      "platform": "!windows",
+      "features": [
+        {
+          "name": "wayland",
+          "platform": "linux"
+        }
+      ]
     },
     {
       "name": "glad",
