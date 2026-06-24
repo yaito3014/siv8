@@ -17,6 +17,7 @@
 # include <Siv3D/Renderer2D/Vertex2DBufferPointer.hpp>
 # include <Siv3D/Pattern/PatternParameters.hpp>
 # include <Siv3D/LineStyle.hpp>
+# include <Siv3D/FloatQuad.hpp>
 # include <Siv3D/Array.hpp>
 # include <Siv3D/Mat3x2.hpp>
 # include <Siv3D/ConstantBuffer.hpp>
@@ -31,14 +32,14 @@
 
 namespace s3d
 {
-	// Phase 1: a working 2D renderer. Solid/gradient shapes are tessellated by the
-	// common Vertex2DBuilder; textures/sprites, MSDF text, all six fill patterns
-	// (every shape, including frames/arcs/complex), shadows, dashed/dotted lines,
-	// and the full 2D render state (blend/rasterizer/sampler/scissor/viewport) all
-	// render. Still no-op (TODO(linux)): quad-warp, SDF outline/glow
-	// (setSDFParameters), and arbitrary custom user shaders (the only custom PS in
-	// practice is text, which is routed to the built-in MSDF program). See the
-	// "partially implemented" section below for the exact split.
+	// A complete 2D renderer. Geometry is tessellated by the common Vertex2DBuilder;
+	// shaders + constants flow through the engine shader registry (CEngineShader_GL4)
+	// and real UBOs, bound via a GL program pipeline (CShader_GL4) — matching the
+	// D3D11/Metal backends. Supports solid/gradient shapes, textures/sprites, MSDF
+	// text (incl. SDF outline/shadow/glow), all six fill patterns (every shape),
+	// shadows, dashed/dotted lines, quad-warp, custom user shaders, and the full 2D
+	// render state (blend/rasterizer/sampler/scissor/viewport). No-op TODO(linux):
+	// render-to-texture / scene-letterbox (no scene FBO yet; MSAA lives on the window).
 	class CRenderer2D_GL4 final : public ISiv3DRenderer2D
 	{
 	public:
@@ -198,10 +199,9 @@ namespace s3d
 		void setCameraTransform(const Mat3x2& matrix) override { m_cameraTransform = matrix; }
 
 		////////////////////////////////////////////////////////////////
-		//	Mostly implemented: pattern fills, textured shapes, shadows, and the
-		//	full render state all carry real work. The only remaining no-op `{}`
-		//	bodies are quad-warp, setSDFParameters, and custom VS/PS (they keep the
-		//	engine linking/running and silently drop the draw / ignore the request).
+		//	Pattern fills, textured shapes, shadows, quad-warp, SDF/custom shaders,
+		//	and the full render state are all implemented; flush() binds the engine
+		//	(or custom) shaders via the program pipeline and feeds them through UBOs.
 		////////////////////////////////////////////////////////////////
 
 		// pattern fills: the pattern program shades purely from gl_FragCoord, so
@@ -308,9 +308,18 @@ namespace s3d
 			pushCommand(Vertex2DBuilder::BuildRoundRectShadow(bufferCreator(), roundRect, blur, color, getMaxScaling(), fill), Program::Texture, glTextureOf(*m_shadowTexture));
 		}
 
-		// quad-warp: no-op (TODO(linux)).
-		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override {}
-		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override {}
+		// quad-warp: same textured-quad geometry as addTexturedQuad, but routed
+		// through the QuadWarp VS/PS — flush() builds the inverse homography from
+		// the destination quad corners (carried in patternParams) and feeds it via
+		// PSEffectConstants2D::setQuadWarp.
+		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override
+		{
+			pushQuadWarpCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, color), glTextureOf(texture), QuadWarpParams(uv, quad));
+		}
+		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override
+		{
+			pushQuadWarpCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, colors), glTextureOf(texture), QuadWarpParams(uv, quad));
+		}
 
 		// render state: tracked here and snapshotted into each DrawCommand, then
 		// applied per-command in flush(). VS sampler state is stored for fidelity
@@ -364,6 +373,7 @@ namespace s3d
 			MSDF,		// text glyphs (custom PS active)
 			Pattern,	// checker/grid/polka-dot fills
 			Line,		// dashed/dotted line styles
+			QuadWarp,	// projective texture warp
 		};
 
 		// A run of indices drawn with one program + texture (+ pattern params) and a
@@ -449,6 +459,36 @@ namespace s3d
 			command.indexCount		= indexCount;
 			command.patternParams	= pattern.toFloat4Array(1.0f / getMaxScaling());
 			command.patternType		= static_cast<uint8>(FromEnum(pattern.type));
+			captureState(command);
+			m_commands.push_back(command);
+		}
+
+		// Pack a quad-warp draw's destination corners + source-uv transform into the
+		// patternParams slots (matches the D3D11 backend); flush() turns the corners
+		// into the inverse homography.
+		[[nodiscard]]
+		static std::array<Float4, 3> QuadWarpParams(const FloatRect& uv, const FloatQuad& quad)
+		{
+			return {
+				Float4{ quad.p[0], quad.p[1] },
+				Float4{ quad.p[2], quad.p[3] },
+				Float4{ (uv.right - uv.left), (uv.bottom - uv.top), uv.left, uv.top },
+			};
+		}
+
+		// Quad-warp draws carry per-draw corners, so each is its own command.
+		void pushQuadWarpCommand(Vertex2D::IndexType indexCount, GLuint texture, const std::array<Float4, 3>& params)
+		{
+			if (indexCount == 0)
+			{
+				return;
+			}
+
+			DrawCommand command;
+			command.program			= Program::QuadWarp;
+			command.texture			= texture;
+			command.indexCount		= indexCount;
+			command.patternParams	= params;
 			captureState(command);
 			m_commands.push_back(command);
 		}

@@ -23,6 +23,8 @@
 # include <Siv3D/Shader/IShader.hpp>
 # include <Siv3D/Shader/GL4/CShader_GL4.hpp>
 # include <Siv3D/EngineShader/IEngineShader.hpp>
+# include <Siv3D/Quad.hpp>
+# include <Siv3D/Mat3x3.hpp>
 
 namespace s3d
 {
@@ -221,6 +223,7 @@ namespace s3d
 		auto* const shader = static_cast<CShader_GL4*>(SIV3D_ENGINE(Shader));
 		auto* const engineShader = SIV3D_ENGINE(EngineShader);
 		const VertexShader::IDType shapeVS = engineShader->getVS(EngineVS::Shape2D).id();
+		const VertexShader::IDType quadWarpVS = engineShader->getVS(EngineVS::QuadWarp).id();
 
 		const auto enginePSFor = [&](const DrawCommand& cmd) -> PixelShader::IDType
 		{
@@ -232,6 +235,7 @@ namespace s3d
 			case Program::MSDF:		ps = EnginePS::FontMSDF; break;
 			case Program::Pattern:	ps = static_cast<EnginePS>(static_cast<size_t>(EnginePS::PatternPolkaDot) + cmd.patternType); break;
 			case Program::Line:		ps = static_cast<EnginePS>(static_cast<size_t>(EnginePS::LineDot) + (cmd.patternType - 1)); break;
+			case Program::QuadWarp:	ps = EnginePS::QuadWarp; break;
 			}
 			return engineShader->getPS(ps).id();
 		};
@@ -296,13 +300,21 @@ namespace s3d
 			{
 				m_psEffectConstants->setPattern(command.patternParams);
 			}
+			else if (command.program == Program::QuadWarp)
+			{
+				const auto& p = command.patternParams;
+				const Quad quad{ p[0].xy(), p[0].zw(), p[1].xy(), p[1].zw() };
+				m_psEffectConstants->setQuadWarp(Mat3x3::Homography(quad).inverse(), p[2]);
+			}
 
 			m_vsConstants._update_if_dirty();
 			m_psConstants._update_if_dirty();
 			m_psEffectConstants._update_if_dirty();
 
 			// --- shaders: engine registry, or the command's captured custom shader ---
-			shader->setVS(command.customVS.value_or(shapeVS));
+			const VertexShader::IDType vsID = command.customVS ? *command.customVS
+				: ((command.program == Program::QuadWarp) ? quadWarpVS : shapeVS);
+			shader->setVS(vsID);
 			shader->setPS(command.customPS.value_or(enginePSFor(command)));
 
 			// --- texture / sampler (unit 0; the GLSL sampler defaults to unit 0) ---
