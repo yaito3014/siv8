@@ -398,7 +398,7 @@ set(SIV3D_VCPKG_BUNDLE_RELDIR "${CMAKE_INSTALL_DATAROOTDIR}/Siv3D/vcpkg")
 set(SIV3D_BOOST_MIN_VERSION 1.88)
 
 # Usage requirements for the fat target (the raw .a has none of its own).
-# Single-option genexes so they survive as a list. Linux X11/GL libs TBD.
+# Single-option genexes so they survive as a list.
 set(SIV3D_FAT_COMPILE_OPTIONS
     "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>;$<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86|x86)$")
@@ -413,7 +413,11 @@ elseif(APPLE)
         list(APPEND SIV3D_FAT_SYSTEM_LIBS "-framework ${_fw}")
     endforeach()
 else()
-    set(SIV3D_FAT_SYSTEM_LIBS "Threads::Threads;${CMAKE_DL_LIBS};m")
+    # Mirror the engine's elseif(UNIX) link block so fat-lib consumers get the
+    # system GUI/runtime libs the bundled engine + glad/glfw reference (UUIDValue
+    # needs libuuid; the GL4 backend needs GL/X11). Raw -l names so consumers
+    # don't have to find_package these.
+    set(SIV3D_FAT_SYSTEM_LIBS "Threads::Threads;${CMAKE_DL_LIBS};m;GL;X11;uuid")
 endif()
 
 configure_package_config_file("cmake/Siv3DConfig.cmake.in"
