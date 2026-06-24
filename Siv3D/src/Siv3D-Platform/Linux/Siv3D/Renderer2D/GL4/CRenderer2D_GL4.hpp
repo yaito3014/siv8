@@ -28,11 +28,13 @@
 namespace s3d
 {
 	// Phase 1: a working 2D renderer. Solid/gradient shapes are tessellated by the
-	// common Vertex2DBuilder; textures/sprites, MSDF text, the six fill patterns,
-	// and dashed/dotted lines all render. Still no-op (TODO(linux)): pattern-fill
-	// frames/arcs/complex shapes, shadows, quad-warp, render state (blend/
-	// rasterizer/sampler/scissor/viewport), SDF outline/glow, and arbitrary custom
-	// shaders. See the "partially implemented" section below for the exact split.
+	// common Vertex2DBuilder; textures/sprites, MSDF text, all six fill patterns
+	// (every shape, including frames/arcs/complex), shadows, dashed/dotted lines,
+	// and the full 2D render state (blend/rasterizer/sampler/scissor/viewport) all
+	// render. Still no-op (TODO(linux)): quad-warp, SDF outline/glow
+	// (setSDFParameters), and arbitrary custom user shaders (the only custom PS in
+	// practice is text, which is routed to the built-in MSDF program). See the
+	// "partially implemented" section below for the exact split.
 	class CRenderer2D_GL4 final : public ISiv3DRenderer2D
 	{
 	public:
@@ -192,10 +194,10 @@ namespace s3d
 		void setCameraTransform(const Mat3x2& matrix) override { m_cameraTransform = matrix; }
 
 		////////////////////////////////////////////////////////////////
-		//	partially implemented: pattern fills, textured shapes, shadows,
-		//	quad-warp, render state, and custom shaders. Methods carrying real
-		//	work are noted; the bare `{}` bodies are no-op TODO(linux) (they
-		//	keep the engine linking/running and silently drop the draw).
+		//	Mostly implemented: pattern fills, textured shapes, shadows, and the
+		//	full render state all carry real work. The only remaining no-op `{}`
+		//	bodies are quad-warp, setSDFParameters, and custom VS/PS (they keep the
+		//	engine linking/running and silently drop the draw / ignore the request).
 		////////////////////////////////////////////////////////////////
 
 		// pattern fills: the pattern program shades purely from gl_FragCoord, so
