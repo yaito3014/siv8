@@ -134,6 +134,29 @@ namespace s3d
 		[[nodiscard]]
 		static PixelShader MSL(const std::string& source, StringView entryPoint);
 
+		////////////////////////////////////////////////////////////////
+		//
+		//	GLSL
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief GLSL ファイルからピクセルシェーダを作成します。
+		/// @param path GLSL ファイルのパス
+		/// @param entryPoint エントリーポイント (GLSL では未使用、main() が使われます)
+		/// @return ピクセルシェーダ
+		[[nodiscard]]
+		static PixelShader GLSL(FilePathView path, StringView entryPoint);
+
+		[[nodiscard]]
+		static PixelShader GLSL(std::unique_ptr<IReader> reader, StringView entryPoint);
+
+		/// @brief GLSL ソースコードからピクセルシェーダを作成します。
+		/// @param source GLSL ソースコード
+		/// @param entryPoint エントリーポイント (GLSL では未使用、main() が使われます)
+		/// @return ピクセルシェーダ
+		[[nodiscard]]
+		static PixelShader GLSL(const std::string& source, StringView entryPoint);
+
 	private:
 
 		[[nodiscard]]

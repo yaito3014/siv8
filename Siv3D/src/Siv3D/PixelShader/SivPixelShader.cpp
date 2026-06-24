@@ -199,7 +199,28 @@ namespace s3d
 		//{
 		//	throw Error{ "MSL must be used with EngineOption::Renderer::Metal" };
 		//}
-	
+
+		return PixelShader{ source, entryPoint };
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	GLSL
+	//
+	////////////////////////////////////////////////////////////////
+
+	PixelShader PixelShader::GLSL(const FilePathView path, const StringView entryPoint)
+	{
+		return PixelShader{ path, entryPoint };
+	}
+
+	PixelShader PixelShader::GLSL(std::unique_ptr<IReader> reader, const StringView entryPoint)
+	{
+		return PixelShader{ std::move(reader), entryPoint };
+	}
+
+	PixelShader PixelShader::GLSL(const std::string& source, const StringView entryPoint)
+	{
 		return PixelShader{ source, entryPoint };
 	}
 }

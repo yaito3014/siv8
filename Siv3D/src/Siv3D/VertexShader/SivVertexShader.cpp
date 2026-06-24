@@ -202,4 +202,25 @@ namespace s3d
 
 		return VertexShader{ source, entryPoint };
 	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	GLSL
+	//
+	////////////////////////////////////////////////////////////////
+
+	VertexShader VertexShader::GLSL(const FilePathView path, const StringView entryPoint)
+	{
+		return VertexShader{ path, entryPoint };
+	}
+
+	VertexShader VertexShader::GLSL(std::unique_ptr<IReader> reader, const StringView entryPoint)
+	{
+		return VertexShader{ std::move(reader), entryPoint };
+	}
+
+	VertexShader VertexShader::GLSL(const std::string& source, const StringView entryPoint)
+	{
+		return VertexShader{ source, entryPoint };
+	}
 }
