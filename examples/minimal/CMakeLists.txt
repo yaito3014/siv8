@@ -29,3 +29,9 @@ find_package(Siv3D CONFIG REQUIRED)
 
 add_executable(Siv3D-Minimal Main.cpp)
 target_link_libraries(Siv3D-Minimal PRIVATE Siv3D::Siv3D)
+
+if(WIN32)
+    # WinMain() is provided by the Siv3D library; build a GUI-subsystem exe
+    # (otherwise the CRT looks for main() and the link fails with LNK2019).
+    set_target_properties(Siv3D-Minimal PROPERTIES WIN32_EXECUTABLE ON)
+endif()
