@@ -540,11 +540,18 @@ install(DIRECTORY "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/"
 # no-ops on Windows. The share/<pkg> CMake configs stay, so find_dependency still
 # resolves these deps (lib + config; the consumer just can't include their headers).
 install(CODE "
-    set(_siv3d_inc \"\${CMAKE_INSTALL_PREFIX}/${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}/include\")
+    set(_siv3d_tp \"\${CMAKE_INSTALL_PREFIX}/${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}\")
+    set(_siv3d_inc \"\${_siv3d_tp}/include\")
     foreach(_siv3d_d boost skia opencv4 freetype freetype2 GL simdutf)
         file(REMOVE_RECURSE \"\${_siv3d_inc}/\${_siv3d_d}\")
     endforeach()
     file(REMOVE \"\${_siv3d_inc}/miniaudio.h\")
+    # Unused Skia module libs — the engine links skia core only; skottie/svg/sksg
+    # are ~440 MB of dead weight in the release lib/ on Windows. Exact basenames
+    # so 'svg' doesn't clip lunasvg.
+    foreach(_siv3d_l skottie svg sksg)
+        file(REMOVE \"\${_siv3d_tp}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}\${_siv3d_l}${CMAKE_STATIC_LIBRARY_SUFFIX}\")
+    endforeach()
 " COMPONENT ${_siv3d_cmpt})
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DVcpkgShim.cmake"
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
