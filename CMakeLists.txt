@@ -519,7 +519,14 @@ install(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
 install(DIRECTORY "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/"
     DESTINATION "${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}"
-    COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
+    COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
+    # The SDK is a Release artifact; the debug build of every dep (~1.7 GB on
+    # Linux) is dead weight for a release consumer. Drop the debug/ subtree AND
+    # the matching *-debug.cmake imported-config files — those set
+    # IMPORTED_LOCATION_DEBUG to the now-absent debug libs and would make
+    # find_package fail with "not all the files it references".
+    PATTERN "debug" EXCLUDE
+    PATTERN "*-debug.cmake" EXCLUDE)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DVcpkgShim.cmake"
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
 
