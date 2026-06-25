@@ -205,7 +205,11 @@ target_include_directories(Siv3DCore
         "$<BUILD_INTERFACE:${SIV3D_INCLUDE}>"
         "$<BUILD_INTERFACE:${SIV3D_INCLUDE}/ThirdParty>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D/ThirdParty>"
+        # Bundled third-party headers install to include/Siv3D-thirdparty (matches
+        # the fat-lib target + the install(FILES ...) rules below), NOT
+        # include/Siv3D/ThirdParty — referencing the latter is a non-existent path
+        # that makes find_package(Siv3D) (Siv3DCore path) fail at generate time.
+        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D-thirdparty>"
     PRIVATE
         "${SIV3D_SRC}"
         "${SIV3D_SRC}/ThirdParty"
