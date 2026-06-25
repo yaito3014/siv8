@@ -531,6 +531,21 @@ install(DIRECTORY "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/"
     # find_package fail with "not all the files it references".
     PATTERN "debug" EXCLUDE
     PATTERN "*-debug.cmake" EXCLUDE)
+
+# Strip implementation-only dep headers from the installed bundle — a consumer
+# never #includes them (boost alone is ~126 MB; the public Siv3D API only pulls
+# the curated set in include/Siv3D-thirdparty, and these deps are compiled into
+# the lib). Done as an explicit install(CODE) rather than install(DIRECTORY ...
+# REGEX EXCLUDE): the latter matches native paths, so a mid-path regex silently
+# no-ops on Windows. The share/<pkg> CMake configs stay, so find_dependency still
+# resolves these deps (lib + config; the consumer just can't include their headers).
+install(CODE "
+    set(_siv3d_inc \"\${CMAKE_INSTALL_PREFIX}/${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}/include\")
+    foreach(_siv3d_d boost skia opencv4 freetype freetype2 GL simdutf)
+        file(REMOVE_RECURSE \"\${_siv3d_inc}/\${_siv3d_d}\")
+    endforeach()
+    file(REMOVE \"\${_siv3d_inc}/miniaudio.h\")
+" COMPONENT ${_siv3d_cmpt})
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DVcpkgShim.cmake"
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
 
