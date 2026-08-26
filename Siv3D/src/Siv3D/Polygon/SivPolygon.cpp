@@ -16,25 +16,12 @@
 # include <Siv3D/Cursor.hpp>
 # include <Siv3D/Mouse.hpp>
 # include <Siv3D/ImageDraw.hpp>
+# include <Siv3D/Unicode.hpp>
+# include <Siv3D/Mesh2D.hpp>
 # include "PolygonDetail.hpp"
 
 namespace s3d
 {
-	namespace
-	{
-		[[nodiscard]]
-		static Polygon AddHole(const Array<Vec2>& outer, const Array<Array<Vec2>>& currentInners, Array<Vec2> hole)
-		{
-			Array<Array<Vec2>> inners(Arg::reserve = (currentInners.size() + 1));
-			{
-				inners.append(currentInners);
-				inners.push_back(std::move(hole));
-			}
-
-			return Polygon{ outer, std::move(inners) };
-		}
-	}
-
 	////////////////////////////////////////////////////////////////
 	//
 	//	(constructor)
@@ -87,7 +74,7 @@ namespace s3d
 		: pImpl{ std::make_unique<PolygonDetail>(outer, std::move(holes), std::move(vertices), std::move(indices), boundingRect, skipValidation) } {}
 
 	Polygon::Polygon(const Shape2D& shape)
-		: pImpl{ std::make_unique<PolygonDetail>(shape.vertices(), shape.indices()) } {}
+		: pImpl{ std::make_unique<PolygonDetail>(shape.vertices(), shape.indices(), shape.boundingRect()) } {}
 
 	////////////////////////////////////////////////////////////////
 	//
@@ -248,10 +235,10 @@ namespace s3d
 			ThrowTriangleAtIndexOutOfRange();
 		}
 
+		const auto& [i0, i1, i2] = indices[index];
 		const Float2* pVertices = pImpl->vertices().data();
-		const auto& triangleIndex = indices[index];
 
-		return{ pVertices[triangleIndex.i0], pVertices[triangleIndex.i1], pVertices[triangleIndex.i2] };
+		return{ pVertices[i0], pVertices[i1], pVertices[i2] };
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -273,206 +260,57 @@ namespace s3d
 
 	bool Polygon::addHole(const RectF& rect)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), { rect.tl(), rect.bl(), rect.br(), rect.tr() }))
-		{
-			*this = std::move(result);
-			return false;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW({ rect.tl(), rect.bl(), rect.br(), rect.tr() });
 	}
 
 	bool Polygon::addHole(const Triangle& triangle)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), { triangle.p0, triangle.p2, triangle.p1 }))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		
-		else
-		{
-			return false;
-		}
+		return addHoleCCW({ triangle.p0, triangle.p2, triangle.p1 });
 	}
 
 	bool Polygon::addHole(const Quad& quad)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-		
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), { quad.p0, quad.p3, quad.p2, quad.p1 }))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		
-		else
-		{
-			return false;
-		}
+		return addHoleCCW({ quad.p0, quad.p3, quad.p2, quad.p1 });
 	}
 
 	bool Polygon::addHole(const Circle& circle, const PointsPerCircle& pointsPerCircle)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		Array<Vec2> hole = circle.outer(pointsPerCircle).reversed();
-
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), std::move(hole)))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW(circle.outer(pointsPerCircle).reversed());
 	}
 
 	bool Polygon::addHole(const Circle& circle, const QualityFactor& qualityFactor)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-		
-		Array<Vec2> hole = circle.outer(qualityFactor).reversed();
-		
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), std::move(hole)))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW(circle.outer(qualityFactor).reversed());
 	}
 
 	bool Polygon::addHole(const Ellipse& ellipse, const PointsPerCircle& pointsPerCircle)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		Array<Vec2> hole = ellipse.outer(pointsPerCircle).reversed();
-
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), std::move(hole)))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW(ellipse.outer(pointsPerCircle).reversed());
 	}
 
 	bool Polygon::addHole(const Ellipse& ellipse, const QualityFactor& qualityFactor)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		Array<Vec2> hole = ellipse.outer(qualityFactor).reversed();
-
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), std::move(hole)))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW(ellipse.outer(qualityFactor).reversed());
 	}
 
 	bool Polygon::addHole(const RoundRect& roundRect, const PointsPerCircle& pointsPerCircle)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		Array<Vec2> hole = roundRect.outer(pointsPerCircle).reversed();
-
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), std::move(hole)))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW(roundRect.outer(pointsPerCircle).reversed());
 	}
 
 	bool Polygon::addHole(const RoundRect& roundRect, const QualityFactor& qualityFactor)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		Array<Vec2> hole = roundRect.outer(qualityFactor).reversed();
-
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), std::move(hole)))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW(roundRect.outer(qualityFactor).reversed());
 	}
 
 	bool Polygon::addHole(Array<Vec2> hole)
 	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (hole.size() < 3)
-		{
-			return false;
-		}
-
 		if (Geometry2D::IsClockwise(hole))
 		{
 			hole.reverse();
 		}
 
-		if (Polygon result = AddHole(pImpl->outer(), pImpl->inners(), std::move(hole)))
-		{
-			*this = std::move(result);
-			return true;
-		}
-		else
-		{
-			return false;
-		}
+		return addHoleCCW(std::move(hole));
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -503,22 +341,22 @@ namespace s3d
 			}
 		}
 
-		Array<Array<Vec2>> inners(Arg::reserve = (pImpl->inners().size() + holes.size()));
+		const auto& currentInners = pImpl->inners();
+		Array<Array<Vec2>> inners(Arg::reserve = (currentInners.size() + holes.size()));
 		{
-			inners.append(pImpl->inners());
+			inners.append(currentInners);
 			inners.append(holes);
 		}
 
-		Polygon result{ pImpl->outer(), std::move(inners) };
-
-		if (not result)
+		if (Polygon result{ pImpl->outer(), std::move(inners), SkipValidation::No })
+		{
+			*this = std::move(result);
+			return true;
+		}
+		else
 		{
 			return false;
 		}
-
-		*this = std::move(result);
-
-		return true;
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -885,9 +723,14 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	Vec2 Polygon::centroid() const
+	Optional<Vec2> Polygon::centroid() const noexcept
 	{
-		return pImpl->centroid();
+		if (const auto result = pImpl->centroid())
+		{
+			return result->centroid;
+		}
+
+		return none;
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -903,24 +746,24 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	calculateBuffer
+	//	computeMiterBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon Polygon::calculateBuffer(const double distance) const
+	Polygon Polygon::computeMiterBufferPolygon(const double distance) const
 	{
-		return pImpl->calculateBuffer(distance);
+		return pImpl->computeMiterBufferPolygon(distance);
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	calculateRoundBuffer
+	//	computeRoundBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon Polygon::calculateRoundBuffer(const double distance, const QualityFactor& qualityFactor) const
+	Polygon Polygon::computeRoundBufferPolygon(const double distance, const QualityFactor& qualityFactor) const
 	{
-		return pImpl->calculateRoundBuffer(distance, qualityFactor);
+		return pImpl->computeRoundBufferPolygon(distance, qualityFactor);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1056,57 +899,6 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	intersects
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool Polygon::intersects(const Vec2& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const Line& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const Rect& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const RectF& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const Circle& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const Ellipse& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const Triangle& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const Quad& other) const
-	{
-		return pImpl->intersects(other);
-	}
-
-	bool Polygon::intersects(const Polygon& other) const
-	{
-		return pImpl->intersects(*other.pImpl);
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
 	//	leftClicked, leftPressed, leftReleased
 	//
 	////////////////////////////////////////////////////////////////
@@ -1155,7 +947,7 @@ namespace s3d
 
 	bool Polygon::mouseOver() const noexcept
 	{
-		return Geometry2D::Intersect(Cursor::PosF(), *this);
+		return Geometry2D::Intersects(Cursor::PosF(), *this);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1170,9 +962,9 @@ namespace s3d
 		return *this;
 	}
 
-	const Polygon& Polygon::paint(Image& dst, const Vec2& pos, const Color& color, const EnableAntialiasing enableAntialiasings) const
+	const Polygon& Polygon::paint(Image& dst, const Vec2& offset, const Color& color, const EnableAntialiasing enableAntialiasings) const
 	{
-		ImageDraw::Fill(dst, *this, pos, color, ImagePixel::BlendMode::SourceOver, enableAntialiasings);
+		ImageDraw::Fill(dst, *this, offset, color, ImagePixel::BlendMode::SourceOver, enableAntialiasings);
 		return *this;
 	}
 
@@ -1188,9 +980,9 @@ namespace s3d
 		return *this;
 	}
 
-	const Polygon& Polygon::overwrite(Image& dst, const Vec2& pos, const Color& color, const EnableAntialiasing enableAntialiasing) const
+	const Polygon& Polygon::overwrite(Image& dst, const Vec2& offset, const Color& color, const EnableAntialiasing enableAntialiasing) const
 	{
-		ImageDraw::Fill(dst, *this, pos, color, ImagePixel::BlendMode::Overwrite, enableAntialiasing);
+		ImageDraw::Fill(dst, *this, offset, color, ImagePixel::BlendMode::Overwrite, enableAntialiasing);
 		return *this;
 	}
 
@@ -1217,18 +1009,18 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::paintFrame(Image& dst, const Vec2& pos, const Color& color, const EnableAntialiasing enableAntialiasing) const
+	void Polygon::paintFrame(Image& dst, const Vec2& offset, const Color& color, const EnableAntialiasing enableAntialiasing) const
 	{
-		paintFrame(dst, pos, 1.0, color, enableAntialiasing);
+		paintFrame(dst, offset, 1.0, color, enableAntialiasing);
 	}
 
-	void Polygon::paintFrame(Image& dst, const Vec2& pos, const double thickness, const Color& color, const EnableAntialiasing enableAntialiasing) const
+	void Polygon::paintFrame(Image& dst, const Vec2& offset, const double thickness, const Color& color, const EnableAntialiasing enableAntialiasing) const
 	{
-		ImageDraw::ClosedLineString(dst, outline(), pos, thickness, color, ImagePixel::BlendMode::SourceOver, enableAntialiasing);
+		ImageDraw::ClosedLineString(dst, outline(), offset, thickness, color, ImagePixel::BlendMode::SourceOver, enableAntialiasing);
 	
 		for (const auto& hole : inners())
 		{
-			ImageDraw::ClosedLineString(dst, hole, pos, thickness, color, ImagePixel::BlendMode::SourceOver, enableAntialiasing);
+			ImageDraw::ClosedLineString(dst, hole, offset, thickness, color, ImagePixel::BlendMode::SourceOver, enableAntialiasing);
 		}
 	}
 
@@ -1255,18 +1047,18 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::overwriteFrame(Image& dst, const Vec2& pos, const Color& color, const EnableAntialiasing enableAntialiasing) const
+	void Polygon::overwriteFrame(Image& dst, const Vec2& offset, const Color& color, const EnableAntialiasing enableAntialiasing) const
 	{
-		overwriteFrame(dst, pos, 1.0, color, enableAntialiasing);
+		overwriteFrame(dst, offset, 1.0, color, enableAntialiasing);
 	}
 
-	void Polygon::overwriteFrame(Image& dst, const Vec2& pos, const double thickness, const Color& color, const EnableAntialiasing enableAntialiasing) const
+	void Polygon::overwriteFrame(Image& dst, const Vec2& offset, const double thickness, const Color& color, const EnableAntialiasing enableAntialiasing) const
 	{
-		ImageDraw::ClosedLineString(dst, outline(), pos, thickness, color, ImagePixel::BlendMode::Overwrite, enableAntialiasing);
+		ImageDraw::ClosedLineString(dst, outline(), offset, thickness, color, ImagePixel::BlendMode::Overwrite, enableAntialiasing);
 		
 		for (const auto& hole : inners())
 		{
-			ImageDraw::ClosedLineString(dst, hole, pos, thickness, color, ImagePixel::BlendMode::Overwrite, enableAntialiasing);
+			ImageDraw::ClosedLineString(dst, hole, offset, thickness, color, ImagePixel::BlendMode::Overwrite, enableAntialiasing);
 		}
 	}
 
@@ -1282,9 +1074,9 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::draw(const Vec2& pos, const ColorF& color) const
+	void Polygon::draw(const Vec2& offset, const ColorF& color) const
 	{
-		pImpl->draw(Float2{ pos }, color);
+		pImpl->draw(Float2{ offset }, color);
 	}
 
 	const Polygon& Polygon::draw(const PatternParameters& pattern) const
@@ -1293,9 +1085,9 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::draw(const Vec2& pos, const PatternParameters& pattern) const
+	void Polygon::draw(const Vec2& offset, const PatternParameters& pattern) const
 	{
-		pImpl->draw(Float2{ pos }, pattern);
+		pImpl->draw(Float2{ offset }, pattern);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1338,9 +1130,9 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::drawFrame(const Vec2& pos, const double thickness, const ColorF& color) const
+	void Polygon::drawFrame(const Vec2& offset, const double thickness, const ColorF& color) const
 	{
-		pImpl->drawFrame(Float2{ pos }, thickness, color);
+		pImpl->drawFrame(Float2{ offset }, thickness, color);
 	}
 
 	const Polygon& Polygon::drawFrame(const double thickness, const PatternParameters& pattern) const
@@ -1349,9 +1141,9 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::drawFrame(const Vec2& pos, const double thickness, const PatternParameters& pattern) const
+	void Polygon::drawFrame(const Vec2& offset, const double thickness, const PatternParameters& pattern) const
 	{
-		pImpl->drawFrame(Float2{ pos }, thickness, pattern);
+		pImpl->drawFrame(Float2{ offset }, thickness, pattern);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1366,9 +1158,9 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::drawWireframe(const Vec2& pos, const double thickness, const ColorF& color) const
+	void Polygon::drawWireframe(const Vec2& offset, const double thickness, const ColorF& color) const
 	{
-		pImpl->drawWireframe(Float2{ pos }, thickness, color);
+		pImpl->drawWireframe(Float2{ offset }, thickness, color);
 	}
 
 	const Polygon& Polygon::drawWireframe(const double thickness, const PatternParameters& pattern) const
@@ -1377,9 +1169,30 @@ namespace s3d
 		return *this;
 	}
 
-	void Polygon::drawWireframe(const Vec2& pos, const double thickness, const PatternParameters& pattern) const
+	void Polygon::drawWireframe(const Vec2& offset, const double thickness, const PatternParameters& pattern) const
 	{
-		pImpl->drawWireframe(Float2{ pos }, thickness, pattern);
+		pImpl->drawWireframe(Float2{ offset }, thickness, pattern);
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	toMesh2D
+	//
+	////////////////////////////////////////////////////////////////
+
+	Mesh2D Polygon::toMesh2D() const
+	{
+		return Mesh2D{ *this };
+	}
+
+	Mesh2D Polygon::toMesh2D(const RectF& mappingRect) const
+	{
+		return Mesh2D{ *this, mappingRect };
+	}
+
+	Mesh2D Polygon::toMesh2D(const Mat3x2& uvTransform) const
+	{
+		return Mesh2D{ *this, uvTransform };
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1391,6 +1204,58 @@ namespace s3d
 	const Polygon::PolygonDetail* Polygon::_detail() const noexcept
 	{
 		return pImpl.get();
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	Parse
+	//
+	////////////////////////////////////////////////////////////////
+
+	Optional<Polygon> Polygon::Parse(const std::string_view s)
+	{
+		return PolygonDetail::Parse(Unicode::FromUTF8(s));
+	}
+
+	Optional<Polygon> Polygon::Parse(const StringView s)
+	{
+		return PolygonDetail::Parse(s);
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	addHoleCW
+	//
+	////////////////////////////////////////////////////////////////
+
+	bool Polygon::addHoleCCW(Array<Vec2> hole)
+	{
+		if (isEmpty())
+		{
+			return false;
+		}
+
+		if (hole.size() < 3)
+		{
+			return false;
+		}
+
+		auto& currentInners = pImpl->inners();
+		Array<Array<Vec2>> inners(Arg::reserve = (currentInners.size() + 1));
+		{
+			inners.append(currentInners);
+			inners.push_back(std::move(hole));
+		}
+
+		if (Polygon result{pImpl->outer(), std::move(inners), SkipValidation::No })
+		{
+			*this = std::move(result);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1455,6 +1320,12 @@ namespace s3d
 
 	void Formatter(FormatData& formatData, const Polygon& value)
 	{
+		if (value.isEmpty())
+		{
+			formatData.string.append(U"()");
+			return;
+		}
+
 		formatData.string.append(U"((");
 
 		bool b = false;

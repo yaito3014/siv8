@@ -15,6 +15,7 @@
 # include <Siv3D/Mouse.hpp>
 # include <Siv3D/Polygon.hpp>
 # include <Siv3D/LineCap.hpp>
+# include <Siv3D/LineString.hpp>
 # include <Siv3D/ImageDraw.hpp>
 # include <Siv3D/Polygon/PolygonBuffer.hpp>
 # include <Siv3D/Pattern/PatternParameters.hpp>
@@ -286,15 +287,15 @@ namespace s3d
 		const Circle c1{ p1, p2 };
 		const Circle c2{ p2, p0 };
 		
-		if (c0.intersects(p2))
+		if (Geometry2D::Intersects(p2, c0))
 		{
 			return c0;
 		}
-		else if (c1.intersects(p0))
+		else if (Geometry2D::Intersects(p0, c1))
 		{
 			return c1;
 		}
-		else if (c2.intersects(p1))
+		else if (Geometry2D::Intersects(p1, c2))
 		{
 			return c2;
 		}
@@ -352,7 +353,87 @@ namespace s3d
 		return{ center, (area2 / perimeter) };
 	}
 
+	////////////////////////////////////////////////////////////////
+	//
+	//	outline
+	//
+	////////////////////////////////////////////////////////////////
 
+	LineString Triangle::outline(const CloseRing closeRing) const
+	{
+		if (closeRing)
+		{
+			return{ p0, p1, p2, p0 };
+		}
+		else
+		{
+			return{ p0, p1, p2 };
+		}
+	}
+
+	LineString Triangle::outline(double distanceFromOrigin, double length) const
+	{
+		const double l0 = p1.distanceFrom(p0);
+		const double l1 = p2.distanceFrom(p1);
+		const double l2 = p0.distanceFrom(p2);
+		const double perim = (l0 + l1 + l2);
+
+		if (perim <= 0.0)
+		{
+			return{};
+		}
+
+		if (length < 0.0)
+		{
+			distanceFromOrigin += length;
+			length = -length;
+		}
+
+		distanceFromOrigin = WrapLength(distanceFromOrigin, perim);
+		length = Min(length, perim);
+
+		LineString points{ Arg::reserve = 5 };
+
+		const auto AppendPoint = [&points](const Vec2& point)
+		{
+			if (points.empty() || (points.back() != point))
+			{
+				points << point;
+			}
+		};
+
+		AppendPoint(pointAtLength(distanceFromOrigin));
+
+		if (length == 0.0)
+		{
+			return points;
+		}
+
+		const double distanceToTarget = (distanceFromOrigin + length);
+
+		const double cornerLengths[3] = {
+			l0,
+			(l0 + l1),
+			perim,
+		};
+
+		for (double base = 0.0; base <= distanceToTarget; base += perim)
+		{
+			for (size_t i = 0; i < 3; ++i)
+			{
+				const double d = (base + cornerLengths[i]);
+
+				if ((distanceFromOrigin < d) && (d < distanceToTarget))
+				{
+					AppendPoint(vertexAtIndex((i + 1) % 3));
+				}
+			}
+		}
+
+		AppendPoint(pointAtLength(distanceToTarget));
+
+		return points;
+	}
 
 	////////////////////////////////////////////////////////////////
 	//
@@ -405,23 +486,34 @@ namespace s3d
 
 		if (inradius() <= round)
 		{
-			return CircleToPolygon(getInscribedCircle(), qualityFactor);
+			return getInscribedCircle().asPolygon(qualityFactor);
 		}
 
 		const Triangle inner = stretched(-round);
 
-		return inner.calculateRoundBuffer(round, qualityFactor);
+		return inner.computeRoundBufferPolygon(round, qualityFactor);
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	calculateRoundBuffer
+	//	computeMiterBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon Triangle::calculateRoundBuffer(const double distance, const QualityFactor& qualityFactor) const
+	Polygon Triangle::computeMiterBufferPolygon(const double distance) const
 	{
-		return CalculatePolygonRoundBuffer({ p0, p1, p2 }, distance, qualityFactor);
+		return ComputeMiterBufferPolygon(vertices(), distance);
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	computeRoundBufferPolygon
+	//
+	////////////////////////////////////////////////////////////////
+
+	Polygon Triangle::computeRoundBufferPolygon(const double distance, const QualityFactor& qualityFactor) const
+	{
+		return ComputeRoundBufferPolygon(vertices(), distance, qualityFactor);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -474,7 +566,7 @@ namespace s3d
 
 	bool Triangle::mouseOver() const noexcept
 	{
-		return Geometry2D::Intersect(Cursor::PosF(), *this);
+		return Geometry2D::Intersects(Cursor::PosF(), *this);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -642,9 +734,9 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	void Triangle::ThrowPointAtIndexOutOfRange()
+	void Triangle::ThrowVertexAtIndexOutOfRange()
 	{
-		throw std::out_of_range{ "Triangle::pointAtIndex() index out of range" };
+		throw std::out_of_range{ "Triangle::vertexAtIndex() index out of range" };
 	}
 
 	void Triangle::ThrowSideAtIndexOutOfRange()

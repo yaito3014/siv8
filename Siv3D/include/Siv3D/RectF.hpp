@@ -234,304 +234,124 @@ namespace s3d
 		[[nodiscard]]
 		constexpr RectF(Arg::center_<position_type> _center, size_type _size) noexcept;
 
-		/// @brief 長方形を作成します。
-		/// @param topLeft 長方形の左上の点の座標
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
 		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topLeft_<position_type> topLeft, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topLeft 長方形の左上の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topLeft_<position_type> topLeft, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topLeft 長方形の左上の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topLeft_<position_type> topLeft, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topLeft 長方形の左上の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topLeft_<position_type> topLeft, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topLeft 長方形の左上の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topLeft_<position_type> topLeft, size_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topCenter 長方形の上辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topCenter_<position_type> topCenter, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topCenter 長方形の上辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topCenter_<position_type> topCenter, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topCenter 長方形の上辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topCenter_<position_type> topCenter, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topCenter 長方形の上辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topCenter_<position_type> topCenter, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topCenter 長方形の上辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topCenter_<position_type> topCenter, size_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topRight 長方形の右上の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topRight_<position_type> topRight, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topRight 長方形の右上の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topRight_<position_type> topRight, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topRight 長方形の右上の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topRight_<position_type> topRight, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topRight 長方形の右上の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topRight_<position_type> topRight, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param topRight 長方形の右上の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::topRight_<position_type> topRight, size_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleRight 長方形の右辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleRight_<position_type> middleRight, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleRight 長方形の右辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleRight_<position_type> middleRight, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleRight 長方形の右辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleRight_<position_type> middleRight, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleRight 長方形の右辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleRight_<position_type> middleRight, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleRight 長方形の右辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleRight_<position_type> middleRight, size_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomRight 長方形の右下の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomRight_<position_type> bottomRight, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomRight 長方形の右下の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomRight_<position_type> bottomRight, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomRight 長方形の右下の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomRight_<position_type> bottomRight, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomRight 長方形の右下の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomRight_<position_type> bottomRight, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomRight 長方形の右下の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomRight_<position_type> bottomRight, size_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomCenter 長方形の下辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomCenter_<position_type> bottomCenter, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomCenter 長方形の下辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomCenter_<position_type> bottomCenter, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomCenter 長方形の下辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomCenter_<position_type> bottomCenter, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomCenter 長方形の下辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomCenter_<position_type> bottomCenter, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomCenter 長方形の下辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomCenter_<position_type> bottomCenter, size_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomLeft 長方形の左下の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomLeft_<position_type> bottomLeft, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomLeft 長方形の左下の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomLeft_<position_type> bottomLeft, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomLeft 長方形の左下の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomLeft_<position_type> bottomLeft, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomLeft 長方形の左下の点の座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomLeft_<position_type> bottomLeft, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param bottomLeft 長方形の左下の点の座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::bottomLeft_<position_type> bottomLeft, size_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleLeft 長方形の左辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleLeft_<position_type> middleLeft, value_type _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleLeft 長方形の左辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleLeft_<position_type> middleLeft, Concept::Arithmetic auto _size) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleLeft 長方形の左辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleLeft_<position_type> middleLeft, value_type _w, value_type _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleLeft 長方形の左辺の中心座標
-		/// @param _w 長方形の幅
-		/// @param _h 長方形の高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleLeft_<position_type> middleLeft, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
-
-		/// @brief 長方形を作成します。
-		/// @param middleLeft 長方形の左辺の中心座標
-		/// @param _size 長方形の幅と高さ
-		[[nodiscard]]
-		constexpr RectF(Arg::middleLeft_<position_type> middleLeft, size_type _size) noexcept;
-
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, value_type _x, value_type _y, value_type _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, value_type _x, value_type _y, Concept::Arithmetic auto _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _w 長方形の幅
+		/// @param _h 長方形の高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, value_type _x, value_type _y, value_type _w, value_type _h) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _w 長方形の幅
+		/// @param _h 長方形の高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, value_type _x, value_type _y, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, value_type _x, value_type _y, size_type _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, Concept::Arithmetic auto _x, Concept::Arithmetic auto _y, value_type _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, Concept::Arithmetic auto _x, Concept::Arithmetic auto _y, Concept::Arithmetic auto _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _w 長方形の幅
+		/// @param _h 長方形の高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, Concept::Arithmetic auto _x, Concept::Arithmetic auto _y, value_type _w, value_type _h) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _w 長方形の幅
+		/// @param _h 長方形の高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, Concept::Arithmetic auto _x, Concept::Arithmetic auto _y, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, Concept::Arithmetic auto _x, Concept::Arithmetic auto _y, size_type _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, position_type _pos, value_type _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, position_type _pos, Concept::Arithmetic auto _size) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
+		/// @param _w 長方形の幅
+		/// @param _h 長方形の高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, position_type _pos, value_type _w, value_type _h) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
+		/// @param _w 長方形の幅
+		/// @param _h 長方形の高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, position_type _pos, Concept::Arithmetic auto _w, Concept::Arithmetic auto _h) noexcept;
 
+		/// @brief 指定したアンカーを基準に長方形を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
+		/// @param _size 長方形の幅と高さ
 		[[nodiscard]]
 		constexpr RectF(Anchor anchor, position_type _pos, size_type _size) noexcept;
 
@@ -1003,8 +823,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 長方形が大きさを持っているかを返します。
-		/// @return 長方形が大きさを持っている場合 true, それ以外の場合は false
+		/// @brief 長方形が面積を持っているかを返します。
+		/// @return 長方形が面積を持っている場合 true, それ以外の場合は false
 		[[nodiscard]]
 		constexpr bool hasArea() const noexcept;
 
@@ -1170,7 +990,29 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	pointAtIndex
+		//	vertices
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 長方形の頂点座標を左上、右上、右下、左下の順に std::array で返します。
+		/// @return 長方形の各頂点の座標
+		[[nodiscard]]
+		constexpr std::array<position_type, 4> vertices() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	sides
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 長方形の辺を上、右、下、左の順に std::array で返します。
+		/// @return 長方形の各辺
+		[[nodiscard]]
+		constexpr std::array<Line, 4> sides() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	vertexAtIndex
 		//
 		////////////////////////////////////////////////////////////////
 
@@ -1179,7 +1021,7 @@ namespace s3d
 		/// @return 指定したインデックスの頂点座標
 		/// @throw std::out_of_range index が範囲外の場合
 		[[nodiscard]]
-		constexpr position_type pointAtIndex(size_t index) const;
+		constexpr position_type vertexAtIndex(size_t index) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1426,8 +1268,14 @@ namespace s3d
 		[[nodiscard]]
 		constexpr RoundRect rounded(double r) const noexcept;
 
-		//[[nodiscard]]
-		//Polygon rounded(double tl, double tr, double br, double bl) const noexcept;
+		/// @brief 角を丸めた RoundRect を作成して返します。
+		/// @param tl 左上の角の半径
+		/// @param tr 右上の角の半径
+		/// @param br 右下の角の半径
+		/// @param bl 左下の角の半径
+		/// @return 作成した Polygon
+		[[nodiscard]]
+		Polygon rounded(double tl, double tr, double br, double bl) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1435,20 +1283,123 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 長方形を面取りした Polygon を返します。
+		/// @brief 長方形を 45°の直線で面取りした Polygon を返します。
 		/// @param size 面取りの大きさ
 		/// @return 面取りした Polygon
-		//[[nodiscard]]
-		//Polygon chamfered(double size) const;
+		[[nodiscard]]
+		Polygon chamfered(double size) const;
 
-		/// @brief 長方形を面取りした Polygon を返します。
+		/// @brief 長方形を 45°の直線で面取りした Polygon を返します。
 		/// @param tl 左上の面取りの大きさ
 		/// @param tr 右上の面取りの大きさ
 		/// @param br 右下の面取りの大きさ
 		/// @param bl 左下の面取りの大きさ
 		/// @return 面取りした Polygon
-		//[[nodiscard]]
-		//Polygon chamfered(double tl, double tr, double br, double bl) const;
+		[[nodiscard]]
+		Polygon chamfered(double tl, double tr, double br, double bl) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	inscribedDiamond
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 内接するひし形を返します。
+		/// @return 内接するひし形
+		[[nodiscard]]
+		constexpr Quad inscribedDiamond() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	trapezoid
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 長方形を台形に変形した Quad を返します。
+		/// @param topOffset 上辺のオフセット量
+		/// @param bottomOffset 下辺のオフセット量
+		/// @return 台形
+		[[nodiscard]]
+		constexpr Quad trapezoid(Arg::top_<double> topOffset, Arg::bottom_<double> bottomOffset) const noexcept;
+
+		/// @brief 長方形を台形に変形した Quad を返します。
+		/// @param leftOffset 左辺のオフセット量
+		/// @param rightOffset 右辺のオフセット量
+		/// @return 台形
+		[[nodiscard]]
+		constexpr Quad trapezoid(Arg::left_<double> leftOffset, Arg::right_<double> rightOffset) const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	pointed
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 上辺の中央を法線方向に動かして、辺を V 字型に変形した Polygon を返します。
+		/// @param topOffset 上辺の中央を法線方向に動かす量（外側が正の値、内側が負の値）
+		/// @return 上辺を V 字型に変形した Polygon
+		[[nodiscard]]
+		Polygon pointed(Arg::top_<double> topOffset) const;
+
+		/// @brief 右辺の中央を法線方向に動かして、辺を V 字型に変形した Polygon を返します。
+		/// @param rightOffset 右辺の中央を法線方向に動かす量（外側が正の値、内側が負の値）
+		/// @return 右辺を V 字型に変形した Polygon
+		[[nodiscard]]
+		Polygon pointed(Arg::right_<double> rightOffset) const;
+
+		/// @brief 下辺の中央を法線方向に動かして、辺を V 字型に変形した Polygon を返します。
+		/// @param bottomOffset 下辺の中央を法線方向に動かす量（外側が正の値、内側が負の値）
+		/// @return 下辺を V 字型に変形した Polygon
+		[[nodiscard]]
+		Polygon pointed(Arg::bottom_<double> bottomOffset) const;
+
+		/// @brief 左辺の中央を法線方向に動かして、辺を V 字型に変形した Polygon を返します。
+		/// @param leftOffset 左辺の中央を法線方向に動かす量（外側が正の値、内側が負の値）
+		/// @return 左辺を V 字型に変形した Polygon
+		[[nodiscard]]
+		Polygon pointed(Arg::left_<double> leftOffset) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	stepped
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 角を正方形でくり抜いた Polygon を返します。
+		/// @param s くり抜く正方形の一辺の長さ
+		/// @return 角を正方形でくり抜いた Polygon
+		[[nodiscard]]
+		Polygon stepped(double s) const;
+
+		/// @brief 角を正方形でくり抜いた Polygon を返します。
+		/// @param tl 左上をくり抜く正方形の一辺の長さ
+		/// @param tr 右上をくり抜く正方形の一辺の長さ
+		/// @param br 右下をくり抜く正方形の一辺の長さ
+		/// @param bl 左下をくり抜く正方形の一辺の長さ
+		/// @return 角を正方形でくり抜いた Polygon
+		[[nodiscard]]
+		Polygon stepped(double tl, double tr, double br, double bl) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	scooped
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 角を円形でくり抜いた Polygon を返します。
+		/// @param r くり抜く円の半径
+		/// @return 角を円形でくり抜いた Polygon
+		[[nodiscard]]
+		Polygon scooped(double r) const;
+		
+		/// @brief 角を円形でくり抜いた Polygon を返します。
+		/// @param tl 左上をくり抜く円の半径
+		/// @param tr 右上をくり抜く円の半径
+		/// @param br 右下をくり抜く円の半径
+		/// @param bl 左下をくり抜く円の半径
+		/// @return 角を円形でくり抜いた Polygon
+		[[nodiscard]]
+		Polygon scooped(double tl, double tr, double br, double bl) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1463,22 +1414,54 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	subdivided
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 長方形を指定した行数と列数で分割した長方形の配列を返します。
+		/// @param xCount 分割する列数
+		/// @param yCount 分割する行数
+		/// @return 分割された長方形の配列
+		[[nodiscard]]
+		constexpr Array<RectF> subdivided(size_t xCount, size_t yCount) const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	frame
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 枠の形状の Polygon を返します。
+		/// @param thickness 枠の太さ
+		/// @return 枠の形状の Polygon
+		[[nodiscard]]
+		Polygon frame(double thickness) const;
+
+		/// @brief 枠の形状の Polygon を返します。
+		/// @param innerThickness 内側の太さ
+		/// @param outerThickness 外側の太さ
+		/// @return 枠の形状の Polygon
+		[[nodiscard]]
+		Polygon frame(double innerThickness, double outerThickness) const;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	outline
 		//
 		////////////////////////////////////////////////////////////////
 
-		///// @brief 長方形の輪郭を LineString として返します。
-		///// @param closeRing 頂点配列の終点を始点と重ねるか
-		///// @return 長方形の輪郭の LineString
-		//[[nodiscard]]
-		//LineString outline(CloseRing closeRing = CloseRing::No) const;
+		/// @brief 長方形の輪郭を LineString として返します。
+		/// @param closeRing 頂点配列の終点を始点と重ねるか
+		/// @return 長方形の輪郭の LineString
+		[[nodiscard]]
+		LineString outline(CloseRing closeRing = CloseRing::No) const;
 
-		///// @brief 長方形の輪郭の一部を LineString として返します。
-		///// @param distanceFromOrigin 開始地点の距離（長方形の左上の頂点から時計回りでの距離）
-		///// @param length 長さ
-		///// @return 長方形の輪郭の一部の LineString
-		//[[nodiscard]]
-		//LineString outline(double distanceFromOrigin, double length) const;
+		/// @brief 長方形の輪郭の一部を LineString として返します。
+		/// @param distanceFromOrigin 開始地点の距離（長方形の左上の頂点から時計回りでの距離）
+		/// @param length 長さ
+		/// @return 長方形の輪郭の一部の LineString
+		[[nodiscard]]
+		LineString outline(double distanceFromOrigin, double length) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1486,6 +1469,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 点列 { tl(), tr(), br(), bl() } を返します。
+		/// @return 点列 { tl(), tr(), br(), bl() }
 		[[nodiscard]]
 		Array<Vec2> outer() const;
 
@@ -1495,6 +1480,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 点列 { tl(), tr(), br(), bl(), tl() } を返します。
+		/// @return 点列 { tl(), tr(), br(), bl(), tl() }
 		[[nodiscard]]
 		Array<Vec2> ring() const;
 
@@ -1573,13 +1560,17 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	intersectsAt
+		//	overlaps
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
+		/// @brief 別の図形と交差する領域が面積を持つかを返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 別の図形と交差する領域が面積を持つ場合 true, それ以外の場合は false
+		template <class Shape2DType>
+		[[nodiscard]]
+		constexpr bool overlaps(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1587,9 +1578,27 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 別の図形を完全に含んでいるかを返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 別の図形を完全に含んでいる場合 true, それ以外の場合は false
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool contains(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形と点で交差している場合、その座標を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 別の図形と点で交差している場合、その座標の配列を返します。交差が存在しても、一次元以上の共有部分しかない場合は空の配列を返します。交差していない場合は none を返します。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1650,6 +1659,10 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 長方形を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param color 色
+		/// @return *this
 		const RectF& paint(Image& dst, const Color& color) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1658,6 +1671,10 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 長方形を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param color 色
+		/// @return *this
 		const RectF& overwrite(Image& dst, const Color& color) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1666,6 +1683,12 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 長方形の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param innerThickness 基準の長方形から内側方向への枠の太さ
+		/// @param outerThickness 基準の長方形から外側方向への枠の太さ
+		/// @param color 色
+		/// @return *this
 		const RectF& paintFrame(Image& dst, double innerThickness, double outerThickness, const Color& color) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1674,6 +1697,12 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 長方形の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param innerThickness 基準の長方形から内側方向への枠の太さ
+		/// @param outerThickness 基準の長方形から外側方向への枠の太さ
+		/// @param color 色
+		/// @return *this
 		const RectF& overwriteFrame(Image& dst, double innerThickness, double outerThickness, const Color& color) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1826,6 +1855,27 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	drawDashedFrame
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 長方形の破線を描きます。
+		/// @param thickness 枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const RectF& drawDashedFrame(double thickness, const RectangularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		/// @brief 長方形の破線を描きます。
+		/// @param innerThickness 基準の長方形から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の長方形から外側方向への枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const RectF& drawDashedFrame(double innerThickness, double outerThickness, const RectangularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	drawShadow
 		//
 		////////////////////////////////////////////////////////////////
@@ -1845,9 +1895,15 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief テクスチャを長方形に貼り付けた TexturedQuad を返します。
+		/// @param texture テクスチャ
+		/// @return TexturedQuad
 		[[nodiscard]]
 		TexturedQuad operator ()(const Texture& texture) const;
 
+		/// @brief テクスチャ領域を長方形に貼り付けた TexturedQuad を返します。
+		/// @param textureRegion テクスチャ領域
+		/// @return TexturedQuad
 		[[nodiscard]]
 		TexturedQuad operator ()(const TextureRegion& textureRegion) const;
 
@@ -1933,7 +1989,7 @@ namespace s3d
 	private:
 
 		[[noreturn]]
-		static void ThrowPointAtIndexOutOfRange();
+		static void ThrowVertexAtIndexOutOfRange();
 
 		[[noreturn]]
 		static void ThrowSideAtIndexOutOfRange();

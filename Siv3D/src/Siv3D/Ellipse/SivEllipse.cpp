@@ -205,7 +205,7 @@ namespace s3d
 
 	bool Ellipse::mouseOver() const noexcept
 	{
-		return Geometry2D::Intersect(Cursor::PosF(), *this);
+		return Geometry2D::Intersects(Cursor::PosF(), *this);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -457,6 +457,51 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
+	//	drawDashedFrame
+	//
+	////////////////////////////////////////////////////////////////
+
+	const Ellipse& Ellipse::drawDashedFrame(const double thickness, const RectangularDashStyle& style, const ColorF& color) const
+	{
+		return drawDashedFrame((thickness * 0.5), (thickness * 0.5), style, color);
+	}
+
+	const Ellipse& Ellipse::drawDashedFrame(const double thickness, const RectangularDashStyle& style, const ColorF& innerColor, const ColorF& outerColor) const
+	{
+		return drawDashedFrame((thickness * 0.5), (thickness * 0.5), style, innerColor, outerColor);
+	}
+
+	const Ellipse& Ellipse::drawDashedFrame(const double innerThickness, const double outerThickness, const RectangularDashStyle& style, const ColorF& color) const
+	{
+		return drawDashedFrame(innerThickness, outerThickness, style, color, color);
+	}
+
+	const Ellipse& Ellipse::drawDashedFrame(const double innerThickness, const double outerThickness, const RectangularDashStyle& style, const ColorF& innerColor, const ColorF& outerColor) const
+	{
+		const float thickness = static_cast<float>(innerThickness + outerThickness);
+		
+		if ((axes.x == 0.0) || (axes.y == 0.0) || (thickness <= 0.0))
+		{
+			return *this;
+		}
+		
+		SIV3D_ENGINE(Renderer2D)->addEllipseDashedFrame(
+			center,
+			static_cast<float>(Abs(axes.x)),
+			static_cast<float>(Abs(axes.y)),
+			static_cast<float>(innerThickness),
+			static_cast<float>(outerThickness),
+			static_cast<float>(style.offset),
+			static_cast<float>(style.dashRatio),
+			style.dashCount,
+			innerColor.toFloat4(),
+			outerColor.toFloat4()
+		);
+		return *this;
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
 	//	drawPie
 	//
 	////////////////////////////////////////////////////////////////
@@ -584,7 +629,7 @@ s3d::BufferContext::iterator fmt::formatter<s3d::Ellipse, s3d::char32>::format(c
 	else
 	{
 		const std::u32string format
-			= (U"({:" + tag + U"}, {:" + tag + U"}), {:" + tag + U"}, {:" + tag + U"})");
+			= (U"({:" + tag + U"}, {:" + tag + U"}, {:" + tag + U"}, {:" + tag + U"})");
 		return format_to(ctx.out(), format, value.center.x, value.center.y, value.axes.x, value.axes.y);
 	}
 }

@@ -10,10 +10,13 @@
 //-----------------------------------------------
 
 # pragma once
-# include <fmt/format.h>
-# include <fmt/xchar.h>
 # include <Siv3D/String.hpp>
 # include <Siv3D/Format.hpp>
+
+SIV3D_DISABLE_MSVC_WARNINGS_PUSH(4702)
+# include <fmt/format.h>
+# include <fmt/xchar.h>
+SIV3D_DISABLE_MSVC_WARNINGS_POP()
 
 namespace s3d
 {

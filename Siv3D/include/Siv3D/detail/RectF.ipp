@@ -135,150 +135,6 @@ namespace s3d
 		: pos{ (_center->x - _size.x / 2), (_center->y - _size.y / 2) }
 		, size{ _size.x, _size.y } {}
 
-	constexpr RectF::RectF(const Arg::topLeft_<position_type> topLeft, const value_type _size) noexcept
-		: pos{ *topLeft }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::topLeft_<position_type> topLeft, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ topLeft, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::topLeft_<position_type> topLeft, const value_type _w, const value_type _h) noexcept
-		: pos{ *topLeft }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::topLeft_<position_type> topLeft, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ topLeft, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::topLeft_<position_type> topLeft, const size_type _size) noexcept
-		: pos{ *topLeft }
-		, size{ _size.x, _size.y } {}
-
-	constexpr RectF::RectF(const Arg::topCenter_<position_type> topCenter, const value_type _size) noexcept
-		: pos{ (topCenter->x - _size / 2), topCenter->y }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::topCenter_<position_type> topCenter, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ topCenter, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::topCenter_<position_type> topCenter, const value_type _w, const value_type _h) noexcept
-		: pos{ (topCenter->x - _w / 2), topCenter->y }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::topCenter_<position_type> topCenter, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ topCenter, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::topCenter_<position_type> topCenter, const size_type _size) noexcept
-		: pos{ (topCenter->x - _size.x / 2), topCenter->y }
-		, size{ _size.x, _size.y } {}
-
-	constexpr RectF::RectF(const Arg::topRight_<position_type> topRight, const value_type _size) noexcept
-		: pos{ (topRight->x - _size), topRight->y }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::topRight_<position_type> topRight, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ topRight, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::topRight_<position_type> topRight, const value_type _w, const value_type _h) noexcept
-		: pos{ (topRight->x - _w), topRight->y }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::topRight_<position_type> topRight, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ topRight, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::topRight_<position_type> topRight, const size_type _size) noexcept
-		: pos{ (topRight->x - _size.x), topRight->y }
-		, size{ _size.x, _size.y } {}
-
-	constexpr RectF::RectF(const Arg::middleRight_<position_type> middleRight, const value_type _size) noexcept
-		: pos{ (middleRight->x - _size), (middleRight->y - _size / 2) }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::middleRight_<position_type> middleRight, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ middleRight, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::middleRight_<position_type> middleRight, const value_type _w, const value_type _h) noexcept
-		: pos{ (middleRight->x - _w), (middleRight->y - _h / 2) }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::middleRight_<position_type> middleRight, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ middleRight, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::middleRight_<position_type> middleRight, const size_type _size) noexcept
-		: pos{ (middleRight->x - _size.x), (middleRight->y - _size.y / 2) }
-		, size{ _size.x, _size.y } {}
-
-	constexpr RectF::RectF(const Arg::bottomRight_<position_type> bottomRight, const value_type _size) noexcept
-		: pos{ (bottomRight->x - _size), (bottomRight->y - _size) }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::bottomRight_<position_type> bottomRight, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ bottomRight, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::bottomRight_<position_type> bottomRight, const value_type _w, const value_type _h) noexcept
-		: pos{ (bottomRight->x - _w), (bottomRight->y - _h) }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::bottomRight_<position_type> bottomRight, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ bottomRight, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::bottomRight_<position_type> bottomRight, const size_type _size) noexcept
-		: pos{ (bottomRight->x - _size.x), (bottomRight->y - _size.y) }
-		, size{ _size.x, _size.y } {}
-
-	constexpr RectF::RectF(const Arg::bottomCenter_<position_type> bottomCenter, const value_type _size) noexcept
-		: pos{ (bottomCenter->x - _size / 2), (bottomCenter->y - _size) }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::bottomCenter_<position_type> bottomCenter, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ bottomCenter, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::bottomCenter_<position_type> bottomCenter, const value_type _w, const value_type _h) noexcept
-		: pos{ (bottomCenter->x - _w / 2), (bottomCenter->y - _h) }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::bottomCenter_<position_type> bottomCenter, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ bottomCenter, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::bottomCenter_<position_type> bottomCenter, const size_type _size) noexcept
-		: pos{ (bottomCenter->x - _size.x / 2), (bottomCenter->y - _size.y) }
-		, size{ _size.x, _size.y } {}
-
-	constexpr RectF::RectF(const Arg::bottomLeft_<position_type> bottomLeft, const value_type _size) noexcept
-		: pos{ bottomLeft->x, (bottomLeft->y - _size) }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::bottomLeft_<position_type> bottomLeft, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ bottomLeft, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::bottomLeft_<position_type> bottomLeft, const value_type _w, const value_type _h) noexcept
-		: pos{ bottomLeft->x, (bottomLeft->y - _h) }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::bottomLeft_<position_type> bottomLeft, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ bottomLeft, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::bottomLeft_<position_type> bottomLeft, const size_type _size) noexcept
-		: pos{ bottomLeft->x, (bottomLeft->y - _size.y) }
-		, size{ _size.x, _size.y } {}
-
-	constexpr RectF::RectF(const Arg::middleLeft_<position_type> middleLeft, const value_type _size) noexcept
-		: pos{ middleLeft->x, (middleLeft->y - _size / 2) }
-		, size{ _size, _size } {}
-
-	constexpr RectF::RectF(const Arg::middleLeft_<position_type> middleLeft, const Concept::Arithmetic auto _size) noexcept
-		: RectF{ middleLeft, static_cast<value_type>(_size) } {}
-
-	constexpr RectF::RectF(const Arg::middleLeft_<position_type> middleLeft, const value_type _w, const value_type _h) noexcept
-		: pos{ middleLeft->x, (middleLeft->y - _h / 2) }
-		, size{ _w, _h } {}
-
-	constexpr RectF::RectF(const Arg::middleLeft_<position_type> middleLeft, const Concept::Arithmetic auto _w, const Concept::Arithmetic auto _h) noexcept
-		: RectF{ middleLeft, static_cast<value_type>(_w), static_cast<value_type>(_h) } {}
-
-	constexpr RectF::RectF(const Arg::middleLeft_<position_type> middleLeft, const size_type _size) noexcept
-		: pos{ middleLeft->x, (middleLeft->y - _size.y / 2) }
-		, size{ _size.x, _size.y } {}
-
 	constexpr RectF::RectF(const Anchor anchor, const value_type _x, const value_type _y, const value_type _size) noexcept
 		: RectF{ anchor, _x, _y, _size, _size } {}
 
@@ -900,11 +756,33 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	pointAtIndex
+	//	vertices
 	//
 	////////////////////////////////////////////////////////////////
 
-	constexpr RectF::position_type RectF::pointAtIndex(const size_t index) const
+	constexpr std::array<RectF::position_type, 4> RectF::vertices() const noexcept
+	{
+		return{ pos, tr(), br(), bl() };
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	sides
+	//
+	////////////////////////////////////////////////////////////////
+
+	constexpr std::array<Line, 4> RectF::sides() const noexcept
+	{
+		return{ top(), right(), bottom(), left() };
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	vertexAtIndex
+	//
+	////////////////////////////////////////////////////////////////
+
+	constexpr RectF::position_type RectF::vertexAtIndex(const size_t index) const
 	{
 		if (index == 0)
 		{
@@ -924,7 +802,7 @@ namespace s3d
 		}
 		else
 		{
-			ThrowPointAtIndexOutOfRange();
+			ThrowVertexAtIndexOutOfRange();
 		}
 	}
 
@@ -1142,6 +1020,39 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
+	//	inscribedDiamond
+	//
+	////////////////////////////////////////////////////////////////
+
+	constexpr Quad RectF::inscribedDiamond() const noexcept
+	{
+		return{ topCenter(), middleRight(), bottomCenter(), middleLeft() };
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	trapezoid
+	//
+	////////////////////////////////////////////////////////////////
+
+	constexpr Quad RectF::trapezoid(const Arg::top_<double> topOffset, const Arg::bottom_<double> bottomOffset) const noexcept
+	{
+		return{ { (pos.x - *topOffset), pos.y },
+				{ (pos.x + size.x + *topOffset), pos.y },
+				{ (pos.x + size.x + *bottomOffset), (pos.y + size.y) },
+				{ (pos.x - *bottomOffset), (pos.y + size.y) } };
+	}
+
+	constexpr Quad RectF::trapezoid(const Arg::left_<double> leftOffset, const Arg::right_<double> rightOffset) const noexcept
+	{
+		return{ { pos.x, (pos.y - *leftOffset) },
+				{ (pos.x + size.x), (pos.y - *rightOffset) },
+				{ (pos.x + size.x), (pos.y + size.y + *rightOffset) },
+				{ pos.x, (pos.y + size.y + *leftOffset) } };
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
 	//	asQuad
 	//
 	////////////////////////////////////////////////////////////////
@@ -1210,7 +1121,7 @@ namespace s3d
 
 	inline uint64 RectF::hash() const noexcept
 	{
-		return BitwiseHash(*this);
+		return HashFloats(pos.x, pos.y, size.x, size.y);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1222,10 +1133,20 @@ namespace s3d
 	template <class Shape2DType>
 	constexpr bool RectF::intersects(const Shape2DType& other) const
 	{
-		return Geometry2D::Intersect(*this, other);
+		return Geometry2D::Intersects(*this, other);
 	}
 
+	////////////////////////////////////////////////////////////////
+	//
+	//	overlaps
+	//
+	////////////////////////////////////////////////////////////////
 
+	template <class Shape2DType>
+	constexpr bool RectF::overlaps(const Shape2DType& other) const
+	{
+		return Geometry2D::Overlaps(*this, other);
+	}
 
 	////////////////////////////////////////////////////////////////
 	//
@@ -1239,8 +1160,17 @@ namespace s3d
 		return Geometry2D::Contains(*this, other);
 	}
 
+	////////////////////////////////////////////////////////////////
+	//
+	//	intersectsAt
+	//
+	////////////////////////////////////////////////////////////////
 
-
+	template <class Shape2DType>
+	Optional<Array<Vec2>> RectF::intersectsAt(const Shape2DType& other) const
+	{
+		return Geometry2D::IntersectsAt(*this, other);
+	}
 
 	////////////////////////////////////////////////////////////////
 	//
