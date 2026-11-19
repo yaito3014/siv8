@@ -56,6 +56,26 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
+	inline Image& Image::operator =(const Image& other)
+	{
+		if (&other != this)
+		{
+			if (m_pixels.capacity() < other.m_pixels.size())
+			{
+				// Allocate before releasing the old image, without copying pixels
+				// that are about to be overwritten.
+				m_pixels = base_type(other.m_pixels);
+			}
+			else
+			{
+				m_pixels = other.m_pixels;
+			}
+			m_size = other.m_size;
+		}
+
+		return *this;
+	}
+
 	inline Image& Image::operator =(Image&& other) noexcept
 	{
 		if (&other != this)
@@ -119,11 +139,11 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	num_pixels
+	//	pixelCount
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline size_t Image::num_pixels() const noexcept
+	inline size_t Image::pixelCount() const noexcept
 	{
 		return (m_size.x * m_size.y);
 	}
@@ -193,8 +213,8 @@ namespace s3d
 
 	inline void Image::release()
 	{
-		clear();
-		shrink_to_fit();
+		m_pixels.release();
+		m_size.setZero();
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -215,13 +235,13 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline std::span<Color> Image::row(const size_t y) noexcept
+	inline std::span<Color> Image::row(const size_t y) & noexcept
 	{
 		assert(y < static_cast<size_t>(m_size.y));
 		return std::span((m_pixels.data() + (y * m_size.x)), m_size.x);
 	}
 
-	inline std::span<const Color> Image::row(const size_t y) const noexcept
+	inline std::span<const Color> Image::row(const size_t y) const& noexcept
 	{
 		assert(y < static_cast<size_t>(m_size.y));
 		return std::span((m_pixels.data() + (y * m_size.x)), m_size.x);
@@ -235,13 +255,13 @@ namespace s3d
 
 # if defined(__cpp_lib_ranges_stride)
 
-	inline auto Image::column(const size_t x) noexcept
+	inline auto Image::column(const size_t x) & noexcept
 	{
 		assert(x < static_cast<size_t>(m_size.x));
 		return (m_pixels | std::views::drop(x) | std::views::stride(m_size.x));
 	}
 
-	inline auto Image::column(const size_t x) const noexcept
+	inline auto Image::column(const size_t x) const& noexcept
 	{
 		assert(x < static_cast<size_t>(m_size.x));
 		return (m_pixels | std::views::drop(x) | std::views::stride(m_size.x));
@@ -289,12 +309,12 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline Color* Image::operator [](const size_t y)
+	inline Color* Image::operator [](const size_t y) &
 	{
 		return (m_pixels.data() + (m_size.x * y));
 	}
 
-	inline const Color* Image::operator [](const size_t y) const
+	inline const Color* Image::operator [](const size_t y) const&
 	{
 		return (m_pixels.data() + (m_size.x * y));
 	}
@@ -335,12 +355,12 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline Color* Image::data()
+	inline Color* Image::data() &
 	{
 		return m_pixels.data();
 	}
 
-	inline const Color* Image::data() const
+	inline const Color* Image::data() const&
 	{
 		return m_pixels.data();
 	}
@@ -351,12 +371,12 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline uint8* Image::dataAsUint8()
+	inline uint8* Image::dataAsUint8() &
 	{
 		return static_cast<uint8*>(static_cast<void*>(m_pixels.data()));
 	}
 
-	inline const uint8* Image::dataAsUint8() const
+	inline const uint8* Image::dataAsUint8() const&
 	{
 		return static_cast<const uint8*>(static_cast<const void*>(m_pixels.data()));
 	}
@@ -367,22 +387,22 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline Image::iterator Image::begin() noexcept
+	inline Image::iterator Image::begin() & noexcept
 	{
 		return m_pixels.begin();
 	}
 
-	inline Image::iterator Image::end() noexcept
+	inline Image::iterator Image::end() & noexcept
 	{
 		return m_pixels.end();
 	}
 
-	inline Image::const_iterator Image::begin() const noexcept
+	inline Image::const_iterator Image::begin() const& noexcept
 	{
 		return m_pixels.begin();
 	}
 
-	inline Image::const_iterator Image::end() const noexcept
+	inline Image::const_iterator Image::end() const& noexcept
 	{
 		return m_pixels.end();
 	}
@@ -393,12 +413,12 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline Image::const_iterator Image::cbegin() const noexcept
+	inline Image::const_iterator Image::cbegin() const& noexcept
 	{
 		return m_pixels.cbegin();
 	}
 
-	inline Image::const_iterator Image::cend() const noexcept
+	inline Image::const_iterator Image::cend() const& noexcept
 	{
 		return m_pixels.cend();
 	}
@@ -409,22 +429,22 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline Image::reverse_iterator Image::rbegin() noexcept
+	inline Image::reverse_iterator Image::rbegin() & noexcept
 	{
 		return m_pixels.rbegin();
 	}
 
-	inline Image::reverse_iterator Image::rend() noexcept
+	inline Image::reverse_iterator Image::rend() & noexcept
 	{
 		return m_pixels.rend();
 	}
 
-	inline Image::const_reverse_iterator Image::rbegin() const noexcept
+	inline Image::const_reverse_iterator Image::rbegin() const& noexcept
 	{
 		return m_pixels.rbegin();
 	}
 
-	inline Image::const_reverse_iterator Image::rend() const noexcept
+	inline Image::const_reverse_iterator Image::rend() const& noexcept
 	{
 		return m_pixels.rend();
 	}
@@ -435,19 +455,15 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	inline Image::const_reverse_iterator Image::crbegin() const noexcept
+	inline Image::const_reverse_iterator Image::crbegin() const& noexcept
 	{
 		return m_pixels.crbegin();
 	}
 
-	inline Image::const_reverse_iterator Image::crend() const noexcept
+	inline Image::const_reverse_iterator Image::crend() const& noexcept
 	{
 		return m_pixels.crend();
 	}
-
-
-
-
 
 
 	////////////////////////////////////////////////////////////////
@@ -467,5 +483,31 @@ namespace s3d
 		{
 			return{ 0, 0 };
 		}
+	}	////////////////////////////////////////////////////////////////
+	//
+	//	get_if
+	//
+	////////////////////////////////////////////////////////////////
+
+	inline Color* Image::get_if(Point pos) & noexcept
+	{
+		return get_if(static_cast<size_t>(pos.y), static_cast<size_t>(pos.x));
 	}
+
+	inline Color* Image::get_if(size_t y, size_t x) & noexcept
+	{
+		return ((y < static_cast<size_t>(height())) && (x < static_cast<size_t>(width()))) ? (data() + y * width() + x) : nullptr;
+	}
+
+	inline const Color* Image::get_if(Point pos) const& noexcept
+	{
+		return get_if(static_cast<size_t>(pos.y), static_cast<size_t>(pos.x));
+	}
+
+	inline const Color* Image::get_if(size_t y, size_t x) const& noexcept
+	{
+		return ((y < static_cast<size_t>(height())) && (x < static_cast<size_t>(width()))) ? (data() + y * width() + x) : nullptr;
+	}
+
+
 }

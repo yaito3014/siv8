@@ -16,87 +16,14 @@
 # include <Siv3D/Shape2D.hpp>
 # include <Siv3D/ImageDraw.hpp>
 # include <Siv3D/Hash.hpp>
-# include <Siv3D/Polygon/PolygonBuffer.hpp>
+# include <Siv3D/Polygon.hpp>
+# include <Siv3D/Polygon/TriangleFan.hpp>
+# include <Siv3D/Geometry2D/BoundingRect.hpp>
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
 
 namespace s3d
 {
-	namespace
-	{
-		constexpr double Epsilon = 1e-12;
-
-		[[nodiscard]]
-		static constexpr bool NearZero(const double v) noexcept
-		{
-			return (Abs(v) <= Epsilon);
-		}
-
-		[[nodiscard]]
-		static constexpr bool In01(const double t) noexcept
-		{
-			return ((-Epsilon <= t) && (t <= (1.0 + Epsilon)));
-		}
-
-		[[nodiscard]]
-		static constexpr uint64 ToBits(const double value) noexcept
-		{
-			return std::bit_cast<uint64>(value);
-		}
-
-		[[nodiscard]]
-		static constexpr int32 CompareBitwise(const double a, const double b) noexcept
-		{
-			const uint64 ua = ToBits(a);
-			const uint64 ub = ToBits(b);
-
-			if (ua < ub)
-			{
-				return -1;
-			}
-
-			if (ub < ua)
-			{
-				return 1;
-			}
-
-			return 0;
-		}
-
-		[[nodiscard]]
-		static constexpr int32 CompareBitwise(const Vec2& a, const Vec2& b) noexcept
-		{
-			if (const int32 c = CompareBitwise(a.x, b.x))
-			{
-				return c;
-			}
-
-			return CompareBitwise(a.y, b.y);
-		}
-
-		[[nodiscard]]
-		static constexpr int32 CompareBitwise(const Line& a, const Line& b) noexcept
-		{
-			if (const int32 c = CompareBitwise(a.start, b.start))
-			{
-				return c;
-			}
-
-			return CompareBitwise(a.end, b.end);
-		}
-
-		[[nodiscard]]
-		static Line CanonicalizeLine(Line line) noexcept
-		{
-			if (CompareBitwise(line.end, line.start) < 0)
-			{
-				line.reverse();
-			}
-
-			return line;
-		}
-	}
-
 	////////////////////////////////////////////////////////////////
 	//
 	//	closestPointTo
@@ -219,140 +146,61 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	calculateRoundBuffer
+	//	computeMiterBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon Line::calculateRoundBuffer(const double distance, const QualityFactor& qualityFactor) const
+	Polygon Line::computeMiterBufferPolygon(const double distance) const
 	{
-		return CalculateLineRoundBuffer(*this, distance, qualityFactor);
+		if ((distance <= 0.0) || (start == end))
+		{
+			return{};
+		}
+
+		const Vec2 offset = (perpendicularUnitVector() * distance);
+		return Quad{ (start + offset), (end + offset), (end - offset), (start - offset) }.asPolygon();
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	intersectsAt
+	//	computeRoundBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Optional<Line::position_type> Line::intersectsAt(const Line& other) const
+	Polygon Line::computeRoundBufferPolygon(const double distance, const QualityFactor& qualityFactor) const
 	{
-		const Vec2 p = start;
-		const Vec2 r = (end - start);
-		const Vec2 q = other.start;
-		const Vec2 s = (other.end - other.start);
-
-		const Vec2 qp = (q - p);
-
-		const double rxs = (r.x * s.y - r.y * s.x);
-		const double qpxr = (qp.x * r.y - qp.y * r.x);
-
-		const double rr = r.dot(r);
-		const double ss = s.dot(s);
-
-		const bool rIsPoint = NearZero(rr);
-		const bool sIsPoint = NearZero(ss);
-
-		// 両方点
-		if (rIsPoint && sIsPoint)
+		if (distance <= 0.0)
 		{
-			return (NearZero((start - other.start).dot(start - other.start)) ? Optional<position_type>{ start } : none);
+			return{};
 		}
 
-		// 自分が点：点が other 上にあるか
-		if (rIsPoint)
-		{
-			const Vec2 ap = (start - other.start);
-			const double cross = (ap.x * s.y - ap.y * s.x);
-			
-			if (not NearZero(cross))
-			{
-				return none;
-			}
+		const PointsPerCircle pointsPerCircle = qualityFactor.toPointsPerCircle(distance);
 
-			const double t = (ap.dot(s) / ss);
-			return (In01(t) ? Optional<position_type>{ start } : none);
+		if (start == end)
+		{
+			return Circle{ start, distance }.asPolygon(pointsPerCircle);
 		}
 
-		// 相手が点：点が自分の線分上にあるか
-		if (sIsPoint)
-		{
-			const Vec2 bp = (other.start - start);
-			const double cross = (bp.x * r.y - bp.y * r.x);
-			
-			if (not NearZero(cross))
-			{
-				return none;
-			}
+		const uint32 halfCount = (pointsPerCircle.value() / 2);
+		const Vec2 tangent = (normalizedVector() * distance);
+		const Vec2 normal{ tangent.y, -tangent.x };
+		Array<Vec2> outer((halfCount + 1) * 2);
+		outer[0] = (end + normal);
+		outer[halfCount] = (end - normal);
+		outer[halfCount + 1] = (start - normal);
+		outer.back() = (start + normal);
 
-			const double t = (bp.dot(r) / rr);
-			return (In01(t) ? Optional<position_type>{ other.start } : none);
+		const double step = (Math::Pi / halfCount);
+
+		for (uint32 i = 1; i < halfCount; ++i)
+		{
+			const double angle = (i * step);
+			const Vec2 offset = ((normal * std::cos(angle)) + (tangent * std::sin(angle)));
+			outer[i] = (end + offset);
+			outer[halfCount + 1 + i] = (start - offset);
 		}
 
-		// 平行
-		if (NearZero(rxs))
-		{
-			// 同一直線でない
-			if (not NearZero(qpxr))
-			{
-				return none;
-			}
-
-			// 同一直線：区間重なり判定（a上の t で評価）
-			const double t0 = ((other.start - start).dot(r)) / rr;
-			const double t1 = ((other.end - start).dot(r)) / rr;
-
-			const auto [lo, hi] = MinMax(t0, t1);
-			const double ov0 = Max(lo, 0.0);
-			const double ov1 = Min(hi, 1.0);
-
-			// 重ならない
-			if (ov1 < (ov0 - Epsilon))
-			{
-				return none;
-			}
-
-			// 重なりが一点（端点で接する等）
-			if (NearZero(ov1 - ov0))
-			{
-				const double t = Clamp(0.5 * (ov0 + ov1), 0.0, 1.0);
-				return (start + r * t);
-			}
-
-			// 重なりが区間（交点無限）
-			return position_type::NaN();
-		}
-
-		// 一般位置：一意交点
-		const double qpxs = (qp.x * s.y - qp.y * s.x);
-		const double t = (qpxs / rxs);
-		const double u = (qpxr / rxs);
-
-		if (In01(t) && In01(u))
-		{
-			const double tt = Clamp(t, 0.0, 1.0);
-			return (start + r * tt);
-		}
-
-		return none;
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	intersectsAtCanonical
-	//
-	////////////////////////////////////////////////////////////////
-
-	Optional<Line::position_type> Line::intersectsAtCanonical(const Line& other) const
-	{
-		Line a = CanonicalizeLine(*this);
-		Line b = CanonicalizeLine(other);
-
-		if (CompareBitwise(b, a) < 0)
-		{
-			std::ranges::swap(a, b);
-		}
-
-		return a.intersectsAt(b);
+		return Polygon{ outer, detail::MakeTriangleFan(outer.size()), Geometry2D::BoundingRect(outer), SkipValidation::Yes };
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -750,9 +598,9 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	void Line::ThrowPointAtIndexOutOfRange()
+	void Line::ThrowVertexAtIndexOutOfRange()
 	{
-		throw std::out_of_range{ "Line::pointAtIndex() index out of range" };
+		throw std::out_of_range{ "Line::vertexAtIndex() index out of range" };
 	}
 }
 

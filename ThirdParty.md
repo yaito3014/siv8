@@ -7,21 +7,21 @@ Name | Version
 [Abseil](https://github.com/abseil/abseil-cpp) | 20250814.1
 [bc7enc](https://github.com/richgel999/bc7enc_rdo) | 
 [CoreRT](https://github.com/dotnet/corert) | 
-[cpu_features](https://github.com/google/cpu_features) | v0.10.1
-[DirectXMath](https://github.com/microsoft/DirectXMath) | April 2025
-[doctest](https://github.com/doctest/doctest) | v2.5.2
+[cpu_features](https://github.com/google/cpu_features) | v0.11.0
+[DirectXMath](https://github.com/microsoft/DirectXMath) | June 2026
+[DirectXMesh](https://github.com/microsoft/directxmesh) | May 7, 2026
 [double-conversion](https://github.com/google/double-conversion) | v3.4.0
 [dr_mp3](https://github.com/mackron/dr_libs) | v0.7.4
 [Easing Equations](http://robertpenner.com/easing/) | 
 [easyexif](https://github.com/mayanklahiri/easyexif) | 
 [Earcut](https://github.com/mapbox/earcut.hpp) | 
 [EnumBitmask](https://github.com/Reputeless/EnumBitmask) | v1.0
-[fast_float](https://github.com/fastfloat/fast_float) | Version 8.2.4
-[fmt](https://github.com/fmtlib/fmt) | 12.1.0
+[fast_float](https://github.com/fastfloat/fast_float) | Version 8.2.10
+[fmt](https://github.com/fmtlib/fmt) | 12.2.0
 [FreeType](https://www.freetype.org/) | 2.13.3
 [geometry.hpp](https://github.com/mapbox/geometry.hpp) | v2.0.3
-[GLFW](https://github.com/glfw/glfw) | 3.4
-[HarfBuzz](https://github.com/harfbuzz/harfbuzz) | 11.2.0
+[GLFW](https://github.com/glfw/glfw) | 3.5.1
+[HarfBuzz](https://github.com/harfbuzz/harfbuzz) | 12.3.2
 [JSON for Modern C++](https://github.com/nlohmann/json) | v3.12.0
 [levenshtein-sse](https://github.com/addaleax/levenshtein-sse) | 
 [libcpprime](https://github.com/Rac75116/libcpprime) | v1.3.2
@@ -31,9 +31,9 @@ Name | Version
 [lunasvg](https://github.com/sammycage/lunasvg) | v3.5.0
 [Material Design Icons](https://github.com/Templarian/MaterialDesign) | v7.4.47
 [metal-cpp](https://developer.apple.com/metal/cpp/) | macOS15.2_iOS18.2
-[mimalloc](https://github.com/microsoft/mimalloc) | v3.3.2
+[MikkTSpace](https://github.com/mmikk/MikkTSpace) | 
+[mimalloc](https://github.com/microsoft/mimalloc) | v3.4.5
 [miniaudio](https://github.com/mackron/miniaudio) | Version 0.11.25
-[miniutf](https://github.com/dropbox/miniutf) | 
 [M PLUS 2](https://github.com/coz-m/MPLUS_FONTS) |
 [msdfgen](https://github.com/Chlumsky/msdfgen) | Version 1.13
 [muparser](https://github.com/beltoforion/muparser) | 
@@ -55,7 +55,7 @@ Name | Version
 [rapidhash](https://github.com/Nicoshev/rapidhash) | v1.0
 [rectpack2D](https://github.com/TeamHypersomnia/rectpack2D) | 
 [serial_cpp](https://github.com/gbionics/serial_cpp) | 
-[simdutf](https://github.com/simdutf/simdutf) | Version 7.7.1
+[simdutf](https://github.com/simdutf/simdutf) | Version 9.0.0
 [skia](https://github.com/google/skia) |
 [stb_image_resize2.h](https://github.com/nothings/stb/blob/master/stb_image_resize2.h) | 2.18
 [stduuid](https://github.com/mariusbancila/stduuid) | 
@@ -64,8 +64,17 @@ Name | Version
 [toml11](https://github.com/ToruNiina/toml11) | 
 [variant](https://github.com/mapbox/variant) | 
 [WinToast](https://github.com/mohabouje/WinToast) | v1.3.2
+[Wuffs](https://github.com/google/wuffs) | v0.4.c
 [wyhash](https://github.com/wangyi-fudan/wyhash) | 
 [Xoshiro-cpp](https://github.com/Reputeless/Xoshiro-cpp) | v1.1
 [xxHash](https://github.com/Cyan4973/xxHash) | v0.8.2
 [zlib](https://www.zlib.net/) | 1.3.2
 [Zstandard](https://github.com/facebook/zstd) | v1.5.7
+
+## Test dependencies
+
+These dependencies are used by the test executable only.
+
+Name | Version
+--- | ---
+[Catch2](https://github.com/catchorg/Catch2) | v3.16.0

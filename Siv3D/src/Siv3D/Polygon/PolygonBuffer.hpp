@@ -19,46 +19,42 @@ namespace s3d
 {
 	////////////////////////////////////////////////////////////////
 	//
-	//	CalculateLineRoundBuffer
+	//	ComputeRoundPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
+	/// @brief 多角形の各辺を内側に縮めてから外側に丸く膨張させ、角丸多角形の Polygon を作成します。
+	/// @param outer 対象多角形の外周頂点列
+	/// @param distance 角丸の半径に相当する距離
+	/// @param qualityFactor 角丸部分の分割品質
+	/// @return 作成された Polygon. 作成に失敗した場合は空の Polygon
 	[[nodiscard]]
-	Polygon CalculateLineRoundBuffer(const Line& line, double distance, const QualityFactor& qualityFactor);
+	Polygon ComputeRoundPolygon(std::span<const Vec2> outer, double distance, const QualityFactor& qualityFactor);
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	CalculateRoundedQuad
+	//	ComputeMiterBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
+	/// @brief 多角形を指定した距離だけ miter join でオフセットした Polygon を作成します。
+	/// @param outer 対象多角形の外周頂点列
+	/// @param distance オフセット距離。正の値で外側、負の値で内側にオフセットします。
+	/// @return 作成された Polygon. 作成に失敗した場合は空の Polygon
 	[[nodiscard]]
-	Polygon CalculateRoundedQuad(const Quad& quad, double distance, const QualityFactor& qualityFactor);
+	Polygon ComputeMiterBufferPolygon(std::span<const Vec2> outer, double distance);
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	CalculatePolygonBuffer
+	//	ComputeRoundBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
+	/// @brief 多角形を指定した距離だけ round join で膨張または収縮した Polygon を作成します。
+	/// @param outer 対象多角形の外周頂点列
+	/// @param distance バッファ距離。正の値で外側、負の値で内側にバッファを作成します。
+	/// @param qualityFactor 丸め部分の分割品質
+	/// @return 作成された Polygon. 作成に失敗した場合は空の Polygon
 	[[nodiscard]]
-	Polygon CalculatePolygonBuffer(std::initializer_list<Vec2> outer, double distance);
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	CalculatePolygonRoundBuffer
-	//
-	////////////////////////////////////////////////////////////////
-
-	[[nodiscard]]
-	Polygon CalculatePolygonRoundBuffer(std::initializer_list<Vec2> outer, double distance, const QualityFactor& qualityFactor);
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	CircleToPolygon
-	//
-	////////////////////////////////////////////////////////////////
-
-	[[nodiscard]]
-	Polygon CircleToPolygon(const Circle& circle, const QualityFactor& qualityFactor);
+	Polygon ComputeRoundBufferPolygon(std::span<const Vec2> outer, double distance, const QualityFactor& qualityFactor);
 }

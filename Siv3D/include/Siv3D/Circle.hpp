@@ -11,10 +11,13 @@
 
 # pragma once
 # include "Common.hpp"
+# include "Geometry2D/Geometry2DConcepts.hpp"
+# include "Anchor.hpp"
 # include "PointVector.hpp"
 # include "ColorHSV.hpp"
 # include "PointsPerCircle.hpp"
 # include "QualityFactor.hpp"
+# include "CircularDashStyle.hpp"
 # include "PredefinedNamedParameter.hpp"
 
 namespace s3d
@@ -110,113 +113,35 @@ namespace s3d
 		[[nodiscard]]
 		constexpr Circle(position_type _center, Concept::Arithmetic auto _r) noexcept;
 
-		/// @brief 円を作成します。
-		/// @param _center 中心座標
+		/// @brief 指定したアンカーを基準に円を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
 		/// @param _r 半径
 		[[nodiscard]]
-		constexpr Circle(Arg::center_<position_type> _center, size_type _r) noexcept;
+		constexpr Circle(Anchor anchor, value_type _x, value_type _y, size_type _r) noexcept;
 
-		/// @brief 円を作成します。
-		/// @param _center 中心座標
+		/// @brief 指定したアンカーを基準に円を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
 		/// @param _r 半径
 		[[nodiscard]]
-		constexpr Circle(Arg::center_<position_type> _center, Concept::Arithmetic auto _r) noexcept;
+		constexpr Circle(Anchor anchor, value_type _x, value_type _y, Concept::Arithmetic auto _r) noexcept;
 
-		/// @brief 円を作成します。
-		/// @param _topLeft 円に外接する正方形の左上座標
+		/// @brief 指定したアンカーを基準に円を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
 		/// @param _r 半径
 		[[nodiscard]]
-		constexpr Circle(Arg::topLeft_<position_type> _topLeft, size_type _r) noexcept;
+		constexpr Circle(Anchor anchor, position_type _pos, size_type _r) noexcept;
 
-		/// @brief 円を作成します。
-		/// @param _topLeft 円に外接する正方形の左上座標
+		/// @brief 指定したアンカーを基準に円を作成します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
 		/// @param _r 半径
 		[[nodiscard]]
-		constexpr Circle(Arg::topLeft_<position_type> _topLeft, Concept::Arithmetic auto _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _topCenter 円に外接する正方形の上辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::topCenter_<position_type> _topCenter, size_type _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _topCenter 円に外接する正方形の上辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::topCenter_<position_type> _topCenter, Concept::Arithmetic auto _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _topRight 円に外接する正方形の右上座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::topRight_<position_type> _topRight, size_type _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _topRight 円に外接する正方形の右上座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::topRight_<position_type> _topRight, Concept::Arithmetic auto _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _middleRight 円に外接する正方形の右辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::middleRight_<position_type> _middleRight, size_type _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _middleRight 円に外接する正方形の右辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::middleRight_<position_type> _middleRight, Concept::Arithmetic auto _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _bottomRight 円に外接する正方形の右下座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::bottomRight_<position_type> _bottomRight, size_type _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _bottomRight 円に外接する正方形の右下座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::bottomRight_<position_type> _bottomRight, Concept::Arithmetic auto _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _bottomCenter 円に外接する正方形の下辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::bottomCenter_<position_type> _bottomCenter, size_type _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _bottomCenter 円に外接する正方形の下辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::bottomCenter_<position_type> _bottomCenter, Concept::Arithmetic auto _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _bottomLeft 円に外接する正方形の左下座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::bottomLeft_<position_type> _bottomLeft, size_type _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _bottomLeft 円に外接する正方形の左下座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::bottomLeft_<position_type> _bottomLeft, Concept::Arithmetic auto _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _middleLeft 円に外接する正方形の左辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::middleLeft_<position_type> _middleLeft, size_type _r) noexcept;
-
-		/// @brief 円を作成します。
-		/// @param _middleLeft 円に外接する正方形の左辺の中心座標
-		/// @param _r 半径
-		[[nodiscard]]
-		constexpr Circle(Arg::middleLeft_<position_type> _middleLeft, Concept::Arithmetic auto _r) noexcept;
+		constexpr Circle(Anchor anchor, position_type _pos, Concept::Arithmetic auto _r) noexcept;
 
 		/// @brief 指定した 2 点を通る円を作成します。
 		/// @param p0 点
@@ -382,59 +307,20 @@ namespace s3d
 		/// @return *this
 		constexpr Circle& set(position_type _center, size_type _r) noexcept;
 
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param _center 新しい中心座標
+		/// @brief 指定したアンカーを基準に円を変更します。
+		/// @param anchor アンカーの種類
+		/// @param _x アンカーの X 座標
+		/// @param _y アンカーの Y 座標
 		/// @param _r 新しい半径
 		/// @return *this
-		constexpr Circle& set(Arg::center_<position_type> _center, size_type _r) noexcept;
+		constexpr Circle& set(Anchor anchor, value_type _x, value_type _y, size_type _r) noexcept;
 
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param topLeft 円に外接する正方形の左上座標
+		/// @brief 指定したアンカーを基準に円を変更します。
+		/// @param anchor アンカーの種類
+		/// @param _pos アンカーの座標
 		/// @param _r 新しい半径
 		/// @return *this
-		constexpr Circle& set(Arg::topLeft_<position_type> topLeft, size_type _r) noexcept;
-
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param topCenter 円に外接する正方形の上辺の中心座標
-		/// @param _r 新しい半径
-		/// @return *this
-		constexpr Circle& set(Arg::topCenter_<position_type> topCenter, size_type _r) noexcept;
-
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param topRight 円に外接する正方形の右上座標
-		/// @param _r 新しい半径
-		/// @return *this
-		constexpr Circle& set(Arg::topRight_<position_type> topRight, size_type _r) noexcept;
-
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param middleRight 円に外接する正方形の右辺の中心座標
-		/// @param _r 新しい半径
-		/// @return *this
-		constexpr Circle& set(Arg::middleRight_<position_type> middleRight, size_type _r) noexcept;
-
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param bottomRight 円に外接する正方形の右下座標
-		/// @param _r 新しい半径
-		/// @return *this
-		constexpr Circle& set(Arg::bottomRight_<position_type> bottomRight, size_type _r) noexcept;
-
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param bottomCenter 円に外接する正方形の下辺の中心座標
-		/// @param _r 新しい半径
-		/// @return *this
-		constexpr Circle& set(Arg::bottomCenter_<position_type> bottomCenter, size_type _r) noexcept;
-
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param bottomLeft 円に外接する正方形の左下座標
-		/// @param _r 新しい半径
-		/// @return *this
-		constexpr Circle& set(Arg::bottomLeft_<position_type> bottomLeft, size_type _r) noexcept;
-
-		/// @brief 円の中心座標と半径を変更します。
-		/// @param middleLeft 円に外接する正方形の左辺の中心座標
-		/// @param _r 新しい半径
-		/// @return *this
-		constexpr Circle& set(Arg::middleLeft_<position_type> middleLeft, size_type _r) noexcept;
+		constexpr Circle& set(Anchor anchor, position_type _pos, size_type _r) noexcept;
 
 		/// @brief 円を変更します。
 		/// @param circle 新しい円
@@ -554,6 +440,28 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	isEmpty
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 円が空であるかを返します。
+		/// @return 空の円である場合 true, それ以外の場合は false
+		[[nodiscard]]
+		constexpr bool isEmpty() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	hasArea
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 円が面積を持っているかを返します。
+		/// @return 円が面積を持っている場合 true, それ以外の場合は false
+		[[nodiscard]]
+		constexpr bool hasArea() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	top, right, bottom, left
 		//
 		////////////////////////////////////////////////////////////////
@@ -665,15 +573,52 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	signedDistanceTo
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した座標から円周までの符号付き距離を返します。
+		/// @param _x 座標の X 成分
+		/// @param _y 座標の Y 成分
+		/// @return 円周までの符号付き距離。円の外側では正、内側では負
+		[[nodiscard]]
+		double signedDistanceTo(double _x, double _y) const noexcept;
+
+		/// @brief 指定した座標から円周までの符号付き距離を返します。
+		/// @param point 座標
+		/// @return 円周までの符号付き距離。円の外側では正、内側では負
+		[[nodiscard]]
+		double signedDistanceTo(position_type point) const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	closestPointOnCircumference
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した座標に最も近い円周上の座標を返します。
+		/// @param point 座標
+		/// @return 指定した座標に最も近い円周上の座標。指定した座標が円の中心の場合は円の上端
+		[[nodiscard]]
+		position_type closestPointOnCircumference(position_type point) const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	outer
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円の外周を表現する頂点配列を返します。
+		/// @param pointsPerCircle 円周の分割数
+		/// @return 円の外周を表現する頂点配列
 		[[nodiscard]]
 		Array<Vec2> outer(const PointsPerCircle& pointsPerCircle) const;
 
+		/// @brief 円の外周を表現する頂点配列を返します。分割数は半径と qualityFactor に応じて自動的に決定されます。
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return 円の外周を表現する頂点配列
 		[[nodiscard]]
-		Array<Vec2> outer(const QualityFactor& qualityFactor) const;
+		Array<Vec2> outer(const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -691,7 +636,7 @@ namespace s3d
 		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
 		/// @return Polygon
 		[[nodiscard]]
-		Polygon asPolygon(const QualityFactor& qualityFactor) const;
+		Polygon asPolygon(const QualityFactor& qualityFactor = QualityFactor{}) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -699,8 +644,23 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//[[nodiscard]]
-		//Polygon pieAsPolygon(double startAngle, double angle, uint32 quality = 24) const;
+		/// @brief 扇形の Polygon を作成します。
+		/// @remark 開始角度 0 は円の上端で、正角は画面上の時計回りです。負の angle は逆方向の領域を指定しますが、戻り値の外周は時計回りです。
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度（ラジアン）
+		/// @param pointsPerCircle 完全な円の分割数。指定した円弧そのものの分割数ではありません。
+		/// @return Polygon
+		[[nodiscard]]
+		Polygon pieAsPolygon(double startAngle, double angle, const PointsPerCircle& pointsPerCircle) const;
+
+		/// @brief 扇形の Polygon を作成します。分割数は半径に応じて自動的に決定されます。
+		/// @remark 開始角度 0 は円の上端で、正角は画面上の時計回りです。負の angle は逆方向の領域を指定しますが、戻り値の外周は時計回りです。
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度（ラジアン）
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return Polygon
+		[[nodiscard]]
+		Polygon pieAsPolygon(double startAngle, double angle, const QualityFactor& qualityFactor = QualityFactor{}) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -708,8 +668,27 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//[[nodiscard]]
-		//Polygon arcAsPolygon(double startAngle, double angle, double innerThickness, double outerThickness, uint32 quality = 24) const;
+		/// @brief 円弧の Polygon を作成します。
+		/// @remark 開始角度 0 は円の上端で、正角は画面上の時計回りです。負の angle は逆方向の領域を指定しますが、戻り値の外周は時計回りです。
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度（ラジアン）
+		/// @param innerThickness 内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 外側方向への枠の太さ（ピクセル）
+		/// @param pointsPerCircle 完全な円の分割数。指定した円弧そのものの分割数ではありません。
+		/// @return Polygon
+		[[nodiscard]]
+		Polygon arcAsPolygon(double startAngle, double angle, double innerThickness, double outerThickness, const PointsPerCircle& pointsPerCircle) const;
+
+		/// @brief 円弧の Polygon を作成します。分割数は半径に応じて自動的に決定されます。
+		/// @remark 開始角度 0 は円の上端で、正角は画面上の時計回りです。負の angle は逆方向の領域を指定しますが、戻り値の外周は時計回りです。
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度（ラジアン）
+		/// @param innerThickness 内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 外側方向への枠の太さ（ピクセル）
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return Polygon
+		[[nodiscard]]
+		Polygon arcAsPolygon(double startAngle, double angle, double innerThickness, double outerThickness, const QualityFactor& qualityFactor = QualityFactor{}) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -745,19 +724,26 @@ namespace s3d
 		/// @tparam Shape2DType 別の図形の型
 		/// @param other 別の図形
 		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool intersects(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	intersetsAt
+		//	overlaps
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
+		/// @brief 別の図形と交差する領域が面積を持つかを返します。
+		/// @tparam Shape2DType `Geometry2D::Overlaps(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形と交差する領域が面積を持つ場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsOverlaps<Circle, Shape2DType>
+		[[nodiscard]]
+		constexpr bool overlaps(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -765,9 +751,29 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//bool contains(const Shape2DType& other) const;
+		/// @brief 別の図形を完全に含んでいるかを返します。
+		/// @tparam Shape2DType `Geometry2D::Contains(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形を完全に含んでいる場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsContains<Circle, Shape2DType>
+		[[nodiscard]]
+		constexpr bool contains(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -828,6 +834,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& paint(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -836,6 +847,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& overwrite(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -844,8 +860,21 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& paintFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 円の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param innerThickness 基準の円から内側方向への枠の太さ
+		/// @param outerThickness 基準の円から外側方向への枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& paintFrame(Image& dst, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -854,8 +883,21 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& overwriteFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 円の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param innerThickness 基準の円から内側方向への枠の太さ
+		/// @param outerThickness 基準の円から外側方向への枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& overwriteFrame(Image& dst, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -864,6 +906,13 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円の扇形を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度の大きさ（ラジアン）
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& paintPie(Image& dst, double startAngle, double angle, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -872,6 +921,13 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円の扇形を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度の大きさ（ラジアン）
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& overwritePie(Image& dst, double startAngle, double angle, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -880,6 +936,15 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円弧を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度の大きさ（ラジアン）
+		/// @param innerThickness 基準の円周から内側方向への太さ
+		/// @param outerThickness 基準の円周から外側方向への太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& paintArc(Image& dst, double startAngle, double angle, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -888,6 +953,15 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 円弧を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param startAngle 開始角度（ラジアン）
+		/// @param angle 角度の大きさ（ラジアン）
+		/// @param innerThickness 基準の円周から内側方向への太さ
+		/// @param outerThickness 基準の円周から外側方向への太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Circle& overwriteArc(Image& dst, double startAngle, double angle, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -970,6 +1044,44 @@ namespace s3d
 		/// @param pattern 塗りつぶしパターン
 		/// @return *this
 		const Circle& drawFrame(double innerThickness, double outerThickness, const PatternParameters& pattern) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	drawDashedFrame
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 円形の破線を描きます。
+		/// @param thickness 枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const Circle& drawDashedFrame(double thickness, const CircularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		/// @brief 円形の破線を描きます。
+		/// @param thickness 枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param innerColor 内側部分の色
+		/// @param outerColor 外側部分の色
+		/// @return *this
+		const Circle& drawDashedFrame(double thickness, const CircularDashStyle& style, const ColorF& innerColor, const ColorF& outerColor) const;
+
+		/// @brief 円形の破線を描きます。
+		/// @param innerThickness 基準の円から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の円から外側方向への枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const Circle& drawDashedFrame(double innerThickness, double outerThickness, const CircularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		/// @brief 円形の破線を描きます。
+		/// @param innerThickness 基準の円から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の円から外側方向への枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param innerColor 内側部分の色
+		/// @param outerColor 外側部分の色
+		/// @return *this
+		const Circle& drawDashedFrame(double innerThickness, double outerThickness, const CircularDashStyle& style, const ColorF& innerColor, const ColorF& outerColor) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1146,9 +1258,15 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief テクスチャを円に貼り付けた TexturedCircle を返します。
+		/// @param texture テクスチャ
+		/// @return TexturedCircle
 		[[nodiscard]]
 		TexturedCircle operator ()(const Texture& texture) const;
 
+		/// @brief テクスチャ領域を円に貼り付けた TexturedCircle を返します。
+		/// @param textureRegion テクスチャ領域
+		/// @return TexturedCircle
 		[[nodiscard]]
 		TexturedCircle operator ()(const TextureRegion& textureRegion) const;
 

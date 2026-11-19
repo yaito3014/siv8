@@ -14,10 +14,34 @@
 # include "Common.hpp"
 # include "Array.hpp"
 # include "PointVector.hpp"
-# include "Random.hpp"
+# include "Shuffle.hpp"
+# include "GridConnectivity.hpp"
 
 namespace s3d
 {
+	struct Rect;
+
+	namespace detail
+	{
+		template <class Container, class Fty>
+		concept GridHasParallelCountIf = requires(Container& container, Fty&& function)
+		{
+			container.parallel_count_if(std::forward<Fty>(function));
+		};
+
+		template <class Container, class Fty>
+		concept GridHasParallelEach = requires(Container& container, Fty&& function)
+		{
+			container.parallel_each(std::forward<Fty>(function));
+		};
+
+		template <class Container, class Fty>
+		concept GridHasParallelMap = requires(Container& container, Fty&& function)
+		{
+			container.parallel_map(std::forward<Fty>(function));
+		};
+	}
+
 	////////////////////////////////////////////////////////////////
 	//
 	//	Grid
@@ -28,6 +52,9 @@ namespace s3d
 	/// @tparam Type 要素の型
 	/// @tparam Allocator アロケータの型
 	template <class Type, class Allocator = std::allocator<Type>>
+	/// @remark 同じ要素型を返す変形・切り出しは元のアロケータを引き継ぎます。通常のコピー・代入は allocator_traits の規則に従います。
+	/// @remark 要素を所有します。ポインタ・イテレータ・span の取得は左辺値に限定され、元の要素の寿命と無効化規則に従います。
+	/// @remark 右辺値の要素アクセスは値を返し、const 右辺値からの借用はできません。
 	class Grid
 	{
 	public:
@@ -63,8 +90,9 @@ namespace s3d
 
 		/// @brief ムーブコンストラクタ
 		/// @param other ムーブ元の Grid
+		/// @remark ムーブ元は幅・高さ・要素数が 0 になります。
 		[[nodiscard]]
-		Grid(Grid&& other) = default;
+		constexpr Grid(Grid&& other) noexcept(std::is_nothrow_move_constructible_v<container_type>);
 
 		/// @brief 二次元配列を作成します。
 		/// @param w 幅
@@ -95,26 +123,26 @@ namespace s3d
 		/// @param h 高さ
 		/// @param data 幅 × 高さの要素数を持つ配列
 		[[nodiscard]]
-		constexpr Grid(size_type w, size_type h, const Array<value_type>& data);
+		constexpr Grid(size_type w, size_type h, const container_type& data);
 
 		/// @brief 配列から二次元配列を作成します。
 		/// @param w 幅
 		/// @param h 高さ
 		/// @param data 幅 × 高さの要素数を持つ配列
 		[[nodiscard]]
-		constexpr Grid(size_type w, size_type h, Array<value_type>&& data);
+		constexpr Grid(size_type w, size_type h, container_type&& data);
 
 		/// @brief 配列から二次元配列を作成します。
 		/// @param size 幅と高さ
 		/// @param data 幅 × 高さの要素数を持つ配列
 		[[nodiscard]]
-		constexpr Grid(Size size, const Array<value_type>& data);
+		constexpr Grid(Size size, const container_type& data);
 
 		/// @brief 配列から二次元配列を作成します。
 		/// @param size 幅と高さ
 		/// @param data 幅 × 高さの要素数を持つ配列
 		[[nodiscard]]
-		constexpr Grid(Size size, Array<value_type>&& data);
+		constexpr Grid(Size size, container_type&& data);
 
 		/// @brief 初期化リストから二次元配列を作成します。
 		/// @param set 初期化リスト
@@ -174,7 +202,8 @@ namespace s3d
 		/// @brief ムーブ代入演算子
 		/// @param other ムーブする配列
 		/// @return *this
-		Grid& operator =(Grid&&) = default;
+		/// @remark ムーブ元は幅・高さ・要素数が 0 になります。自己ムーブ代入では変更しません。
+		constexpr Grid& operator =(Grid&& other) noexcept(std::is_nothrow_move_assignable_v<container_type>);
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -187,18 +216,27 @@ namespace s3d
 		/// @param h 高さ
 		/// @param value 要素の値
 		/// @return *this
-		constexpr Grid& assign(size_type w, size_type h, const value_type& value) SIV3D_LIFETIMEBOUND;
+		constexpr Grid& assign(size_type w, size_type h, const value_type& value) & SIV3D_LIFETIMEBOUND;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid assign(size_type w, size_type h, const value_type& value) &&;
 
 		/// @brief 指定したサイズと値で二次元配列を再構築します。
 		/// @param size 幅と高さ
 		/// @param value 要素の値
 		/// @return *this
-		constexpr Grid& assign(Size size, const value_type& value) SIV3D_LIFETIMEBOUND;
+		constexpr Grid& assign(Size size, const value_type& value) & SIV3D_LIFETIMEBOUND;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid assign(Size size, const value_type& value) &&;
 
 		/// @brief 初期化リストで二次元配列を再構築します。
 		/// @param set 初期化リスト
 		/// @return *this
-		constexpr Grid& assign(const std::initializer_list<std::initializer_list<value_type>>& set) SIV3D_LIFETIMEBOUND;
+		constexpr Grid& assign(const std::initializer_list<std::initializer_list<value_type>>& set) & SIV3D_LIFETIMEBOUND;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid assign(const std::initializer_list<std::initializer_list<value_type>>& set) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -222,7 +260,10 @@ namespace s3d
 		[[nodiscard]]
 		constexpr const container_type& getContainer() const& noexcept SIV3D_LIFETIMEBOUND;
 
-		/// @brief Array を返します。
+		/// @brief const 右辺値からの借用を禁止します。
+		void getContainer() const&& = delete;
+
+		/// @brief Array を返し、この Grid を空にします。
 		/// @return Array
 		[[nodiscard]]
 		constexpr container_type getContainer() && noexcept;
@@ -247,6 +288,9 @@ namespace s3d
 		/// @throw std::out_of_range 範囲外アクセスの場合 throw
 		constexpr const_reference at(size_type y, size_type x) const& SIV3D_LIFETIMEBOUND;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void at(size_type y, size_type x) const&& = delete;
+
 		/// @brief 指定した位置の要素にアクセスします。
 		/// @param y 行番号
 		/// @param x 列番号
@@ -266,11 +310,74 @@ namespace s3d
 		/// @throw std::out_of_range 範囲外アクセスの場合 throw
 		constexpr const_reference at(Point pos) const& SIV3D_LIFETIMEBOUND;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void at(Point pos) const&& = delete;
+
 		/// @brief 指定した位置の要素にアクセスします。
 		/// @param pos 位置
 		/// @return 要素
 		/// @throw std::out_of_range 範囲外アクセスの場合 throw
 		constexpr value_type at(Point pos)&&;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	wrappedAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置を二次元配列の範囲内に循環させて、要素にアクセスします。
+		/// @param pos 位置
+		/// @return 要素への参照
+		/// @throw std::out_of_range 二次元配列の幅または高さが 0 の場合
+		[[nodiscard]]
+		constexpr reference wrappedAt(Point pos)& SIV3D_LIFETIMEBOUND;
+
+		/// @brief 指定した位置を二次元配列の範囲内に循環させて、要素にアクセスします。
+		/// @param pos 位置
+		/// @return 要素への参照
+		/// @throw std::out_of_range 二次元配列の幅または高さが 0 の場合
+		[[nodiscard]]
+		constexpr const_reference wrappedAt(Point pos) const& SIV3D_LIFETIMEBOUND;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void wrappedAt(Point pos) const&& = delete;
+
+		/// @brief 指定した位置を二次元配列の範囲内に循環させて、要素にアクセスします。
+		/// @param pos 位置
+		/// @return 要素
+		/// @throw std::out_of_range 二次元配列の幅または高さが 0 の場合
+		[[nodiscard]]
+		constexpr value_type wrappedAt(Point pos)&&;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	clampedAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置を二次元配列の範囲内に制限して、要素にアクセスします。
+		/// @param pos 位置
+		/// @return 要素への参照
+		/// @throw std::out_of_range 二次元配列の幅または高さが 0 の場合
+		[[nodiscard]]
+		constexpr reference clampedAt(Point pos)& SIV3D_LIFETIMEBOUND;
+
+		/// @brief 指定した位置を二次元配列の範囲内に制限して、要素にアクセスします。
+		/// @param pos 位置
+		/// @return 要素への参照
+		/// @throw std::out_of_range 二次元配列の幅または高さが 0 の場合
+		[[nodiscard]]
+		constexpr const_reference clampedAt(Point pos) const& SIV3D_LIFETIMEBOUND;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void clampedAt(Point pos) const&& = delete;
+
+		/// @brief 指定した位置を二次元配列の範囲内に制限して、要素にアクセスします。
+		/// @param pos 位置
+		/// @return 要素
+		/// @throw std::out_of_range 二次元配列の幅または高さが 0 の場合
+		[[nodiscard]]
+		constexpr value_type clampedAt(Point pos)&&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -282,13 +389,16 @@ namespace s3d
 		/// @param y 行番号
 		/// @return 行の先頭ポインタ
 		[[nodiscard]]
-		constexpr pointer operator [](size_type y) SIV3D_LIFETIMEBOUND;
+		constexpr pointer operator [](size_type y) & SIV3D_LIFETIMEBOUND;
 
 		/// @brief 指定した行のポインタを返します。
 		/// @param y 行番号
 		/// @return 行の先頭ポインタ
 		[[nodiscard]]
-		constexpr const_pointer operator [](size_type y) const SIV3D_LIFETIMEBOUND;
+		constexpr const_pointer operator [](size_type y) const& SIV3D_LIFETIMEBOUND;
+
+		/// @brief 一時オブジェクトからの行ポインタの借用を禁止します。
+		void operator [](size_type y) const&& = delete;
 
 		/// @brief 指定した位置の要素にアクセスします。
 		/// @param pos 位置
@@ -301,6 +411,9 @@ namespace s3d
 		/// @return 要素への参照
 		[[nodiscard]]
 		constexpr const_reference operator [](Point pos) const& SIV3D_LIFETIMEBOUND;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void operator [](Point pos) const&& = delete;
 
 		/// @brief 指定した位置の要素にアクセスします。
 		/// @param pos 位置
@@ -321,6 +434,9 @@ namespace s3d
 		/// @return 要素への参照
 		[[nodiscard]]
 		constexpr const_reference operator [](size_type y, size_type x) const& SIV3D_LIFETIMEBOUND;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void operator [](size_type y, size_type x) const&& = delete;
 
 		/// @brief 指定した位置の要素にアクセスします。
 		/// @param y 行番号
@@ -345,10 +461,14 @@ namespace s3d
 		[[nodiscard]]
 		constexpr const_reference front() const& noexcept SIV3D_LIFETIMEBOUND;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void front() const&& = delete;
+
 		/// @brief 先頭の要素を返します。
 		/// @return 先頭の要素
 		[[nodiscard]]
-		constexpr value_type front() && noexcept;
+		constexpr value_type front() &&
+			noexcept(std::is_nothrow_move_constructible_v<value_type>);
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -366,10 +486,14 @@ namespace s3d
 		[[nodiscard]]
 		constexpr const_reference back() const& noexcept SIV3D_LIFETIMEBOUND;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void back() const&& = delete;
+
 		/// @brief 末尾の要素を返します。
 		/// @return 末尾の要素
 		[[nodiscard]]
-		constexpr value_type back() && noexcept;
+		constexpr value_type back() &&
+			noexcept(std::is_nothrow_move_constructible_v<value_type>);
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -399,12 +523,15 @@ namespace s3d
 		/// @brief 先頭の要素を指すポインタを返します。
 		/// @return 先頭の要素を指すポインタ
 		[[nodiscard]]
-		constexpr pointer data() noexcept SIV3D_LIFETIMEBOUND;
+		constexpr pointer data() & noexcept SIV3D_LIFETIMEBOUND;
 
 		/// @brief 先頭の要素を指すポインタを返します。
 		/// @return 先頭の要素を指すポインタ
 		[[nodiscard]]
-		constexpr const_pointer data() const noexcept SIV3D_LIFETIMEBOUND;
+		constexpr const_pointer data() const& noexcept SIV3D_LIFETIMEBOUND;
+
+		/// @brief 一時オブジェクトからのポインタの借用を禁止します。
+		void data() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -415,24 +542,30 @@ namespace s3d
 		/// @brief 配列の先頭位置を指すイテレータを返します。
 		/// @return 配列の先頭位置を指すイテレータ
 		[[nodiscard]]
-		constexpr iterator begin() noexcept;
+		constexpr iterator begin() & noexcept;
 
 		/// @brief 配列の終端位置を指すイテレータを返します。
 		/// @remark 有効な範囲は [begin, end) であるため、この位置に要素は存在しません
 		/// @return 配列の終端位置を指すイテレータ
 		[[nodiscard]]
-		constexpr iterator end() noexcept;
+		constexpr iterator end() & noexcept;
 
 		/// @brief 配列の先頭位置を指すイテレータを返します。
 		/// @return 配列の先頭位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator begin() const noexcept;
+		constexpr const_iterator begin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void begin() const&& = delete;
 
 		/// @brief 配列の終端位置を指すイテレータを返します。
 		/// @remark 有効な範囲は [begin, end) であるため、この位置に要素は存在しません
 		/// @return 配列の終端位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator end() const noexcept;
+		constexpr const_iterator end() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void end() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -443,13 +576,19 @@ namespace s3d
 		/// @brief 配列の先頭位置を指すイテレータを返します。
 		/// @return 配列の先頭位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator cbegin() const noexcept;
+		constexpr const_iterator cbegin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void cbegin() const&& = delete;
 
 		/// @brief 配列の終端位置を指すイテレータを返します。
 		/// @remark 有効な範囲は [begin, end) であるため、この位置に要素は存在しません
 		/// @return 配列の終端位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator cend() const noexcept;
+		constexpr const_iterator cend() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void cend() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -460,24 +599,30 @@ namespace s3d
 		/// @brief 配列の末尾位置を指すリバース・イテレータを返します。
 		/// @return 配列の末尾位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr reverse_iterator rbegin() noexcept;
+		constexpr reverse_iterator rbegin() & noexcept;
 
 		/// @brief 配列の先端位置を指すリバース・イテレータを返します。
 		/// @remark 有効な範囲は [rbegin, rend) であるため、この位置に要素は存在しません
 		/// @return 配列の先端位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr reverse_iterator rend() noexcept;
+		constexpr reverse_iterator rend() & noexcept;
 
 		/// @brief 配列の末尾位置を指すリバース・イテレータを返します。
 		/// @return 配列の末尾位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator rbegin() const noexcept;
+		constexpr const_reverse_iterator rbegin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void rbegin() const&& = delete;
 
 		/// @brief 配列の先端位置を指すリバース・イテレータを返します。
 		/// @remark 有効な範囲は [rbegin, rend) であるため、この位置に要素は存在しません
 		/// @return 配列の先端位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator rend() const noexcept;
+		constexpr const_reverse_iterator rend() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void rend() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -488,13 +633,19 @@ namespace s3d
 		/// @brief 配列の末尾位置を指すリバース・イテレータを返します。
 		/// @return 配列の末尾位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator crbegin() const noexcept;
+		constexpr const_reverse_iterator crbegin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void crbegin() const&& = delete;
 
 		/// @brief 配列の先端位置を指すリバース・イテレータを返します。
 		/// @remark 有効な範囲は [rbegin, rend) であるため、この位置に要素は存在しません
 		/// @return 配列の先端位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator crend() const noexcept;
+		constexpr const_reverse_iterator crend() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void crend() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -559,14 +710,26 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	num_elements
+		//	bounds
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief この二次元配列の範囲を表す長方形を返します。
+		/// @return `(0, 0)` を左上とし、配列の幅と高さを持つ長方形
+		/// @remark この関数を使用するには `<Siv3D/GridRect.hpp>` をインクルードしてください。
+		[[nodiscard]]
+		constexpr Rect bounds() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	elementCount
 		//
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 二次元配列の要素数を返します。
 		/// @return 二次元配列の要素数
 		[[nodiscard]]
-		constexpr size_t num_elements() const noexcept;
+		constexpr size_t elementCount() const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -643,7 +806,7 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 配列の要素をすべて消去し、メモリも解放します。
+		/// @brief 要素を消去して寸法を 0 にし、動的な記憶領域をアロケータへ返します。
 		constexpr void release();
 
 		////////////////////////////////////////////////////////////////
@@ -654,7 +817,8 @@ namespace s3d
 
 		/// @brief 他の配列と要素を入れ替えます。
 		/// @param other 入れ替える配列
-		constexpr void swap(Grid& other) noexcept;
+		constexpr void swap(Grid& other)
+			noexcept(std::allocator_traits<Allocator>::propagate_on_container_swap::value || std::allocator_traits<Allocator>::is_always_equal::value);
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -665,14 +829,42 @@ namespace s3d
 		/// @brief 指定した行の要素にアクセスするビューを返します。
 		/// @param y 行のインデックス
 		/// @return 指定した行の要素にアクセスするビュー
+		/// @remark ダングリング参照を防ぐため、右辺値オブジェクトからの呼び出しはコンパイルエラーになります。
 		[[nodiscard]]
-		constexpr std::span<value_type> row(size_type y) noexcept;
+		constexpr std::span<value_type> row(size_type y) & noexcept SIV3D_LIFETIMEBOUND;
 
 		/// @brief 指定した行の要素にアクセスするビューを返します。
 		/// @param y 行のインデックス
 		/// @return 指定した行の要素にアクセスするビュー
 		[[nodiscard]]
-		constexpr std::span<const value_type> row(size_type y) const noexcept;
+		constexpr std::span<const value_type> row(size_type y) const& noexcept SIV3D_LIFETIMEBOUND;
+
+		void row(size_type) && = delete;
+
+		void row(size_type) const&& = delete;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	rows
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 各行の要素にアクセスするビューを行優先で列挙する range を返します。
+		/// @return 各行の要素にアクセスする `std::span<value_type>` の range
+		/// @remark 返された range はこの Grid を参照します。Grid の破棄またはサイズ変更後は使用できません。
+		/// @remark ダングリング参照を防ぐため、右辺値オブジェクトからの呼び出しはコンパイルエラーになります。
+		[[nodiscard]]
+		constexpr auto rows() & noexcept SIV3D_LIFETIMEBOUND;
+
+		/// @brief 各行の要素にアクセスするビューを行優先で列挙する range を返します。
+		/// @return 各行の要素にアクセスする `std::span<const value_type>` の range
+		/// @remark 返された range はこの Grid を参照します。Grid の破棄またはサイズ変更後は使用できません。
+		[[nodiscard]]
+		constexpr auto rows() const& noexcept SIV3D_LIFETIMEBOUND;
+
+		void rows() && = delete;
+
+		void rows() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -685,14 +877,42 @@ namespace s3d
 		/// @brief 指定した列の要素にアクセスするビューを返します。
 		/// @param x 列のインデックス
 		/// @return 指定した列の要素にアクセスするビュー
+		/// @remark ダングリング参照を防ぐため、右辺値オブジェクトからの呼び出しはコンパイルエラーになります。
 		[[nodiscard]]
-		constexpr auto column(size_type x) noexcept;
+		constexpr auto column(size_type x) & noexcept SIV3D_LIFETIMEBOUND;
 
 		/// @brief 指定した列の要素にアクセスするビューを返します。
 		/// @param x 列のインデックス
 		/// @return 指定した列の要素にアクセスするビュー
 		[[nodiscard]]
-		constexpr auto column(size_type x) const noexcept;
+		constexpr auto column(size_type x) const& noexcept SIV3D_LIFETIMEBOUND;
+
+		void column(size_type) && = delete;
+
+		void column(size_type) const&& = delete;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	columns
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 各列の要素にアクセスするビューを列優先で列挙する range を返します。
+		/// @return 各列の要素にアクセスする range の range
+		/// @remark 返された range はこの Grid を参照します。Grid の破棄またはサイズ変更後は使用できません。
+		/// @remark ダングリング参照を防ぐため、右辺値オブジェクトからの呼び出しはコンパイルエラーになります。
+		[[nodiscard]]
+		constexpr auto columns() & noexcept SIV3D_LIFETIMEBOUND;
+
+		/// @brief 各列の要素にアクセスするビューを列優先で列挙する range を返します。
+		/// @return 各列の要素にアクセスする range の range
+		/// @remark 返された range はこの Grid を参照します。Grid の破棄またはサイズ変更後は使用できません。
+		[[nodiscard]]
+		constexpr auto columns() const& noexcept SIV3D_LIFETIMEBOUND;
+
+		void columns() && = delete;
+
+		void columns() const&& = delete;
 
 	# endif
 
@@ -704,6 +924,7 @@ namespace s3d
 
 		/// @brief 末尾に行を追加します。
 		/// @param value 追加した行の要素の初期値
+		/// @throw std::length_error 追加後の高さが Grid の寸法上限を超える場合
 		constexpr void push_back_row(const value_type& value);
 
 		////////////////////////////////////////////////////////////////
@@ -724,6 +945,7 @@ namespace s3d
 
 		/// @brief 末尾に列を追加します。
 		/// @param value 追加した列の要素の初期値
+		/// @throw std::length_error 追加後の幅が Grid の寸法上限を超える場合
 		constexpr void push_back_column(const value_type& value);
 
 		////////////////////////////////////////////////////////////////
@@ -746,6 +968,7 @@ namespace s3d
 		/// @param y 挿入する行のインデックス
 		/// @param value 挿入する行の要素の初期値
 		/// @throw std::out_of_range 挿入する行のインデックスが範囲外の場合
+		/// @throw std::length_error 挿入後の高さが Grid の寸法上限を超える場合
 		constexpr void insert_row(size_type y, const value_type& value);
 
 		////////////////////////////////////////////////////////////////
@@ -759,6 +982,7 @@ namespace s3d
 		/// @param n 挿入する行の数
 		/// @param value 挿入する行の要素の初期値
 		/// @throw std::out_of_range 挿入する行のインデックスが範囲外の場合
+		/// @throw std::length_error 挿入後の高さが Grid の寸法上限を超える場合
 		constexpr void insert_rows(size_type y, size_type n, const value_type& value);
 
 		////////////////////////////////////////////////////////////////
@@ -771,6 +995,7 @@ namespace s3d
 		/// @param x 挿入する列のインデックス
 		/// @param value 挿入する列の要素の初期値
 		/// @throw std::out_of_range 挿入する列のインデックスが範囲外の場合
+		/// @throw std::length_error 挿入後の幅が Grid の寸法上限を超える場合
 		constexpr void insert_column(size_type x, const value_type& value);
 
 		////////////////////////////////////////////////////////////////
@@ -784,6 +1009,7 @@ namespace s3d
 		/// @param n 挿入する列の数
 		/// @param value 挿入する列の要素の初期値
 		/// @throw std::out_of_range 挿入する列のインデックスが範囲外の場合
+		/// @throw std::length_error 挿入後の幅が Grid の寸法上限を超える場合
 		constexpr void insert_columns(size_type x, size_type n, const value_type& value);
 
 		////////////////////////////////////////////////////////////////
@@ -805,7 +1031,7 @@ namespace s3d
 
 		/// @brief 指定した行を削除します。
 		/// @param y 削除を開始する行のインデックス
-		/// @param count 削除する行の数
+		/// @param n 削除する行の数
 		/// @throw std::out_of_range 削除する対象が範囲外の場合
 		constexpr void remove_rows(size_type y, size_type n);
 
@@ -906,59 +1132,129 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	rotate90
+		//	rotate90, rotated90
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 90° 回転します。
+		/// @brief 時計回りに 90° 回転します。
 		/// @remark 幅と高さが入れ替わります。
+		/// @remark `rotate_rows()` / `rotate_columns()` は行・列の巡回シフトであり、この幾何回転とは異なります。
 		void rotate90();
 
+		/// @brief 時計回りに 90° 回転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		/// @remark 幅と高さが入れ替わります。
+		[[nodiscard]]
+		Grid rotated90() const&;
+
+		/// @brief 時計回りに 90° 回転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		/// @remark 幅と高さが入れ替わります。
+		[[nodiscard]]
+		Grid rotated90() &&;
+
 		////////////////////////////////////////////////////////////////
 		//
-		//	rotate180
+		//	rotate180, rotated180
 		//
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 180° 回転します。
-		constexpr void rotate180() noexcept;
+		constexpr void rotate180() noexcept(std::is_nothrow_swappable_v<value_type>);
+
+		/// @brief 180° 回転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		[[nodiscard]]
+		constexpr Grid rotated180() const&;
+
+		/// @brief 180° 回転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		[[nodiscard]]
+		constexpr Grid rotated180() &&;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	rotate270
+		//	rotate270, rotated270
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 270° 回転します。
+		/// @brief 時計回りに 270° 回転します。
 		/// @remark 幅と高さが入れ替わります。
+		/// @remark 反時計回りの 90° 回転と同じです。
+		/// @remark `rotate_rows()` / `rotate_columns()` は行・列の巡回シフトであり、この幾何回転とは異なります。
 		void rotate270();
 
+		/// @brief 時計回りに 270° 回転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		/// @remark 幅と高さが入れ替わります。
+		[[nodiscard]]
+		Grid rotated270() const&;
+
+		/// @brief 時計回りに 270° 回転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		/// @remark 幅と高さが入れ替わります。
+		[[nodiscard]]
+		Grid rotated270() &&;
+
 		////////////////////////////////////////////////////////////////
 		//
-		//	mirror
+		//	mirror, mirrored
 		//
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 左右反転します。
-		constexpr void mirror() noexcept;
+		constexpr void mirror() noexcept(std::is_nothrow_swappable_v<value_type>);
+
+		/// @brief 左右反転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		[[nodiscard]]
+		constexpr Grid mirrored() const&;
+
+		/// @brief 左右反転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		[[nodiscard]]
+		constexpr Grid mirrored() &&;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	flip
+		//	flip, flipped
 		//
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 上下反転します。
-		constexpr void flip() noexcept;
+		constexpr void flip() noexcept(std::is_nothrow_swappable_v<value_type>);
+
+		/// @brief 上下反転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		[[nodiscard]]
+		constexpr Grid flipped() const&;
+
+		/// @brief 上下反転した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		[[nodiscard]]
+		constexpr Grid flipped() &&;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	transpose
+		//	transpose, transposed
 		//
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 転置します。
+		/// @remark 幅と高さが入れ替わります。
 		void transpose();
+
+		/// @brief 転置した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		/// @remark 幅と高さが入れ替わります。
+		[[nodiscard]]
+		Grid transposed() const&;
+
+		/// @brief 転置した新しい二次元配列を返します。
+		/// @return 新しい二次元配列
+		/// @remark 幅と高さが入れ替わります。
+		[[nodiscard]]
+		Grid transposed() &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1069,6 +1365,136 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	each_index
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief すべての要素とその位置を順番に引数にして関数を呼び出します。
+		/// @tparam Fty 呼び出す関数の型
+		/// @param f 呼び出す関数
+		/// @remark 関数には `Point{ x, y }` と要素への参照を渡します。
+		/// @remark `y = 0..height-1` の各行について `x = 0..width-1` の順（行優先）に呼び出します。
+		template <class Fty>
+		constexpr void each_index(Fty f)
+			requires std::invocable<Fty&, Point, value_type&>;
+
+		/// @brief すべての要素とその位置を順番に引数にして関数を呼び出します。
+		/// @tparam Fty 呼び出す関数の型
+		/// @param f 呼び出す関数
+		/// @remark 関数には `Point{ x, y }` と要素への const 参照を渡します。結果は所有可能な値型である必要があり、void は受け付けません。
+		/// @remark `y = 0..height-1` の各行について `x = 0..width-1` の順（行優先）に呼び出します。
+		template <class Fty>
+		constexpr void each_index(Fty f) const
+			requires std::invocable<Fty&, Point, const value_type&>;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	each_neighbor4
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置に隣接する 4 近傍の要素に関数を適用します。
+		/// @tparam Fty 呼び出す関数の型
+		/// @param pos 中心の位置
+		/// @param f 呼び出す関数
+		/// @pre `pos` が二次元配列の範囲内であること
+		/// @remark 関数には近傍の `Point{ x, y }` と要素への参照を渡します。
+		/// @remark 範囲外の近傍を除き、上、左、右、下の順に呼び出します。
+		template <class Fty>
+		constexpr void each_neighbor4(Point pos, Fty f)
+			requires std::invocable<Fty&, Point, value_type&>;
+
+		/// @brief 指定した位置に隣接する 4 近傍の要素に関数を適用します。
+		/// @tparam Fty 呼び出す関数の型
+		/// @param pos 中心の位置
+		/// @param f 呼び出す関数
+		/// @pre `pos` が二次元配列の範囲内であること
+		/// @remark 関数には近傍の `Point{ x, y }` と要素への const 参照を渡します。
+		/// @remark 範囲外の近傍を除き、上、左、右、下の順に呼び出します。
+		template <class Fty>
+		constexpr void each_neighbor4(Point pos, Fty f) const
+			requires std::invocable<Fty&, Point, const value_type&>;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	each_neighbor8
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置に隣接する 8 近傍の要素に関数を適用します。
+		/// @tparam Fty 呼び出す関数の型
+		/// @param pos 中心の位置
+		/// @param f 呼び出す関数
+		/// @pre `pos` が二次元配列の範囲内であること
+		/// @remark 関数には近傍の `Point{ x, y }` と要素への参照を渡します。
+		/// @remark 範囲外の近傍を除き、左上、上、右上、左、右、左下、下、右下の順に呼び出します。
+		template <class Fty>
+		constexpr void each_neighbor8(Point pos, Fty f)
+			requires std::invocable<Fty&, Point, value_type&>;
+
+		/// @brief 指定した位置に隣接する 8 近傍の要素に関数を適用します。
+		/// @tparam Fty 呼び出す関数の型
+		/// @param pos 中心の位置
+		/// @param f 呼び出す関数
+		/// @pre `pos` が二次元配列の範囲内であること
+		/// @remark 関数には近傍の `Point{ x, y }` と要素への const 参照を渡します。
+		/// @remark 範囲外の近傍を除き、左上、上、右上、左、右、左下、下、右下の順に呼び出します。
+		template <class Fty>
+		constexpr void each_neighbor8(Point pos, Fty f) const
+			requires std::invocable<Fty&, Point, const value_type&>;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	count_neighbors4, count_neighbors8
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置の 4 近傍にある、指定した値と等しい要素の個数を返します。
+		/// @param pos 中心の位置
+		/// @param value 検索する値
+		/// @return 指定した値と等しい近傍要素の個数
+		/// @pre `pos` が二次元配列の範囲内であること
+		[[nodiscard]]
+		constexpr isize count_neighbors4(Point pos, const value_type& value) const;
+
+		/// @brief 指定した位置の 8 近傍にある、指定した値と等しい要素の個数を返します。
+		/// @param pos 中心の位置
+		/// @param value 検索する値
+		/// @return 指定した値と等しい近傍要素の個数
+		/// @pre `pos` が二次元配列の範囲内であること
+		[[nodiscard]]
+		constexpr isize count_neighbors8(Point pos, const value_type& value) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	count_neighbors4_if, count_neighbors8_if
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置の 4 近傍にある、条件を満たす要素の個数を返します。
+		/// @tparam Fty 条件を記述した関数の型
+		/// @param pos 中心の位置
+		/// @param f 条件を記述した関数
+		/// @return 条件を満たす近傍要素の個数
+		/// @pre `pos` が二次元配列の範囲内であること
+		template <class Fty>
+		[[nodiscard]]
+		constexpr isize count_neighbors4_if(Point pos, Fty f) const
+			requires std::predicate<Fty&, const value_type&>;
+
+		/// @brief 指定した位置の 8 近傍にある、条件を満たす要素の個数を返します。
+		/// @tparam Fty 条件を記述した関数の型
+		/// @param pos 中心の位置
+		/// @param f 条件を記述した関数
+		/// @return 条件を満たす近傍要素の個数
+		/// @pre `pos` が二次元配列の範囲内であること
+		template <class Fty>
+		[[nodiscard]]
+		constexpr isize count_neighbors8_if(Point pos, Fty f) const
+			requires std::predicate<Fty&, const value_type&>;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	fetch
 		//
 		////////////////////////////////////////////////////////////////
@@ -1105,7 +1531,73 @@ namespace s3d
 		/// @brief 指定した値をすべての要素に代入します。
 		/// @param value 代入する値
 		/// @return *this
-		constexpr Grid& fill(const value_type& value) SIV3D_LIFETIMEBOUND;
+		constexpr Grid& fill(const value_type& value) & SIV3D_LIFETIMEBOUND;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid fill(const value_type& value) &&;
+
+		/// @brief 指定した領域と重なる要素に値を代入します。
+		/// @param pos 領域の左上の位置
+		/// @param size 領域の幅と高さ
+		/// @param value 代入する値
+		/// @return *this
+		/// @throw std::invalid_argument 領域の幅または高さが負の場合
+		/// @remark 領域はこの二次元配列の範囲にクリップされます。重なる領域が無い場合は何もしません。
+		constexpr Grid& fill(Point pos, Size size, const value_type& value) & SIV3D_LIFETIMEBOUND;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid fill(Point pos, Size size, const value_type& value) &&;
+
+		/// @brief 指定した長方形と重なる要素に値を代入します。
+		/// @param rect 領域を表す長方形
+		/// @param value 代入する値
+		/// @return *this
+		/// @throw std::invalid_argument 長方形の幅または高さが負の場合
+		/// @remark 長方形はこの二次元配列の範囲にクリップされます。重なる領域が無い場合は何もしません。
+		/// @remark この関数を使用するには `<Siv3D/GridRect.hpp>` をインクルードしてください。
+		constexpr Grid& fill(Rect rect, const value_type& value) & SIV3D_LIFETIMEBOUND;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid fill(Rect rect, const value_type& value) &&;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	floodFill
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置につながる同じ値の要素を塗りつぶします。
+		/// @param pos 塗りつぶしを開始する位置
+		/// @param newValue 塗りつぶし後の値
+		/// @param connectivity セルの連結方法
+		/// @return 値を変更した要素の個数。`pos` が範囲外、または開始位置の値が `newValue` と等しい場合は 0
+		constexpr isize floodFill(Point pos, const value_type& newValue,
+			GridConnectivity connectivity = GridConnectivity::Four);
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	get_if
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定座標の要素へのポインタを返します。範囲外（負の座標を含む）では nullptr を返します。
+		[[nodiscard]]
+		constexpr value_type* get_if(Point pos) & noexcept;
+
+		/// @brief 指定位置の要素へのポインタを返します。範囲外では nullptr を返します。
+		[[nodiscard]]
+		constexpr value_type* get_if(size_type y, size_type x) & noexcept;
+
+		/// @brief 指定位置の要素へのポインタを返します。範囲外では nullptr を返します。
+		[[nodiscard]]
+		constexpr const value_type* get_if(Point pos) const& noexcept;
+
+		/// @brief 指定位置の要素へのポインタを返します。範囲外では nullptr を返します。
+		[[nodiscard]]
+		constexpr const value_type* get_if(size_type y, size_type x) const& noexcept;
+
+		void get_if(Point) const&& = delete;
+		void get_if(size_type, size_type) const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1129,10 +1621,31 @@ namespace s3d
 		/// @tparam Fty 各要素に適用する関数の型
 		/// @param f 各要素に適用する関数
 		/// @return 各要素に関数を適用した戻り値からなる新しい配列
+		/// @remark 元の寸法と行優先の順序を保ち、結果の要素型の既定アロケータを使用します。
 		template <class Fty>
 		[[nodiscard]]
 		constexpr auto map(Fty f) const
-			requires std::invocable<Fty&, const value_type&>;
+			requires detail::ArrayMapFunction<Fty, value_type>;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	map_indexed
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 各要素とその位置に関数を適用した戻り値からなる新しい二次元配列を返します。
+		/// @tparam Fty 各要素に適用する関数の型
+		/// @param f 各要素に適用する関数
+		/// @return 各要素とその位置に関数を適用した戻り値からなる新しい二次元配列
+		/// @remark 関数には `Point{ x, y }` と要素への const 参照を渡します。結果は所有可能な値型である必要があり、void は受け付けません。
+		/// @remark `y = 0..height-1` の各行について `x = 0..width-1` の順（行優先）に適用します。
+		template <class Fty>
+		[[nodiscard]]
+		constexpr auto map_indexed(Fty f) const
+			requires std::invocable<Fty&, Point, const value_type&>
+			&& std::is_object_v<std::decay_t<std::invoke_result_t<Fty&, Point, const value_type&>>>
+			&& std::constructible_from<std::decay_t<std::invoke_result_t<Fty&, Point, const value_type&>>, std::invoke_result_t<Fty&, Point, const value_type&>>
+			&& std::move_constructible<std::decay_t<std::invoke_result_t<Fty&, Point, const value_type&>>>;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1148,6 +1661,23 @@ namespace s3d
 		[[nodiscard]]
 		constexpr bool none(Fty f = Identity) const
 			requires std::predicate<Fty&, const value_type&>;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	paste
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した位置に別の二次元配列を貼り付けます。
+		/// @param pos 貼り付け先の左上の位置
+		/// @param source 貼り付ける二次元配列
+		/// @return *this
+		/// @remark 貼り付ける領域はこの二次元配列の範囲にクリップされます。重なる領域が無い場合は何もしません。
+		/// @remark `source` がこの二次元配列自身である場合は何もしません。
+		constexpr Grid& paste(Point pos, const Grid& source) & SIV3D_LIFETIMEBOUND;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid paste(Point pos, const Grid& source) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1261,23 +1791,27 @@ namespace s3d
 		/// @brief 指定した位置を境に前半の列と後半の列を入れ替えます。
 		/// @param middle 境の位置
 		/// @return *this
+		/// @throw std::out_of_range `middle` が幅より大きい場合
 		constexpr Grid& rotate_columns(size_type middle)& SIV3D_LIFETIMEBOUND;
 
 		/// @brief 指定した位置を境に前半の列と後半の列を入れ替えた新しい配列を返します。
 		/// @param middle 境の位置
 		/// @return 新しい配列
+		/// @throw std::out_of_range `middle` が幅より大きい場合
 		[[nodiscard]]
 		constexpr Grid rotate_columns(size_type middle)&&;
 
 		/// @brief 指定した位置を境に前半の列と後半の列を入れ替えた新しい配列を返します。
 		/// @param middle 境の位置
 		/// @return 新しい配列
+		/// @throw std::out_of_range `middle` が幅より大きい場合
 		[[nodiscard]]
 		constexpr Grid rotated_columns(size_type middle) const&;
 
 		/// @brief 指定した位置を境に前半の列と後半の列を入れ替えた新しい配列を返します。
 		/// @param middle 境の位置
 		/// @return 新しい配列
+		/// @throw std::out_of_range `middle` が幅より大きい場合
 		[[nodiscard]]
 		constexpr Grid rotated_columns(size_type middle)&&;
 
@@ -1290,23 +1824,27 @@ namespace s3d
 		/// @brief 指定した位置を境に前半の行と後半の行を入れ替えます。
 		/// @param middle 境の位置
 		/// @return *this
+		/// @throw std::out_of_range `middle` が高さより大きい場合
 		constexpr Grid& rotate_rows(size_type middle)& SIV3D_LIFETIMEBOUND;
 		
 		/// @brief 指定した位置を境に前半の行と後半の行を入れ替えた新しい配列を返します。
 		/// @param middle 境の位置
 		/// @return 新しい配列
+		/// @throw std::out_of_range `middle` が高さより大きい場合
 		[[nodiscard]]
 		constexpr Grid rotate_rows(size_type middle)&&;
 
 		/// @brief 指定した位置を境に前半の行と後半の行を入れ替えた新しい配列を返します。
 		/// @param middle 境の位置
 		/// @return 新しい配列
+		/// @throw std::out_of_range `middle` が高さより大きい場合
 		[[nodiscard]]
 		constexpr Grid rotated_rows(size_type middle) const&;
 
 		/// @brief 指定した位置を境に前半の行と後半の行を入れ替えた新しい配列を返します。
 		/// @param middle 境の位置
 		/// @return 新しい配列
+		/// @throw std::out_of_range `middle` が高さより大きい場合
 		[[nodiscard]]
 		constexpr Grid rotated_rows(size_type middle)&&;
 
@@ -1341,6 +1879,69 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	scaled
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 各要素を縦横に指定した倍率で拡大した新しい二次元配列を返します。
+		/// @param n 拡大倍率
+		/// @return 拡大された新しい二次元配列
+		/// @throw std::invalid_argument `n <= 0` の場合
+		/// @throw std::length_error 拡大後の幅、高さ、または要素数を表現できない場合
+		[[nodiscard]]
+		constexpr Grid scaled(int32 n) const&;
+
+		/// @brief 各要素を縦横に指定した倍率で拡大した新しい二次元配列を返します。
+		/// @param n 拡大倍率
+		/// @return 拡大された新しい二次元配列
+		/// @throw std::invalid_argument `n <= 0` の場合
+		/// @throw std::length_error 拡大後の幅、高さ、または要素数を表現できない場合
+		[[nodiscard]]
+		constexpr Grid scaled(int32 n)&&;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	shift, shifted
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 要素を指定した量だけ移動し、空いた領域を指定した値で埋めます。
+		/// @param dx X 方向の移動量。正の場合は右、負の場合は左に移動します。
+		/// @param dy Y 方向の移動量。正の場合は下、負の場合は上に移動します。
+		/// @param fillValue 空いた領域を埋める値
+		/// @return *this
+		/// @remark 範囲外に移動した要素は破棄されます。
+		constexpr Grid& shift(int32 dx, int32 dy, const value_type& fillValue)& SIV3D_LIFETIMEBOUND;
+
+		/// @brief 要素を指定した量だけ移動し、空いた領域を指定した値で埋めます。
+		/// @param dx X 方向の移動量。正の場合は右、負の場合は左に移動します。
+		/// @param dy Y 方向の移動量。正の場合は下、負の場合は上に移動します。
+		/// @param fillValue 空いた領域を埋める値
+		/// @return 移動後の二次元配列
+		/// @remark 範囲外に移動した要素は破棄されます。
+		[[nodiscard]]
+		constexpr Grid shift(int32 dx, int32 dy, const value_type& fillValue)&&;
+
+		/// @brief 要素を指定した量だけ移動した新しい二次元配列を返します。
+		/// @param dx X 方向の移動量。正の場合は右、負の場合は左に移動します。
+		/// @param dy Y 方向の移動量。正の場合は下、負の場合は上に移動します。
+		/// @param fillValue 空いた領域を埋める値
+		/// @return 移動後の新しい二次元配列
+		/// @remark 範囲外に移動した要素は破棄されます。
+		[[nodiscard]]
+		constexpr Grid shifted(int32 dx, int32 dy, const value_type& fillValue) const&;
+
+		/// @brief 要素を指定した量だけ移動した新しい二次元配列を返します。
+		/// @param dx X 方向の移動量。正の場合は右、負の場合は左に移動します。
+		/// @param dy Y 方向の移動量。正の場合は下、負の場合は上に移動します。
+		/// @param fillValue 空いた領域を埋める値
+		/// @return 移動後の新しい二次元配列
+		/// @remark 範囲外に移動した要素は破棄されます。
+		[[nodiscard]]
+		constexpr Grid shifted(int32 dx, int32 dy, const value_type& fillValue)&&;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	shuffle, shuffled
 		//
 		////////////////////////////////////////////////////////////////
@@ -1365,27 +1966,27 @@ namespace s3d
 		constexpr Grid shuffled()&&;
 
 		/// @brief 指定した乱数エンジンを用いて、配列の要素の並び順をランダムにシャッフルします。
-		/// @param rbg 使用する乱数エンジン
+		/// @param urbg 使用する乱数エンジン
 		/// @return *this
-		constexpr Grid& shuffle(Concept::UniformRandomBitGenerator auto&& rbg)& SIV3D_LIFETIMEBOUND;
+		constexpr Grid& shuffle(Concept::UniformRandomBitGenerator auto&& urbg)& SIV3D_LIFETIMEBOUND;
 
 		/// @brief 指定した乱数エンジンを用いて、配列の要素の並び順をランダムにシャッフルした新しい配列を返します。
-		/// @param rbg 使用する乱数エンジン
+		/// @param urbg 使用する乱数エンジン
 		/// @return 新しい配列
 		[[nodiscard]]
-		constexpr Grid shuffle(Concept::UniformRandomBitGenerator auto&& rbg)&&;
+		constexpr Grid shuffle(Concept::UniformRandomBitGenerator auto&& urbg)&&;
 
 		/// @brief 指定した乱数エンジンを用いて、配列の要素の並び順をランダムにシャッフルした新しい配列を返します。
-		/// @param rbg 使用する乱数エンジン
+		/// @param urbg 使用する乱数エンジン
 		/// @return 新しい配列
 		[[nodiscard]]
-		constexpr Grid shuffled(Concept::UniformRandomBitGenerator auto&& rbg) const&;
+		constexpr Grid shuffled(Concept::UniformRandomBitGenerator auto&& urbg) const&;
 
 		/// @brief 指定した乱数エンジンを用いて、配列の要素の並び順をランダムにシャッフルした新しい配列を返します。
-		/// @param rbg 使用する乱数エンジン
+		/// @param urbg 使用する乱数エンジン
 		/// @return 新しい配列
 		[[nodiscard]]
-		constexpr Grid shuffled(Concept::UniformRandomBitGenerator auto&& rbg)&&;
+		constexpr Grid shuffled(Concept::UniformRandomBitGenerator auto&& urbg)&&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1529,6 +2130,41 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	subgrid
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した領域の要素からなる新しい二次元配列を返します。
+		/// @param pos 領域の左上の位置
+		/// @param size 領域の幅と高さ
+		/// @return 指定した領域の要素からなる新しい二次元配列
+		/// @throw std::invalid_argument 領域の幅または高さが負の場合
+		/// @throw std::out_of_range 指定した領域全体がこの二次元配列に収まらない場合
+		[[nodiscard]]
+		constexpr Grid subgrid(Point pos, Size size) const;
+
+		/// @brief 指定した領域の要素からなる新しい二次元配列を返します。
+		/// @param x 領域の左上の X 座標
+		/// @param y 領域の左上の Y 座標
+		/// @param w 領域の幅
+		/// @param h 領域の高さ
+		/// @return 指定した領域の要素からなる新しい二次元配列
+		/// @throw std::invalid_argument 領域の幅または高さが負の場合
+		/// @throw std::out_of_range 指定した領域全体がこの二次元配列に収まらない場合
+		[[nodiscard]]
+		constexpr Grid subgrid(int32 x, int32 y, int32 w, int32 h) const;
+
+		/// @brief 指定した長方形の要素からなる新しい二次元配列を返します。
+		/// @param rect 領域を表す長方形
+		/// @return 指定した長方形の要素からなる新しい二次元配列
+		/// @throw std::invalid_argument 長方形の幅または高さが負の場合
+		/// @throw std::out_of_range 指定した長方形全体がこの二次元配列に収まらない場合
+		/// @remark この関数を使用するには `<Siv3D/GridRect.hpp>` をインクルードしてください。
+		[[nodiscard]]
+		constexpr Grid subgrid(Rect rect) const;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	sum
 		//
 		////////////////////////////////////////////////////////////////
@@ -1562,7 +2198,10 @@ namespace s3d
 		/// @param a 交換する列のインデックス
 		/// @param b 交換する列のインデックス
 		/// @return *this
-		constexpr Grid& swap_columns(size_type a, size_type b);
+		constexpr Grid& swap_columns(size_type a, size_type b) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid swap_columns(size_type a, size_type b) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1574,7 +2213,10 @@ namespace s3d
 		/// @param a 交換する行のインデックス
 		/// @param b 交換する行のインデックス
 		/// @return *this
-		constexpr Grid& swap_rows(size_type a, size_type b);
+		constexpr Grid& swap_rows(size_type a, size_type b) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr Grid swap_rows(size_type a, size_type b) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1585,6 +2227,7 @@ namespace s3d
 		/// @brief 指定した複数の位置にある要素を配列で取得します。
 		/// @param indices 取得する位置のリスト
 		/// @return 指定した位置にある要素の配列
+		/// @throw std::out_of_range 範囲外の位置が含まれている場合
 		[[nodiscard]]
 		constexpr Array<Type> values_at(std::initializer_list<Point> indices) const;
 		
@@ -1601,7 +2244,8 @@ namespace s3d
 		template <class Fty>
 		[[nodiscard]]
 		isize parallel_count_if(Fty f) const
-			requires std::predicate<Fty&, const value_type&>;
+			requires std::predicate<Fty&, const value_type&>
+				&& detail::GridHasParallelCountIf<const container_type, Fty>;
 		
 		////////////////////////////////////////////////////////////////
 		//
@@ -1614,14 +2258,16 @@ namespace s3d
 		/// @param f 関数
 		template <class Fty>
 		void parallel_each(Fty f)
-			requires std::invocable<Fty&, value_type&>;
+			requires std::invocable<Fty&, value_type&>
+				&& detail::GridHasParallelEach<container_type, Fty>;
 
 		/// @brief すべての要素に対して関数を並列実行します。
 		/// @tparam Fty 関数の型
 		/// @param f 関数
 		template <class Fty>
 		void parallel_each(Fty f) const
-			requires std::invocable<Fty&, const value_type&>;
+			requires std::invocable<Fty&, const value_type&>
+				&& detail::GridHasParallelEach<const container_type, Fty>;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1633,10 +2279,45 @@ namespace s3d
 		/// @tparam Fty 関数の型
 		/// @param f 関数
 		/// @return 新しい配列
+		/// @remark 結果は変換後の要素型と既定アロケータを持ち、元の寸法と要素順序を保ちます。例外は処理の完了を待って呼び出し元へ伝播します。
 		template <class Fty>
 		[[nodiscard]]
 		auto parallel_map(Fty f) const
-			requires std::invocable<Fty&, const value_type&>;
+			requires std::invocable<Fty&, const value_type&>
+				&& detail::GridHasParallelMap<const container_type, Fty>;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Generate
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 関数を用いて二次元配列を生成します。
+		/// @param size 生成する二次元配列の幅と高さ
+		/// @param generator 生成に使用する関数
+		/// @return 生成した二次元配列
+		[[nodiscard]]
+		static constexpr Grid Generate(Size size, FunctionRef<value_type()> generator);
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	IndexedGenerate
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 座標と関数を用いて二次元配列を生成します。
+		/// @param size 生成する二次元配列の幅と高さ
+		/// @param generator 生成に使用する関数。列、行の順で座標 `(x, y)` を受け取ります。
+		/// @return 生成した二次元配列
+		[[nodiscard]]
+		static constexpr Grid IndexedGenerate(Size size, FunctionRef<value_type(int32, int32)> generator);
+
+		/// @brief 座標と関数を用いて二次元配列を生成します。
+		/// @param size 生成する二次元配列の幅と高さ
+		/// @param generator 生成に使用する関数。座標 `Point{ x, y }` を受け取ります。
+		/// @return 生成した二次元配列
+		[[nodiscard]]
+		static constexpr Grid IndexedGenerate(Size size, FunctionRef<value_type(Point)> generator);
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1696,12 +2377,20 @@ namespace s3d
 		/// @brief 2 つの配列を入れ替えます。
 		/// @param lhs 一方の配列
 		/// @param rhs もう一方の配列
-		friend constexpr void swap(Grid& lhs, Grid& rhs) noexcept
+		friend constexpr void swap(Grid& lhs, Grid& rhs) noexcept(noexcept(lhs.swap(rhs)))
 		{
 			lhs.swap(rhs);
 		}
 
 	private:
+
+		template <class, class>
+		friend class Grid;
+
+		struct PreserveStorageTag {};
+
+		constexpr Grid(Size size, container_type&& data, PreserveStorageTag)
+			: m_size{ size }, m_container{ std::move(data) } {}
 
 		Size m_size{ 0, 0 };
 
@@ -1732,11 +2421,47 @@ namespace s3d
 	template <class Type>
 	Grid(std::initializer_list<std::initializer_list<Type>>) -> Grid<Type>;
 	
-	template <class Type>
-	Grid(size_t, size_t, Array<Type>) -> Grid<Type>;
+	template <class Type, class Allocator>
+	Grid(size_t, size_t, Array<Type, Allocator>) -> Grid<Type, Allocator>;
 
-	template <class Type>
-	Grid(Size, Array<Type>) -> Grid<Type>;
+	template <class Type, class Allocator>
+	Grid(Size, Array<Type, Allocator>) -> Grid<Type, Allocator>;
+
+	template <class Generator>
+		requires std::invocable<const Generator&>
+	Grid(size_t, size_t, Arg::generator_<Generator>)
+		-> Grid<std::decay_t<std::invoke_result_t<const Generator&>>>;
+
+	template <class Generator>
+		requires (not std::invocable<const Generator&>
+			&& std::invocable<const Generator&, int32, int32>)
+	Grid(size_t, size_t, Arg::generator_<Generator>)
+		-> Grid<std::decay_t<std::invoke_result_t<const Generator&, int32, int32>>>;
+
+	template <class Generator>
+		requires (not std::invocable<const Generator&>
+			&& not std::invocable<const Generator&, int32, int32>
+			&& std::invocable<const Generator&, Point>)
+	Grid(size_t, size_t, Arg::generator_<Generator>)
+		-> Grid<std::decay_t<std::invoke_result_t<const Generator&, Point>>>;
+
+	template <class Generator>
+		requires std::invocable<const Generator&>
+	Grid(Size, Arg::generator_<Generator>)
+		-> Grid<std::decay_t<std::invoke_result_t<const Generator&>>>;
+
+	template <class Generator>
+		requires (not std::invocable<const Generator&>
+			&& std::invocable<const Generator&, int32, int32>)
+	Grid(Size, Arg::generator_<Generator>)
+		-> Grid<std::decay_t<std::invoke_result_t<const Generator&, int32, int32>>>;
+
+	template <class Generator>
+		requires (not std::invocable<const Generator&>
+			&& not std::invocable<const Generator&, int32, int32>
+			&& std::invocable<const Generator&, Point>)
+	Grid(Size, Arg::generator_<Generator>)
+		-> Grid<std::decay_t<std::invoke_result_t<const Generator&, Point>>>;
 }
 
 # include "detail/Grid.ipp"

@@ -9,100 +9,65 @@
 //
 //-----------------------------------------------
 
-# include <Siv3D/HashSet.hpp>
 # include <Siv3D/LineCap.hpp>
-# include <Siv3D/LineString.hpp>
+# include <Siv3D/MultiPolygon.hpp>
 # include <Siv3D/Geometry2D/BoundingRect.hpp>
+# include <Siv3D/Geometry2D/ConvexHull.hpp>
 # include <Siv3D/Pattern/PatternParameters.hpp>
 # include <Siv3D/Renderer2D/IRenderer2D.hpp>
 # include <Siv3D/Engine/Siv3DEngine.hpp>
 # include "PolygonDetail.hpp"
+# include "GeometryCommon.hpp"
 # include "Triangulate.hpp"
-
-SIV3D_DISABLE_MSVC_WARNINGS_PUSH(4127)
-# include <ThirdParty/boost/geometry/extensions/algorithms/dissolve.hpp>
-SIV3D_DISABLE_MSVC_WARNINGS_POP()
+# include "PolygonParser.hpp"
+# include <Siv3D/LineString/SimplifyLineString.hpp>
 
 namespace s3d
 {
 	namespace
 	{
-		[[nodiscard]]
-		static bool HasDuplicatePoints(const std::span<const Vec2> points)
+		template <class JoinStrategy, class EndStrategy>
+		void BufferPolygon(const PolygonData& polygon, CwOpenMultiPolygon& result,
+			const double distance, const JoinStrategy& joinStrategy, const EndStrategy& endStrategy)
 		{
-			return (HashSet<Vec2>{ points.begin(), points.end() }.size() != points.size());
+			boost::geometry::buffer(detail::ToCwOpenPolygon(polygon.outer, polygon.inners), result,
+				boost::geometry::strategy::buffer::distance_symmetric<double>{ distance },
+				boost::geometry::strategy::buffer::side_straight{},
+				joinStrategy, endStrategy,
+				boost::geometry::strategy::buffer::point_circle{ 0 });
 		}
 
 		[[nodiscard]]
-		static constexpr PolygonFailureType ToPolygonFailureType(const boost::geometry::validity_failure_type failure) noexcept
+		MultiPolygon ToBufferMultiPolygon(const CwOpenMultiPolygon& polygons)
 		{
-			// https://www.boost.org/doc/libs/1_84_0/libs/geometry/doc/html/geometry/reference/enumerations/validity_failure_type.html
-			switch (failure)
+			MultiPolygon result{ Arg::reserve = polygons.size() };
+			for (const auto& polygon : polygons)
 			{
-			case boost::geometry::no_failure:
-				return PolygonFailureType::OK;
-			case boost::geometry::failure_few_points:
-				return PolygonFailureType::FewPoints;
-			case boost::geometry::failure_wrong_topological_dimension:
-				return PolygonFailureType::WrongTopologicalDimension;
-			case boost::geometry::failure_spikes:
-				return PolygonFailureType::Spikes;
-			case boost::geometry::failure_duplicate_points:
-				return PolygonFailureType::DuplicatePoints;
-			case boost::geometry::failure_not_closed:
-				return PolygonFailureType::NotClosed;
-			case boost::geometry::failure_self_intersections:
-				return PolygonFailureType::SelfIntersections;
-			case boost::geometry::failure_wrong_orientation:
-				return PolygonFailureType::WrongOrientation;
-			case boost::geometry::failure_interior_rings_outside:
-				return PolygonFailureType::InteriorRingsOutside;
-			case boost::geometry::failure_nested_interior_rings:
-				return PolygonFailureType::NestedInteriorRings;
-			case boost::geometry::failure_disconnected_interior:
-				return PolygonFailureType::DisconnectedInterior;
-			case boost::geometry::failure_intersecting_interiors:
-				return PolygonFailureType::IntersectingInteriors;
-			case boost::geometry::failure_wrong_corner_order:
-				return PolygonFailureType::WrongCornerOrder;
-			case boost::geometry::failure_invalid_coordinate:
-				return PolygonFailureType::InvalidCoordinate;
-			default:
-				return PolygonFailureType::Unknown;
-			}
-		}
-
-		[[nodiscard]]
-		static CwOpenPolygon MakeCWOpenPolygon(const std::span<const Vec2> outerVertices, const Array<Array<Vec2>>& holes)
-		{
-			CwOpenPolygon polygon;
-
-			auto& outer = polygon.outer();
-			{
-				outer.assign_range(outerVertices);
-
-				polygon.inners().reserve(holes.size());
-
-				for (const auto& hole : holes)
+				Polygon component = detail::ToPolygon(polygon);
+				if (not component)
 				{
-					polygon.inners().emplace_back(hole.begin(), hole.end());
+					return{}; // Do not return a partial buffer if construction fails.
 				}
+				result.push_back(std::move(component));
 			}
-
-			return polygon;
+			return result;
 		}
 
 		[[nodiscard]]
-		static CwOpenPolygon MakeCWOpenPolygon(const std::span<const Float2> outerVertices)
+		static PolygonData MakePolygonData(const std::span<const Vec2> outerVertices, Array<Array<Vec2>> holes)
 		{
-			CwOpenPolygon polygon;
+			PolygonData polygonData;
+			polygonData.outer.assign(outerVertices.begin(), outerVertices.end());
+			polygonData.inners = std::move(holes);
+			return polygonData;
+		}
 
-			auto& outer = polygon.outer();
-			{
-				outer.assign(outerVertices.begin(), outerVertices.end());
-			}
-
-			return polygon;
+		[[nodiscard]]
+		static PolygonData MakePolygonData(const std::span<const Float2> outerVertices)
+		{
+			PolygonData polygonData;
+			polygonData.outer.assign(outerVertices.begin(), outerVertices.end());
+			return polygonData;
 		}
 
 		[[nodiscard]]
@@ -134,75 +99,116 @@ namespace s3d
 		}
 
 		[[nodiscard]]
-		static PolygonFailureType ValidatePolygon(const CwOpenPolygon& polygon)
+		static RectF NormalizeScaledBounds(RectF bounds) noexcept
 		{
-			boost::geometry::validity_failure_type failure = boost::geometry::no_failure;
-
-			if (boost::geometry::is_valid(polygon, failure))
+			if (bounds.w < 0.0)
 			{
-				// 非連続な頂点どうしの重複は boost::geometry::is_valid() で取得できないので、HasDuplicatePoints() でチェック
-				if (HasDuplicatePoints(polygon.outer()))
-				{
-					return PolygonFailureType::DuplicatePoints;
-				}
-
-				for (const auto& inner : polygon.inners())
-				{
-					if (inner.size() < 3)
-					{
-						return PolygonFailureType::FewPoints;
-					}
-
-					if (HasDuplicatePoints(inner))
-					{
-						return PolygonFailureType::DuplicatePoints;
-					}
-				}
+				bounds.x += bounds.w;
+				bounds.w = -bounds.w;
 			}
-
-			return ToPolygonFailureType(failure);
+			if (bounds.h < 0.0)
+			{
+				bounds.y += bounds.h;
+				bounds.h = -bounds.h;
+			}
+			return bounds;
 		}
 
-		/// @brief 三角形の面積の 2 倍を計算します。
-		/// @param p0 頂点 0
-		/// @param p1 頂点 1
-		/// @param p2 頂点 2
-		/// @return 三角形の面積の 2 倍
+		void ReverseWindingIfReflected(PolygonData& polygon, Array<TriangleIndex>& indices, const Vec2 scale) noexcept
+		{
+			if (not (((scale.x < 0.0) && (0.0 < scale.y))
+				|| ((0.0 < scale.x) && (scale.y < 0.0))))
+			{
+				return;
+			}
+
+			auto ReverseRing = [](Array<Vec2>& ring)
+			{
+				if (1 < ring.size())
+				{
+					std::reverse((ring.begin() + 1), ring.end());
+				}
+			};
+			ReverseRing(polygon.outer);
+			for (auto& inner : polygon.inners)
+			{
+				ReverseRing(inner);
+			}
+			for (auto& triangle : indices)
+			{
+				triangle.flip();
+			}
+		}
+
+		struct PolygonIntegral
+		{
+			double area2x = 0.0;
+			Vec2 moment6x{ 0, 0 };
+		};
+
+		// 各輪郭の先頭を原点にして積分する。穴の小さな面積も、外周からの距離に依存せず計算する。
+		template <bool ComputeCentroid>
 		[[nodiscard]]
-		static constexpr double TriangleArea2x(const Float2& p0, const Float2& p1, const Float2& p2) noexcept
+		static PolygonIntegral IntegrateRing(const std::span<const Vec2> ring) noexcept
 		{
-			return Abs((p0.x - p2.x) * (p1.y - p0.y) - (p0.x - p1.x) * (p2.y - p0.y));
-		}
-	}
-
-	namespace detail
-	{
-		Polygon ToPolygon(const CwOpenPolygon& polygon)
-		{
-			std::span<const Vec2> outer = polygon.outer();
-
-			if ((2 < outer.size()) && (outer.front() == outer.back()))
+			if (ring.size() < 3)
 			{
-				outer = outer.subspan(0, (outer.size() - 1));
+				return {};
 			}
 
-			const auto& inners = polygon.inners();
+			const Vec2 reference = ring.front();
+			Vec2 a = (ring[1] - reference);
+			KahanSummation<double> area2x, momentX, momentY;
 
-			Array<Array<Vec2>> holes(inners.size());
-
-			for (size_t i = 0; i < holes.size(); ++i)
+			for (size_t i = 2; i < ring.size(); ++i)
 			{
-				std::span<const Vec2> inner = inners[i];
+				const Vec2 b = (ring[i] - reference);
+				const double cross = a.cross(b);
+				area2x += cross;
 
-				if ((2 < inner.size()) && (inner.front() == inner.back()))
+				if constexpr (ComputeCentroid)
 				{
-					inner = inner.subspan(0, (inner.size() - 1));
+					momentX += ((a.x + b.x) * cross);
+					momentY += ((a.y + b.y) * cross);
 				}
 
-				holes[i].assign(inner.rbegin(), inner.rend());
+				a = b;
 			}
 
-			return Polygon{ outer, std::move(holes), SkipValidation::Yes };
+			return { area2x.value(), { momentX.value(), momentY.value() } };
+		}
+
+		template <bool ComputeCentroid, class InnerRings>
+		[[nodiscard]]
+		static PolygonIntegral IntegratePolygon(const std::span<const Vec2> outer, const InnerRings& holes) noexcept
+		{
+			const auto outerIntegral = IntegrateRing<ComputeCentroid>(outer);
+			KahanSummation<double> area2x{ outerIntegral.area2x };
+			KahanSummation<double> momentX{ outerIntegral.moment6x.x };
+			KahanSummation<double> momentY{ outerIntegral.moment6x.y };
+
+			for (const auto& hole : holes)
+			{
+				const auto integral = IntegrateRing<ComputeCentroid>(hole);
+				area2x += integral.area2x;
+
+				if constexpr (ComputeCentroid)
+				{
+					// 穴のモーメントを外周と同じ原点へ移す。穴の符号は外周と逆になる。
+					const Vec2 offset = (hole.front() - outer.front());
+					momentX += (integral.moment6x.x + (3.0 * integral.area2x * offset.x));
+					momentY += (integral.moment6x.y + (3.0 * integral.area2x * offset.y));
+				}
+			}
+
+			return { area2x.value(), { momentX.value(), momentY.value() } };
+		}
+
+		template <class InnerRings>
+		[[nodiscard]]
+		static double PolygonArea(const std::span<const Vec2> outer, const InnerRings& holes) noexcept
+		{
+			return (Abs(IntegratePolygon<false>(outer, holes).area2x) * 0.5);
 		}
 	}
 
@@ -214,63 +220,49 @@ namespace s3d
 
 	Polygon::PolygonDetail::PolygonDetail(const std::span<const Vec2> outer, Array<Array<Vec2>> holes, const SkipValidation skipValidation)
 	{
-		CwOpenPolygon polygon = MakeCWOpenPolygon(outer, holes);
-
-		if (not skipValidation)
+		if (initialize(outer, std::move(holes), skipValidation))
 		{
-			if (ValidatePolygon(polygon) != PolygonFailureType::OK)
-			{
-				return;
-			}
+			m_boundingRect = Geometry2D::BoundingRect(m_polygon.outer);
 		}
-
-		if (not Triangulate(outer, holes, m_indices))
-		{
-			return;
-		}
-
-		m_polygon		= std::move(polygon);
-
-		m_vertices		= MakeVertices(outer, holes);
-
-		m_holes			= std::move(holes);
-
-		m_boundingRect	= Geometry2D::BoundingRect(outer);
 	}
 
 	Polygon::PolygonDetail::PolygonDetail(const std::span<const Vec2> outer, Array<Array<Vec2>> holes, const RectF& boundingRect, const SkipValidation skipValidation)
 	{
-		CwOpenPolygon polygon = MakeCWOpenPolygon(outer, holes);
+		if (initialize(outer, std::move(holes), skipValidation))
+		{
+			m_boundingRect = boundingRect;
+		}
+	}
+
+	bool Polygon::PolygonDetail::initialize(const std::span<const Vec2> outer, Array<Array<Vec2>> holes, const SkipValidation skipValidation)
+	{
+		auto polygon = MakePolygonData(outer, std::move(holes));
 
 		if (not skipValidation)
 		{
-			if (ValidatePolygon(polygon) != PolygonFailureType::OK)
+			if (detail::ValidatePolygon(polygon.outer, polygon.inners) != PolygonFailureType::Ok)
 			{
-				return;
+				return false;
 			}
 		}
 
-		if (not Triangulate(outer, holes, m_indices))
+		if (not Triangulate(polygon.outer, polygon.inners, m_indices))
 		{
-			return;
+			return false;
 		}
 
-		m_polygon		= std::move(polygon);
-
-		m_vertices		= MakeVertices(outer, holes);
-
-		m_holes			= std::move(holes);
-
-		m_boundingRect	= boundingRect;
+		m_vertices = MakeVertices(polygon.outer, polygon.inners);
+		m_polygon = std::move(polygon);
+		return true;
 	}
 
 	Polygon::PolygonDetail::PolygonDetail(const std::span<const Vec2> outer, Array<TriangleIndex> indices, const RectF& boundingRect, const SkipValidation skipValidation)
 	{
-		CwOpenPolygon polygon = MakeCWOpenPolygon(outer, {});
+		auto polygon = MakePolygonData(outer, {});
 
 		if (not skipValidation)
 		{
-			if (ValidatePolygon(polygon) != PolygonFailureType::OK)
+			if (detail::ValidatePolygon(polygon.outer, polygon.inners) != PolygonFailureType::Ok)
 			{
 				return;
 			}
@@ -287,11 +279,11 @@ namespace s3d
 
 	Polygon::PolygonDetail::PolygonDetail(const std::span<const Vec2> outer, Array<Array<Vec2>> holes, Array<Float2> vertices, Array<TriangleIndex> indices, const RectF& boundingRect, const SkipValidation skipValidation)
 	{
-		CwOpenPolygon polygon = MakeCWOpenPolygon(outer, holes);
+		auto polygon = MakePolygonData(outer, std::move(holes));
 
 		if (not skipValidation)
 		{
-			if (ValidatePolygon(polygon) != PolygonFailureType::OK)
+			if (detail::ValidatePolygon(polygon.outer, polygon.inners) != PolygonFailureType::Ok)
 			{
 				return;
 			}
@@ -303,14 +295,12 @@ namespace s3d
 
 		m_vertices		= std::move(vertices);
 
-		m_holes			= std::move(holes);
-
 		m_boundingRect	= boundingRect;
 	}
 
-	Polygon::PolygonDetail::PolygonDetail(const std::span<const Float2> outer, Array<TriangleIndex> indices)
+	Polygon::PolygonDetail::PolygonDetail(const std::span<const Float2> outer, Array<TriangleIndex> indices, const RectF& boundingRect)
 	{
-		CwOpenPolygon polygon	= MakeCWOpenPolygon(outer);
+		auto polygon = MakePolygonData(outer);
 
 		m_indices				= std::move(indices);
 
@@ -318,7 +308,7 @@ namespace s3d
 
 		m_vertices.assign_range(outer);
 
-		m_boundingRect			= Geometry2D::BoundingRect(outer);
+		m_boundingRect			= boundingRect;
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -329,7 +319,7 @@ namespace s3d
 
 	bool Polygon::PolygonDetail::isEmpty() const noexcept
 	{
-		return m_polygon.outer().empty();
+		return m_polygon.outer.empty();
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -340,7 +330,7 @@ namespace s3d
 
 	const Array<Vec2>& Polygon::PolygonDetail::outer() const noexcept
 	{
-		return m_polygon.outer();
+		return m_polygon.outer;
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -351,7 +341,7 @@ namespace s3d
 
 	const Array<Array<Vec2>>& Polygon::PolygonDetail::inners() const noexcept
 	{
-		return m_holes;
+		return m_polygon.inners;
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -389,18 +379,6 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getBoostPolygon
-	//
-	////////////////////////////////////////////////////////////////
-
-	const CwOpenPolygon& Polygon::PolygonDetail::getBoostPolygon() const noexcept
-	{
-		return m_polygon;
-	}
-
-
-	////////////////////////////////////////////////////////////////
-	//
 	//	moveBy
 	//
 	////////////////////////////////////////////////////////////////
@@ -413,25 +391,17 @@ namespace s3d
 		}
 
 		{
-			for (auto& point : m_polygon.outer())
+			for (auto& point : m_polygon.outer)
 			{
 				point.moveBy(v);
 			}
 
-			for (auto& inner : m_polygon.inners())
+			for (auto& inner : m_polygon.inners)
 			{
 				for (auto& point : inner)
 				{
 					point.moveBy(v);
 				}
-			}
-		}
-
-		for (auto& hole : m_holes)
-		{
-			for (auto& point : hole)
-			{
-				point.moveBy(v);
 			}
 		}
 
@@ -462,14 +432,14 @@ namespace s3d
 
 		if (not pos.isZero())
 		{
-			for (auto& point : m_polygon.outer())
+			for (auto& point : m_polygon.outer)
 			{
 				point -= pos;
 			}
 
-			for (auto& hole : m_polygon.inners())
+			for (auto& inner : m_polygon.inners)
 			{
-				for (auto& point : hole)
+				for (auto& point : inner)
 				{
 					point -= pos;
 				}
@@ -486,16 +456,16 @@ namespace s3d
 		const double s = std::sin(angle);
 		const double c = std::cos(angle);
 
-		for (auto& point : m_polygon.outer())
+		for (auto& point : m_polygon.outer)
 		{
 			const double x = (point.x * c - point.y * s);
 			const double y = (point.x * s + point.y * c);
 			point.set(x, y);
 		}
 
-		for (auto& hole : m_polygon.inners())
+		for (auto& inner : m_polygon.inners)
 		{
-			for (auto& point : hole)
+			for (auto& point : inner)
 			{
 				const double x = (point.x * c - point.y * s);
 				const double y = (point.x * s + point.y * c);
@@ -515,14 +485,14 @@ namespace s3d
 
 		if (not pos.isZero())
 		{
-			for (auto& point : m_polygon.outer())
+			for (auto& point : m_polygon.outer)
 			{
 				point += pos;
 			}
 
-			for (auto& hole : m_polygon.inners())
+			for (auto& inner : m_polygon.inners)
 			{
-				for (auto& point : hole)
+				for (auto& point : inner)
 				{
 					point += pos;
 				}
@@ -534,14 +504,6 @@ namespace s3d
 			{
 				vertex += posF;
 			}
-		}
-
-		m_holes.clear();
-
-		for (auto& hole : m_polygon.inners())
-		{
-			m_holes.emplace_back();
-			m_holes.back().insert(m_holes.back().end(), hole.begin(), hole.end());
 		}
 
 		m_boundingRect = Geometry2D::BoundingRect(outer());
@@ -560,16 +522,16 @@ namespace s3d
 			return;
 		}
 
-		for (auto& point : m_polygon.outer())
+		for (auto& point : m_polygon.outer)
 		{
 			const double x = (point.x * c - point.y * s + pos.x);
 			const double y = (point.x * s + point.y * c + pos.y);
 			point.set(x, y);
 		}
 
-		for (auto& hole : m_polygon.inners())
+		for (auto& inner : m_polygon.inners)
 		{
-			for (auto& point : hole)
+			for (auto& point : inner)
 			{
 				const double x = (point.x * c - point.y * s + pos.x);
 				const double y = (point.x * s + point.y * c + pos.y);
@@ -589,14 +551,6 @@ namespace s3d
 			vertex.set(x, y);
 		}
 
-		m_holes.clear();
-
-		for (auto& hole : m_polygon.inners())
-		{
-			m_holes.emplace_back();
-			m_holes.back().insert(m_holes.back().end(), hole.begin(), hole.end());
-		}
-
 		m_boundingRect = Geometry2D::BoundingRect(outer());
 	}
 
@@ -613,22 +567,14 @@ namespace s3d
 			return;
 		}
 
-		for (auto& point : m_polygon.outer())
+		for (auto& point : m_polygon.outer)
 		{
 			point *= s;
 		}
 
-		for (auto& hole : m_polygon.inners())
+		for (auto& inner : m_polygon.inners)
 		{
-			for (auto& point : hole)
-			{
-				point *= s;
-			}
-		}
-
-		for (auto& hole : m_holes)
-		{
-			for (auto& point : hole)
+			for (auto& point : inner)
 			{
 				point *= s;
 			}
@@ -641,7 +587,7 @@ namespace s3d
 			point *= sf;
 		}
 
-		m_boundingRect = m_boundingRect.scaledFrom(Vec2{ 0, 0 }, s);
+		m_boundingRect = NormalizeScaledBounds(m_boundingRect.scaledFrom(Vec2{ 0, 0 }, s));
 	}
 
 	void Polygon::PolygonDetail::scaleFromOrigin(const Vec2 s)
@@ -651,35 +597,28 @@ namespace s3d
 			return;
 		}
 		
-		for (auto& point : m_polygon.outer())
+		for (auto& point : m_polygon.outer)
 		{
 			point *= s;
 		}
 		
-		for (auto& hole : m_polygon.inners())
+		for (auto& inner : m_polygon.inners)
 		{
-			for (auto& point : hole)
+			for (auto& point : inner)
 			{
 				point *= s;
 			}
 		}
-		
-		for (auto& hole : m_holes)
-		{
-			for (auto& point : hole)
-			{
-				point *= s;
-			}
-		}
-		
+
 		const Float2 sf = s;
 		
 		for (auto& point : m_vertices)
 		{
 			point *= sf;
 		}
-		
-		m_boundingRect = m_boundingRect.scaledFrom(Vec2{ 0, 0 }, s);
+
+		ReverseWindingIfReflected(m_polygon, m_indices, s);
+		m_boundingRect = NormalizeScaledBounds(m_boundingRect.scaledFrom(Vec2{ 0, 0 }, s));
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -695,22 +634,14 @@ namespace s3d
 			return;
 		}
 
-		for (auto& point : m_polygon.outer())
+		for (auto& point : m_polygon.outer)
 		{
 			point = (pos + (point - pos) * s);
 		}
 
-		for (auto& hole : m_polygon.inners())
+		for (auto& inner : m_polygon.inners)
 		{
-			for (auto& point : hole)
-			{
-				point = (pos + (point - pos) * s);
-			}
-		}
-
-		for (auto& hole : m_holes)
-		{
-			for (auto& point : hole)
+			for (auto& point : inner)
 			{
 				point = (pos + (point - pos) * s);
 			}
@@ -724,7 +655,7 @@ namespace s3d
 			point = (posF + (point - posF) * sf);
 		}
 
-		m_boundingRect = m_boundingRect.scaledFrom(pos, s);
+		m_boundingRect = NormalizeScaledBounds(m_boundingRect.scaledFrom(pos, s));
 	}
 
 	void Polygon::PolygonDetail::scaleFrom(const Vec2 pos, const Vec2 s)
@@ -734,27 +665,19 @@ namespace s3d
 			return;
 		}
 		
-		for (auto& point : m_polygon.outer())
+		for (auto& point : m_polygon.outer)
 		{
 			point = (pos + (point - pos) * s);
 		}
 		
-		for (auto& hole : m_polygon.inners())
+		for (auto& inner : m_polygon.inners)
 		{
-			for (auto& point : hole)
+			for (auto& point : inner)
 			{
 				point = (pos + (point - pos) * s);
 			}
 		}
-		
-		for (auto& hole : m_holes)
-		{
-			for (auto& point : hole)
-			{
-				point = (pos + (point - pos) * s);
-			}
-		}
-		
+	
 		const Float2 sf = s;
 		const Float2 posF{ pos };
 		
@@ -762,8 +685,9 @@ namespace s3d
 		{
 			point = (posF + (point - posF) * sf);
 		}
-		
-		m_boundingRect = m_boundingRect.scaledFrom(pos, s);
+
+		ReverseWindingIfReflected(m_polygon, m_indices, s);
+		m_boundingRect = NormalizeScaledBounds(m_boundingRect.scaledFrom(pos, s));
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -774,19 +698,7 @@ namespace s3d
 
 	double Polygon::PolygonDetail::area() const noexcept
 	{
-		const TriangleIndex* pIndex = m_indices.data();
-		const TriangleIndex* const pIndexEnd = (pIndex + m_indices.size());
-		const Float2* pVertex = m_vertices.data();
-
-		double result = 0.0;
-
-		while (pIndex != pIndexEnd)
-		{
-			result += TriangleArea2x(pVertex[pIndex->i0], pVertex[pIndex->i1], pVertex[pIndex->i2]);
-			++pIndex;
-		}
-
-		return (result * 0.5);
+		return PolygonArea(m_polygon.outer, m_polygon.inners);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -797,11 +709,11 @@ namespace s3d
 
 	double Polygon::PolygonDetail::perimeter() const noexcept
 	{
-		double result = 0.0;
+		KahanSummation<double> result;
 
 		// 外周の長さ
 		{
-			const auto& outer = m_polygon.outer();
+			const auto& outer = m_polygon.outer;
 			
 			if (const size_t num_outer = outer.size())
 			{
@@ -817,7 +729,7 @@ namespace s3d
 		}
 
 		// 各穴の周の長さ
-		for (const auto& inner : m_polygon.inners())
+		for (const auto& inner : m_polygon.inners)
 		{
 			if (const size_t num_inner = inner.size())
 			{
@@ -832,7 +744,7 @@ namespace s3d
 			}
 		}
 
-		return result;
+		return result.value();
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -841,18 +753,23 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	Vec2 Polygon::PolygonDetail::centroid() const
+	Optional<PolygonCentroidResult> Polygon::PolygonDetail::centroid() const
 	{
-		if (outer().isEmpty())
+		if (m_polygon.outer.empty())
 		{
-			return{ 0, 0 };
+			return none;
 		}
 
-		Vec2 centroid;
+		const auto integral = IntegratePolygon<true>(m_polygon.outer, m_polygon.inners);
+		if (integral.area2x == 0.0)
+		{
+			return none;
+		}
 
-		boost::geometry::centroid(m_polygon, centroid);
-
-		return centroid;
+		return PolygonCentroidResult{
+			.centroid = (m_polygon.outer.front() + (integral.moment6x / (3.0 * integral.area2x))),
+			.area = (Abs(integral.area2x) * 0.5)
+		};
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -863,29 +780,21 @@ namespace s3d
 
 	Polygon Polygon::PolygonDetail::computeConvexHull() const
 	{
-		CWOpenRing result;
-
-		boost::geometry::convex_hull(m_polygon.outer(), result);
-
-		return Polygon{ result, m_boundingRect, SkipValidation::Yes };
+		return Geometry2D::ConvexHull(m_polygon.outer);
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	calculateBuffer
+	//	computeMiterBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon Polygon::PolygonDetail::calculateBuffer(const double distance) const
+	Polygon Polygon::PolygonDetail::computeMiterBufferPolygon(const double distance) const
 	{
-		boost::geometry::model::multi_polygon<CwOpenPolygon> multiPolygon;
-
-		boost::geometry::buffer(m_polygon, multiPolygon,
-			boost::geometry::strategy::buffer::distance_symmetric<double>{ distance },
-			boost::geometry::strategy::buffer::side_straight{},
+		CwOpenMultiPolygon multiPolygon;
+		BufferPolygon(m_polygon, multiPolygon, distance,
 			boost::geometry::strategy::buffer::join_miter{},
-			boost::geometry::strategy::buffer::end_round{},
-			boost::geometry::strategy::buffer::point_circle{ 0 });
+			boost::geometry::strategy::buffer::end_flat{});
 
 		if (multiPolygon.size() != 1)
 		{
@@ -897,20 +806,16 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	calculateRoundBuffer
+	//	computeRoundBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon Polygon::PolygonDetail::calculateRoundBuffer(const double distance, const QualityFactor& qualityFactor) const
+	Polygon Polygon::PolygonDetail::computeRoundBufferPolygon(const double distance, const QualityFactor& qualityFactor) const
 	{
-		boost::geometry::model::multi_polygon<CwOpenPolygon> multiPolygon;
-
-		boost::geometry::buffer(m_polygon, multiPolygon,
-			boost::geometry::strategy::buffer::distance_symmetric<double>{ distance },
-			boost::geometry::strategy::buffer::side_straight{},
-			boost::geometry::strategy::buffer::join_round{ detail::CalculateCircleQuality(distance * qualityFactor.value()) },
-			boost::geometry::strategy::buffer::end_round{},
-			boost::geometry::strategy::buffer::point_circle{ 0 });
+		CwOpenMultiPolygon multiPolygon;
+		BufferPolygon(m_polygon, multiPolygon, distance,
+			boost::geometry::strategy::buffer::join_round{ detail::CalculateCircleQuality(Abs(distance) * qualityFactor.value()) },
+			boost::geometry::strategy::buffer::end_round{});
 
 		if (multiPolygon.size() != 1)
 		{
@@ -918,6 +823,36 @@ namespace s3d
 		}
 
 		return detail::ToPolygon(multiPolygon.front());
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	computeMiterBufferMultiPolygon
+	//
+	////////////////////////////////////////////////////////////////
+
+	MultiPolygon Polygon::PolygonDetail::computeMiterBufferMultiPolygon(const double distance) const
+	{
+		CwOpenMultiPolygon multiPolygon;
+		BufferPolygon(m_polygon, multiPolygon, distance,
+			boost::geometry::strategy::buffer::join_miter{},
+			boost::geometry::strategy::buffer::end_flat{});
+		return ToBufferMultiPolygon(multiPolygon);
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	computeRoundBufferMultiPolygon
+	//
+	////////////////////////////////////////////////////////////////
+
+	MultiPolygon Polygon::PolygonDetail::computeRoundBufferMultiPolygon(const double distance, const QualityFactor& qualityFactor) const
+	{
+		CwOpenMultiPolygon multiPolygon;
+		BufferPolygon(m_polygon, multiPolygon, distance,
+			boost::geometry::strategy::buffer::join_round{ detail::CalculateCircleQuality(Abs(distance) * qualityFactor.value()) },
+			boost::geometry::strategy::buffer::end_round{});
+		return ToBufferMultiPolygon(multiPolygon);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -926,22 +861,90 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon Polygon::PolygonDetail::simplified(const double maxDistance) const
+	Optional<PolygonData> Polygon::PolygonDetail::simplified(const double maxDistance) const
 	{
-		if (not m_polygon.outer())
+		struct RingChange
 		{
-			return{};
+			size_t index; // 0: outer, 1...: holes
+			Array<Vec2> vertices;
+		};
+		Array<RingChange> changes;
+		Array<Vec2> simplified;
+		Array<size_t> pendingEnds;
+		auto SimplifyRing = [&](const std::span<const Vec2> ring, const size_t index)
+		{
+			if (ring.size() <= 3)
+			{
+				return;
+			}
+			detail::SimplifyLineString(ring, maxDistance, CloseRing::Yes, simplified, pendingEnds);
+			// Preserve every ring, including holes smaller than the tolerance.
+			if ((3 <= simplified.size()) && (simplified.size() < ring.size()))
+			{
+				changes.push_back({ index, std::move(simplified) });
+			}
+		};
+		SimplifyRing(m_polygon.outer, 0);
+		for (size_t i = 0; i < m_polygon.inners.size(); ++i)
+		{
+			SimplifyRing(m_polygon.inners[i], (i + 1));
+		}
+		if (changes.isEmpty())
+		{
+			return none;
 		}
 
-		CwOpenPolygon result;
-		boost::geometry::simplify(m_polygon, result, maxDistance);
-
-		if (result.outer().empty())
+		// Reuse one converted geometry for all topology checks. Swapping a batch
+		// back restores the accepted geometry.
+		auto polygon = detail::ToCwOpenPolygon(m_polygon.outer, m_polygon.inners);
+		auto SwapChanges = [&](const size_t begin, const size_t end)
 		{
-			return{};
+			for (size_t i = begin; i < end; ++i)
+			{
+				auto& change = changes[i];
+				Array<Vec2>& ring = ((change.index == 0)
+					? static_cast<Array<Vec2>&>(polygon.outer())
+					: static_cast<Array<Vec2>&>(polygon.inners()[change.index - 1]));
+				ring.swap(change.vertices);
+			}
+		};
+
+		Array<std::pair<size_t, size_t>> batches{ { 0, changes.size() } };
+		bool changed = false;
+		while (not batches.isEmpty())
+		{
+			const auto [begin, end] = batches.back();
+			batches.pop_back();
+			SwapChanges(begin, end);
+			if (detail::ValidatePolygon(polygon) == PolygonFailureType::Ok)
+			{
+				changed = true;
+				continue;
+			}
+			SwapChanges(begin, end);
+			if ((end - begin) == 1)
+			{
+				continue;
+			}
+			// Isolate conflicting rings while accepting safe groups together.
+			// Process in source order for a deterministic result.
+			const size_t middle = (begin + (end - begin) / 2);
+			batches.emplace_back(middle, end);
+			batches.emplace_back(begin, middle);
+		}
+		if (not changed)
+		{
+			return none;
 		}
 
-		return detail::ToPolygon(result);
+		PolygonData result;
+		result.outer = std::move(polygon.outer());
+		result.inners.reserve(polygon.inners().size());
+		for (auto& hole : polygon.inners())
+		{
+			result.inners.emplace_back(std::move(hole));
+		}
+		return result;
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -956,37 +959,15 @@ namespace s3d
 
 		Array<CwOpenPolygon> results;
 
-		boost::geometry::union_(m_polygon, box, results);
+		boost::geometry::union_(detail::ToCwOpenPolygon(m_polygon.outer, m_polygon.inners), box, results);
 
 		if (results.size() != 1)
 		{
 			return false;
 		}
 
-		auto& outer = results[0].outer();
-
-		if ((2 < outer.size())
-			&& (outer.front() == outer.back()))
-		{
-			outer.pop_back();
-		}
-
-		Array<Array<Vec2>> holes;
-
-		const auto& result = results[0];
-
-		if (const size_t num_holes = result.inners().size())
-		{
-			holes.resize(num_holes);
-
-			for (size_t i = 0; i < num_holes; ++i)
-			{
-				const auto& resultHole = result.inners()[i];
-				holes[i].assign(resultHole.begin(), resultHole.end());
-			}
-		}
-
-		*this = PolygonDetail{ outer, holes, SkipValidation::Yes };
+		const auto& result = results.front();
+		*this = PolygonDetail{ detail::OpenRingView(result.outer()), detail::CopyPolygonHoles(result), SkipValidation::Yes };
 
 		return true;
 	}
@@ -995,244 +976,17 @@ namespace s3d
 	{
 		Array<CwOpenPolygon> results;
 
-		boost::geometry::union_(m_polygon, other._detail()->getBoostPolygon(), results);
+		boost::geometry::union_(detail::ToCwOpenPolygon(m_polygon.outer, m_polygon.inners), detail::ToCwOpenPolygon(other), results);
 
 		if (results.size() != 1)
 		{
 			return false;
 		}
 
-		auto& outer = results[0].outer();
-
-		if ((2 < outer.size())
-			&& (outer.front() == outer.back()))
-		{
-			outer.pop_back();
-		}
-
-		Array<Array<Vec2>> holes;
-
-		const auto& result = results[0];
-
-		if (const size_t num_holes = result.inners().size())
-		{
-			holes.resize(num_holes);
-
-			for (size_t i = 0; i < num_holes; ++i)
-			{
-				const auto& resultHole = result.inners()[i];
-				holes[i].assign(resultHole.begin(), resultHole.end());
-			}
-		}
-
-		*this = PolygonDetail{ outer, holes, SkipValidation::Yes };
+		const auto& result = results.front();
+		*this = PolygonDetail{ detail::OpenRingView(result.outer()), detail::CopyPolygonHoles(result), SkipValidation::Yes };
 
 		return true;
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	intersects
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool Polygon::PolygonDetail::intersects(const Vec2& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other, m_boundingRect))
-		{
-			return false;
-		}
-
-		const Float2* pVertex = m_vertices.data();
-
-		for (const auto& triangleIndex : m_indices)
-		{
-			const Triangle triangle{ pVertex[triangleIndex.i0], pVertex[triangleIndex.i1], pVertex[triangleIndex.i2] };
-
-			if (Geometry2D::Intersect(other, triangle))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool Polygon::PolygonDetail::intersects(const Line& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other, m_boundingRect))
-		{
-			return false;
-		}
-
-		const Float2* pVertex = m_vertices.data();
-
-		for (const auto& triangleIndex : m_indices)
-		{
-			const Triangle triangle{ pVertex[triangleIndex.i0], pVertex[triangleIndex.i1], pVertex[triangleIndex.i2] };
-
-			if (Geometry2D::Intersect(other, triangle))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool Polygon::PolygonDetail::intersects(const RectF& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other, m_boundingRect))
-		{
-			return false;
-		}
-
-		const boost::geometry::model::box<Vec2> box{ other.pos, other.br() };
-
-		return boost::geometry::intersects(m_polygon, box);
-	}
-
-	bool Polygon::PolygonDetail::intersects(const Circle& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other, m_boundingRect))
-		{
-			return false;
-		}
-
-		const Float2* pVertex = m_vertices.data();
-
-		for (const auto& triangleIndex : m_indices)
-		{
-			const Triangle triangle{ pVertex[triangleIndex.i0], pVertex[triangleIndex.i1], pVertex[triangleIndex.i2] };
-
-			if (Geometry2D::Intersect(other, triangle))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool Polygon::PolygonDetail::intersects(const Ellipse& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other, m_boundingRect))
-		{
-			return false;
-		}
-
-		const Float2* pVertex = m_vertices.data();
-
-		for (const auto& triangleIndex : m_indices)
-		{
-			const Triangle triangle{ pVertex[triangleIndex.i0], pVertex[triangleIndex.i1], pVertex[triangleIndex.i2] };
-
-			if (Geometry2D::Intersect(other, triangle))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool Polygon::PolygonDetail::intersects(const Triangle& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other, m_boundingRect))
-		{
-			return false;
-		}
-
-		const Float2* pVertex = m_vertices.data();
-
-		for (const auto& triangleIndex : m_indices)
-		{
-			const Triangle triangle{ pVertex[triangleIndex.i0], pVertex[triangleIndex.i1], pVertex[triangleIndex.i2] };
-
-			if (Geometry2D::Intersect(other, triangle))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool Polygon::PolygonDetail::intersects(const Quad& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other, m_boundingRect))
-		{
-			return false;
-		}
-
-		const Float2* pVertex = m_vertices.data();
-
-		for (const auto& triangleIndex : m_indices)
-		{
-			const Triangle triangle{ pVertex[triangleIndex.i0], pVertex[triangleIndex.i1], pVertex[triangleIndex.i2] };
-
-			if (Geometry2D::Intersect(other, triangle))
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool Polygon::PolygonDetail::intersects(const PolygonDetail& other) const
-	{
-		if (isEmpty())
-		{
-			return false;
-		}
-
-		if (other.isEmpty())
-		{
-			return false;
-		}
-
-		if (not Geometry2D::Intersect(other.m_boundingRect, m_boundingRect))
-		{
-			return false;
-		}
-
-		return boost::geometry::intersects(m_polygon, other.m_polygon);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1287,21 +1041,21 @@ namespace s3d
 
 	void Polygon::PolygonDetail::drawFrame(const Optional<Float2>& offset, const double thickness, const ColorF& color) const
 	{
-		if (not m_polygon.outer())
+		if (not m_polygon.outer)
 		{
 			return;
 		}
 
 		SIV3D_ENGINE(Renderer2D)->addLineString(LineCap::Square, LineCap::Square,
-			m_polygon.outer(), offset,
+			m_polygon.outer, offset,
 			Abs(static_cast<float>(thickness)), false,
 			CloseRing::Yes,
 			color.toFloat4());
 
-		for (const auto& hole : m_polygon.inners())
+		for (const auto& inner : m_polygon.inners)
 		{
 			SIV3D_ENGINE(Renderer2D)->addLineString(LineCap::Square, LineCap::Square,
-				hole, offset,
+				inner, offset,
 				Abs(static_cast<float>(thickness)), false,
 				CloseRing::Yes,
 				color.toFloat4());
@@ -1310,21 +1064,21 @@ namespace s3d
 
 	void Polygon::PolygonDetail::drawFrame(const Optional<Float2>& offset, const double thickness, const PatternParameters& pattern) const
 	{
-		if (not m_polygon.outer())
+		if (not m_polygon.outer)
 		{
 			return;
 		}
 
 		SIV3D_ENGINE(Renderer2D)->addLineString(LineCap::Square, LineCap::Square,
-			m_polygon.outer(), offset,
+			m_polygon.outer, offset,
 			Abs(static_cast<float>(thickness)), false,
 			CloseRing::Yes,
 			pattern);
 
-		for (const auto& hole : m_polygon.inners())
+		for (const auto& inner : m_polygon.inners)
 		{
 			SIV3D_ENGINE(Renderer2D)->addLineString(LineCap::Square, LineCap::Square,
-				hole, offset,
+				inner, offset,
 				Abs(static_cast<float>(thickness)), false,
 				CloseRing::Yes,
 				pattern);
@@ -1390,13 +1144,24 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
+	//	Parse
+	//
+	////////////////////////////////////////////////////////////////
+
+	Optional<Polygon> Polygon::PolygonDetail::Parse(const StringView s)
+	{
+		return PolygonParser{ s }.parse();
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
 	//	Validate
 	//
 	////////////////////////////////////////////////////////////////
 
 	PolygonFailureType Polygon::PolygonDetail::Validate(const std::span<const Vec2> outer, const Array<Array<Vec2>>& holes)
 	{
-		return ValidatePolygon(MakeCWOpenPolygon(outer, holes));
+		return detail::ValidatePolygon(outer, holes);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1407,32 +1172,14 @@ namespace s3d
 
 	Array<Polygon> Polygon::PolygonDetail::Correct(const std::span<const Vec2> outer, const Array<Array<Vec2>>& holes)
 	{
-		CwOpenPolygon polygon = MakeCWOpenPolygon(outer, holes);
+		const auto corrected = detail::CorrectPolygonRings(outer, holes);
+		Array<Polygon> results{ Arg::reserve = corrected.size() };
 
-		if (ValidatePolygon(polygon) == PolygonFailureType::OK)
+		for (const auto& polygon : corrected)
 		{
-			return{ Polygon{ outer, holes, SkipValidation::Yes } };
-		}
-
-		boost::geometry::correct(polygon);
-
-		MultiCwOpenPolygon solvedPolygons;
-		boost::geometry::dissolve(polygon, solvedPolygons);
-
-		Array<Polygon> results;
-
-		for (const auto& solvedPolygon : solvedPolygons)
-		{
-			Array<Array<Vec2>> retHoles;
-
-			for (const auto& hole : solvedPolygon.inners())
+			if (Polygon result = detail::ToPolygon(polygon))
 			{
-				retHoles.emplace_back(hole.begin(), hole.end());
-			}
-
-			if (Validate(solvedPolygon.outer(), retHoles) == PolygonFailureType::OK)
-			{
-				results.emplace_back(solvedPolygon.outer(), retHoles);
+				results.push_back(std::move(result));
 			}
 		}
 
@@ -1441,63 +1188,40 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	simplified
+	//	CorrectOne
 	//
 	////////////////////////////////////////////////////////////////
 
-	LineString LineString::simplified(const double maxDistance, const CloseRing closeRing) const
+	Polygon Polygon::PolygonDetail::CorrectOne(const std::span<const Vec2> outer, const Array<Array<Vec2>>& holes)
 	{
-		if (size() < 2)
+		auto corrected = detail::CorrectPolygonRings(outer, holes);
+
+		while (1 < corrected.size())
 		{
-			return *this;
+			size_t largestIndex = 0;
+			double largestArea = PolygonArea(corrected.front().outer(), corrected.front().inners());
+
+			for (size_t i = 1; i < corrected.size(); ++i)
+			{
+				const double area = PolygonArea(corrected[i].outer(), corrected[i].inners());
+				if (largestArea < area)
+				{
+					largestIndex = i;
+					largestArea = area;
+				}
+			}
+
+			// Polygon::area() と同じ積分で比較し、選択した成分だけを三角形化する。
+			if (Polygon result = detail::ToPolygon(corrected[largestIndex]))
+			{
+				return result;
+			}
+
+			// 三角形化できない成分は Correct() の結果にも含まれない。
+			corrected.erase(corrected.begin() + largestIndex);
 		}
 
-		LineString result;
-
-		if (closeRing && (front() != back()))
-		{
-			LineString input(begin(), end());
-			input.push_back(input.front());
-
-			boost::geometry::simplify(input, result, maxDistance);
-			result.pop_back();
-		}
-		else
-		{
-			boost::geometry::simplify(*this, result, maxDistance);
-		}
-
-		return result;
+		return (corrected.empty() ? Polygon{} : detail::ToPolygon(corrected.front()));
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	densified
-	//
-	////////////////////////////////////////////////////////////////
-
-	LineString LineString::densified(const double maxDistance, const CloseRing closeRing) const
-	{
-		if (size() < 2)
-		{
-			return *this;
-		}
-
-		LineString result;
-
-		if (closeRing && (front() != back()))
-		{
-			LineString input(begin(), end());
-			input.push_back(input.front());
-
-			boost::geometry::densify(input, result, maxDistance);
-			result.pop_back();
-		}
-		else
-		{
-			boost::geometry::densify(*this, result, maxDistance);
-		}
-
-		return result;
-	}
 }

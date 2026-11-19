@@ -11,6 +11,7 @@
 
 # pragma once
 # include "Common.hpp"
+# include "Geometry2D/Geometry2DConcepts.hpp"
 # include "PointVector.hpp"
 # include "ColorHSV.hpp"
 # include "QualityFactor.hpp"
@@ -619,8 +620,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 基本の長方形が大きさを持っているかを返します。
-		/// @return 基本の長方形が大きさを持っている場合 true, それ以外の場合は false
+		/// @brief 基本の長方形が面積を持っているかを返します。
+		/// @return 基本の長方形が面積を持っている場合 true, それ以外の場合は false
 		[[nodiscard]]
 		constexpr bool hasArea() const noexcept;
 
@@ -907,18 +908,35 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		///// @brief 角丸長方形の輪郭を LineString として返します。
-		///// @param closeRing 頂点配列の終点を始点と重ねるか
-		///// @return 角丸長方形の輪郭の LineString
-		//[[nodiscard]]
-		//LineString outline(CloseRing closeRing = CloseRing::No) const;
+		/// @brief 角丸長方形の輪郭を LineString として返します。
+		/// @param closeRing 頂点配列の終点を始点と重ねるか
+		/// @param pointsPerCircle 円周の分割数
+		/// @return 角丸長方形の輪郭の LineString
+		[[nodiscard]]
+		LineString outline(CloseRing closeRing, const PointsPerCircle& pointsPerCircle) const;
 
-		///// @brief 角丸長方形の輪郭の一部を LineString として返します。
-		///// @param distanceFromOrigin 開始地点の距離（左上の角丸の終わりから時計回りでの距離）
-		///// @param length 長さ
-		///// @return 角丸長方形の輪郭の一部の LineString
-		//[[nodiscard]]
-		//LineString outline(double distanceFromOrigin, double length) const;
+		/// @brief 角丸長方形の輪郭を LineString として返します。
+		/// @param closeRing 頂点配列の終点を始点と重ねるか
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return 角丸長方形の輪郭の LineString
+		[[nodiscard]]
+		LineString outline(CloseRing closeRing = CloseRing::No, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
+
+		/// @brief 角丸長方形の輪郭の一部を LineString として返します。
+		/// @param distanceFromOrigin 開始地点の距離（左上の角丸の終わりから時計回りでの距離）
+		/// @param length 長さ
+		/// @param pointsPerCircle 円周の分割数
+		/// @return 角丸長方形の輪郭の一部の LineString
+		[[nodiscard]]
+		LineString outline(double distanceFromOrigin, double length, const PointsPerCircle& pointsPerCircle) const;
+		
+		/// @brief 角丸長方形の輪郭の一部を LineString として返します。
+		/// @param distanceFromOrigin 開始地点の距離（左上の角丸の終わりから時計回りでの距離）
+		/// @param length 長さ
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return 角丸長方形の輪郭の一部の LineString
+		[[nodiscard]]
+		LineString outline(double distanceFromOrigin, double length, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -926,6 +944,9 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 		
+		/// @brief 角丸長方形の外周を表現する頂点配列を返します。
+		/// @param pointsPerCircle 円周の分割数
+		/// @return 角丸長方形の外周を表現する頂点配列
 		[[nodiscard]]
 		Array<Vec2> outer(const PointsPerCircle& pointsPerCircle) const;
 
@@ -933,7 +954,7 @@ namespace s3d
 		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
 		/// @return 角丸長方形の外周を表現する頂点配列
 		[[nodiscard]]
-		Array<Vec2> outer(const QualityFactor& qualityFactor) const;
+		Array<Vec2> outer(const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -941,6 +962,9 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 	
+		/// @brief 角丸長方形を Polygon として返します。
+		/// @param pointsPerCircle 円周の分割数
+		/// @return 角丸長方形の Polygon
 		[[nodiscard]]
 		Polygon asPolygon(const PointsPerCircle& pointsPerCircle) const;
 
@@ -948,7 +972,7 @@ namespace s3d
 		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
 		/// @return 角丸長方形の Polygon
 		[[nodiscard]]
-		Polygon asPolygon(const QualityFactor& qualityFactor) const;
+		Polygon asPolygon(const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -984,19 +1008,26 @@ namespace s3d
 		/// @tparam Shape2DType 別の図形の型
 		/// @param other 別の図形
 		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool intersects(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	intersectsAt
+		//	overlaps
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
+		/// @brief 別の図形と交差する領域が面積を持つかを返します。
+		/// @tparam Shape2DType `Geometry2D::Overlaps(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形と交差する領域が面積を持つ場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsOverlaps<RoundRect, Shape2DType>
+		[[nodiscard]]
+		constexpr bool overlaps(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1004,9 +1035,29 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//bool contains(const Shape2DType& other) const;
+		/// @brief 別の図形を完全に含んでいるかを返します。
+		/// @tparam Shape2DType `Geometry2D::Contains(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形を完全に含んでいる場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsContains<RoundRect, Shape2DType>
+		[[nodiscard]]
+		constexpr bool contains(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1067,6 +1118,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 角丸長方形を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const RoundRect& paint(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1075,6 +1131,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 角丸長方形を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const RoundRect& overwrite(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1083,8 +1144,21 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 角丸長方形の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const RoundRect& paintFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 角丸長方形の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param innerThickness 基準の角丸長方形から内側方向への枠の太さ
+		/// @param outerThickness 基準の角丸長方形から外側方向への枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const RoundRect& paintFrame(Image& dst, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1093,8 +1167,21 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 角丸長方形の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const RoundRect& overwriteFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 角丸長方形の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param innerThickness 基準の角丸長方形から内側方向への枠の太さ
+		/// @param outerThickness 基準の角丸長方形から外側方向への枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const RoundRect& overwriteFrame(Image& dst, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1189,6 +1276,27 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	drawDashedFrame
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 角丸長方形の破線を描きます。
+		/// @param thickness 枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const RoundRect& drawDashedFrame(double thickness, const RectangularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		/// @brief 角丸長方形の破線を描きます。
+		/// @param innerThickness 基準の角丸長方形から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の角丸長方形から外側方向への枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const RoundRect& drawDashedFrame(double innerThickness, double outerThickness, const RectangularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	drawShadow
 		//
 		////////////////////////////////////////////////////////////////
@@ -1208,9 +1316,15 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief テクスチャを角丸長方形に貼り付けた TexturedRoundRect を返します。
+		/// @param texture テクスチャ
+		/// @return TexturedRoundRect
 		[[nodiscard]]
 		TexturedRoundRect operator ()(const Texture& texture) const;
 
+		/// @brief テクスチャ領域を角丸長方形に貼り付けた TexturedRoundRect を返します。
+		/// @param textureRegion テクスチャ領域
+		/// @return TexturedRoundRect
 		[[nodiscard]]
 		TexturedRoundRect operator ()(const TextureRegion& textureRegion) const;
 

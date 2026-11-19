@@ -169,6 +169,7 @@
 # include <Siv3D/Unicode.hpp>
 
 // Unicode の逐次変換 | Unicode converter
+# include <Siv3D/UnicodeDecodeStatus.hpp>
 # include <Siv3D/UnicodeConverter.hpp>
 
 // アルファベットの大文字・小文字 | Letter case
@@ -207,7 +208,9 @@
 # include <Siv3D/ArrayParallel.hpp>
 
 // 動的配列（二次元）| 2D array
+# include <Siv3D/GridConnectivity.hpp>
 # include <Siv3D/Grid.hpp>
+# include <Siv3D/GridRect.hpp>
 
 // 文字列ルックアップヘルパー | Heterogeneous lookup helper
 # include <Siv3D/HeterogeneousLookupHelper.hpp>
@@ -242,6 +245,9 @@
 // スレッド | Thread
 # include <Siv3D/Threading.hpp>
 
+// 非同期タスクの状態 | Asynchronous task status
+# include <Siv3D/AsyncTaskStatus.hpp>
+
 // 非同期タスク | Asynchronous task
 # include <Siv3D/AsyncTask.hpp>
 
@@ -270,6 +276,9 @@
 
 // 基本的なフォーマッタ | Basic formatters
 # include <Siv3D/Formatter.hpp>
+
+// エスケープフォーマッタ | Escaped formatter
+# include <Siv3D/EscapedFormatter.hpp>
 
 // 配列のフォーマッタ | Array formatter
 # include <Siv3D/RangeFormatter.hpp>
@@ -420,7 +429,7 @@
 # include <Siv3D/SpecialFolder.hpp>
 
 // ファイルコピーオプション | File copy option
-# include <Siv3D/CopyOption.hpp>
+# include <Siv3D/FileCopyOption.hpp>
 
 // ファイルとディレクトリ | Files and directories
 # include <Siv3D/FileSystem.hpp>
@@ -429,7 +438,7 @@
 # include <Siv3D/Resource.hpp>
 
 // ファイル操作のイベント | File action
-# include <Siv3D/FileAction.hpp>
+# include <Siv3D/FileChangeAction.hpp>
 
 // 変更されたファイルの情報 | Information about changed files
 # include <Siv3D/FileChange.hpp>
@@ -462,7 +471,7 @@
 # include <Siv3D/MemoryWriter.hpp>
 
 // ファイルオープンモード / File open mode
-# include <Siv3D/OpenMode.hpp>
+# include <Siv3D/FileWriteMode.hpp>
 
 // 読み込み専用バイナリファイル | Binary file reader
 # include <Siv3D/BinaryFileReader.hpp>
@@ -617,7 +626,7 @@
 ////////////////////////////////////////////////////////////////
 
 // ログの種類 | The type of the log message
-# include <Siv3D/LogType.hpp>
+# include <Siv3D/LogLevel.hpp>
 
 // ロガー | Logger
 # include <Siv3D/Logger.hpp>
@@ -647,6 +656,9 @@
 // 精度を落とした高速な数学関数 | Fast math functions
 # include <Siv3D/FastMath.hpp>
 
+// 四分円の単位ベクトルテーブル | Quarter arc unit vector table
+# include <Siv3D/QuarterArcTable.hpp>
+
 // 補間 | Interpolation
 # include <Siv3D/Interpolation.hpp>
 
@@ -674,8 +686,8 @@
 // SIMD 演算 | SIMD
 # include <Siv3D/SIMDMath.hpp>
 
-//// SIMD 対応 Float4 | SIMD Float4
-//# include <Siv3D/SIMD_Float4.hpp>
+// SIMD 対応 Float4 | SIMD Float4
+# include <Siv3D/SimdFloat4.hpp>
 
 // 数式パーサ | Math parser
 # include <Siv3D/MathParser.hpp>
@@ -686,6 +698,7 @@
 // 素数判定 | Primality test
 # include <Siv3D/IsPrime.hpp>
 
+# include <Siv3D/PolynomialRoots.hpp>
 # include <Siv3D/PolynomialSolver.hpp>
 
 ////////////////////////////////////////////////////////////////
@@ -710,7 +723,7 @@
 # include <Siv3D/Palette.hpp>
 
 // カラーマップ用のカラースケール | Color scale for colormap
-# include <Siv3D/ColorScale.hpp>
+# include <Siv3D/ColormapType.hpp>
 
 // カラーマップ | Colormap
 # include <Siv3D/Colormap.hpp>
@@ -727,7 +740,17 @@
 
 # include <Siv3D/Pattern/PolkaDot.hpp>
 
+# include <Siv3D/Pattern/Halftone.hpp>
+
 # include <Siv3D/Pattern/Stripe.hpp>
+
+# include <Siv3D/Pattern/Wave.hpp>
+
+# include <Siv3D/Pattern/Ripple.hpp>
+
+# include <Siv3D/Pattern/Weave.hpp>
+
+# include <Siv3D/Pattern/Truchet.hpp>
 
 # include <Siv3D/Pattern/Grid.hpp>
 
@@ -826,17 +849,23 @@
 // オフセット付き円座標 | Polar coordinates system with offset (2D)
 # include <Siv3D/OffsetCircular.hpp>
 
-//// 円柱座標 | Cylindrical coordinate system
-//# include <Siv3D/Cylindrical.hpp>
-//
-//// 球面座標 | Spherical coordinate system
-//# include <Siv3D/Spherical.hpp>
+// 円柱座標 | Cylindrical coordinate system
+# include <Siv3D/Cylindrical.hpp>
+
+// 球面座標 | Spherical coordinate system
+# include <Siv3D/Spherical.hpp>
 
 // 3x2 行列 | 3x2 matrix
 # include <Siv3D/Mat3x2.hpp>
 
 // 3x3 行列 | 3x3 matrix
 # include <Siv3D/Mat3x3.hpp>
+
+// クォータニオン | Quaternion
+# include <Siv3D/Quaternion.hpp>
+
+// 4x4 行列 | 4x4 matrix
+# include <Siv3D/Mat4x4.hpp>
 
 # include <Siv3D/PointsPerCircle.hpp>
 
@@ -848,46 +877,54 @@
 // 線端のスタイル | Line cap
 # include <Siv3D/LineCap.hpp>
 
-# include <Siv3D/LineType.hpp>
+# include <Siv3D/LinePattern.hpp>
 
 // 線のスタイル | Line style
 # include <Siv3D/LineStyle.hpp>
 
+// 円形の破線のスタイル | Circular dashed line style
+# include <Siv3D/CircularDashStyle.hpp>
+
+// 長方形の破線のスタイル | Rectangular dashed line style
+# include <Siv3D/RectangularDashStyle.hpp>
+
 // 線分 | Line segment
-# include <Siv3D/Line.hpp> // ToDo
+# include <Siv3D/Line.hpp>
 
 // 長方形 (int32) | Rectangle (int32)
-# include <Siv3D/Rect.hpp> // ToDo
+# include <Siv3D/Rect.hpp> 
 
 // 長方形 (double) | Rectangle (double)
-# include <Siv3D/RectF.hpp> // ToDo
+# include <Siv3D/RectF.hpp>
 
 // 円 | Circle
-# include <Siv3D/Circle.hpp> // ToDo
+# include <Siv3D/Circle.hpp>
 
 // 楕円 | Ellipse
-# include <Siv3D/Ellipse.hpp> // ToDo
+# include <Siv3D/Ellipse.hpp>
 
-# include <Siv3D/SuperEllipse.hpp> // ToDo
+# include <Siv3D/SuperEllipse.hpp>
 
 // 三角形 | Triangle
-# include <Siv3D/Triangle.hpp> // ToDo
+# include <Siv3D/Triangle.hpp>
 
 // 凸四角形 | Convex quadrilateral
-# include <Siv3D/Quad.hpp> // ToDo
+# include <Siv3D/Quad.hpp>
 
 // 角丸長方形 | Rounded rectangle
-# include <Siv3D/RoundRect.hpp> // ToDo
+# include <Siv3D/RoundRect.hpp>
+
+// 多角形の検証結果 | Polygon validation result
+# include <Siv3D/PolygonFailureType.hpp>
 
 // 多角形 | Polygon
-# include <Siv3D/Polygon.hpp> // ToDo
+# include <Siv3D/Polygon.hpp>
 
 // 複数の多角形 | Multi-polygon
-# include <Siv3D/MultiPolygon.hpp> // ToDo
+# include <Siv3D/MultiPolygon.hpp>
 
 // 点の集合（とそれをつないで表現される線分） | A sequence of points (and the line segments connecting them)
 # include <Siv3D/LineString.hpp> // ToDo
-
 
 # include <Siv3D/Bezier.hpp>
 
@@ -921,26 +958,32 @@
 // 2D 形状コレクション | 2D shapes collection
 # include <Siv3D/Shape2D.hpp>
 
-//// 2D 描画バッファ | Native 2D drawing buffer
-//# include <Siv3D/Buffer2D.hpp>
+# include <Siv3D/Mesh2D.hpp>
+
+# include <Siv3D/Ray2D.hpp>
+
+# include <Siv3D/RaycastHit2D.hpp>
 
 // 2D 幾何 | 2D geometry processing
-
-# include <Siv3D/JitterEndpointMode.hpp>
-# include <Siv3D/JitterEndpointSettings.hpp>
-# include <Siv3D/JitterSettings.hpp>
-
-# include <Siv3D/Geometry2D/Intersect.hpp> // ToDo
-# include <Siv3D/Geometry2D/IntersectAt.hpp> // ToDo
-# include <Siv3D/Geometry2D/Distance.hpp> // ToDo
-# include <Siv3D/Geometry2D/Center.hpp> // ToDo
-# include <Siv3D/Geometry2D/Contains.hpp> // ToDo
+# include <Siv3D/Geometry2D/BoundingRect.hpp>
+# include <Siv3D/Geometry2D/ClosestPoints2D.hpp>
+# include <Siv3D/Geometry2D/Contains.hpp>
 # include <Siv3D/Geometry2D/ConvexHull.hpp>
+# include <Siv3D/Geometry2D/Distance.hpp>
+# include <Siv3D/Geometry2D/Intersects.hpp>
+# include <Siv3D/Geometry2D/IntersectsAt.hpp>
 # include <Siv3D/Geometry2D/IsClockwise.hpp>
-# include <Siv3D/Geometry2D/PoleOfInaccessibility.hpp>
-# include <Siv3D/Geometry2D/SmallestEnclosingCircle.hpp>
-# include <Siv3D/Geometry2D/Misc.hpp> // ToDo
 # include <Siv3D/Geometry2D/Jitter.hpp>
+# include <Siv3D/Geometry2D/JitterEndpointMode.hpp>
+# include <Siv3D/Geometry2D/JitterEndpointSettings.hpp>
+# include <Siv3D/Geometry2D/JitterSettings.hpp>
+# include <Siv3D/Geometry2D/Misc.hpp>
+# include <Siv3D/Geometry2D/PointContainment.hpp>
+# include <Siv3D/Geometry2D/PoleOfInaccessibility.hpp>
+# include <Siv3D/Geometry2D/Raycast.hpp>
+# include <Siv3D/Geometry2D/SignedDistance.hpp>
+# include <Siv3D/Geometry2D/Overlaps.hpp>
+# include <Siv3D/Geometry2D/SmallestEnclosingCircle.hpp>
 
 // 長方形詰込み | Rectangle packing
 # include <Siv3D/RectanglePack.hpp>
@@ -994,8 +1037,8 @@
 // UUID | UUID
 # include <Siv3D/UUIDValue.hpp>
 
-// Web ブラウザ | Web browser
-# include <Siv3D/WebBrowser.hpp>
+// Web ブラウザアプリ | Web browser application
+# include <Siv3D/BrowserApp.hpp>
 
 ////////////////////////////////////////////////////////////////
 //
@@ -1100,12 +1143,12 @@
 
 ////////////////////////////////////////////////////////////////
 //
-//	パイプ | Pipe
+//	パイプ | ChildProcessPipe
 //
 ////////////////////////////////////////////////////////////////
 
-// パイプ通信 | Interprocess communication (Pipe)
-# include <Siv3D/Pipe.hpp>
+// パイプ通信 | Interprocess communication (ChildProcessPipe)
+# include <Siv3D/ChildProcessPipe.hpp>
 
 ////////////////////////////////////////////////////////////////
 //
@@ -1180,7 +1223,7 @@
 ////////////////////////////////////////////////////////////////
 
 // ドラッグするアイテムの種類 | Dragged item type
-# include <Siv3D/DragItemType.hpp>
+# include <Siv3D/DragDropItemType.hpp>
 
 // ドラッグの状態 | Dragging status
 # include <Siv3D/DragStatus.hpp>
@@ -1300,6 +1343,36 @@
 // PNG 画像フィルタ | PNG image filter
 # include <Siv3D/PNGFilter.hpp>
 
+// アニメーション画像フレーム | Animated image frame
+# include <Siv3D/AnimatedImageFrame.hpp>
+
+// アニメーション画像情報 | Animated image info
+# include <Siv3D/AnimatedImageInfo.hpp>
+
+// アニメーション画像 | Animated image
+# include <Siv3D/AnimatedImage.hpp>
+
+// アニメーション画像のデコード設定 | Animated image decode options
+# include <Siv3D/AnimatedImageDecodeOptions.hpp>
+
+// アニメーション画像のデコードエラー | Animated image decode error
+# include <Siv3D/AnimatedImageDecodeError.hpp>
+
+// アニメーション画像のストリーム読み込み状態 | Animated image stream read status
+# include <Siv3D/AnimatedImageReadStatus.hpp>
+
+// アニメーション画像のデコード結果 | Animated image decode result
+# include <Siv3D/AnimatedImageDecodeResult.hpp>
+
+// アニメーション画像のストリーム読み込み結果 | Animated image stream read result
+# include <Siv3D/AnimatedImageReadResult.hpp>
+
+// アニメーション画像デコーダ | Animated image decoder
+# include <Siv3D/AnimatedImageDecoder.hpp>
+
+// アニメーション画像ストリームリーダー | Animated image stream reader
+# include <Siv3D/AnimatedImageReader.hpp>
+
 // PNG 画像 | PNG image
 # include <Siv3D/ImageFormat/PNGDecoder.hpp>
 # include <Siv3D/ImageFormat/PNGEncoder.hpp>
@@ -1319,7 +1392,7 @@
 //# include <Siv3D/ImageFormat/WebPDecoder.hpp>
 //# include <Siv3D/ImageFormat/WebPEncoder.hpp>
 //
-//# include <Siv3D/ImageFormat/GIFDecoder.hpp>
+# include <Siv3D/ImageFormat/GIFDecoder.hpp>
 //# include <Siv3D/ImageFormat/GIFEncoder.hpp>
 //
 //# include <Siv3D/ImageFormat/TIFFDecoder.hpp>
@@ -1342,9 +1415,6 @@
 # include <Siv3D/ImageFormat/TGADecoder.hpp>
 # include <Siv3D/ImageFormat/TGAEncoder.hpp>
 
-//// アニメーション GIF の読み込み | Animated GIF reader
-//# include <Siv3D/AnimatedGIFReader.hpp>
-//
 //// アニメーション GIF の書き出し | Animated GIF writer
 //# include <Siv3D/AnimatedGIFWriter.hpp>
 //
@@ -1505,6 +1575,7 @@
 
 // 2D シェーダスコープ | 2D shader scope
 # include <Siv3D/ScopedCustomShader2D.hpp>
+# include <Siv3D/ScopedConstantBuffer2D.hpp>
 
 //// 3D シェーダスコープ | 3D shader scope
 //# include <Siv3D/ScopedCustomShader3D.hpp>
@@ -1576,6 +1647,9 @@
 // 比較関数 | Compare function
 # include <Siv3D/CompareFunction.hpp>
 
+// サンプリング時の境界色 | Border color for sampling
+# include <Siv3D/SamplerBorderColor.hpp>
+
 // サンプラーステートの構築 | Builder for sampler state
 # include <Siv3D/SamplerStateBuilder.hpp>
 
@@ -1602,6 +1676,7 @@
 
 // 2D 描画のビューポートスコープ | Viewport scope for 2D rendering
 # include <Siv3D/ScopedViewport2D.hpp>
+# include <Siv3D/ScopedQuadWarp2D.hpp>
 
 // 2D 描画の座標変換スコープ | Coordinate transformation scope for 2D rendering
 # include <Siv3D/Transformer2D.hpp>
@@ -1655,9 +1730,12 @@
 # include <Siv3D/Icon.hpp>
 
 # include <Siv3D/FontMethod.hpp>
+# include <Siv3D/Typeface.hpp>
+# include <Siv3D/FontVariationAxis.hpp>
 # include <Siv3D/FontFaceProperties.hpp>
 # include <Siv3D/GlyphInfo.hpp>
 # include <Siv3D/Glyph.hpp>
+# include <Siv3D/MSDFGlyph.hpp>
 # include <Siv3D/ResolvedGlyph.hpp>
 # include <Siv3D/FontOptions.hpp>
 # include <Siv3D/Font.hpp>
@@ -1686,6 +1764,8 @@
 # include <Siv3D/Theme.hpp>
 # include <Siv3D/GUIColorStyle.hpp>
 # include <Siv3D/GUIShapeStyle.hpp>
+# include <Siv3D/SimpleGUI/SimpleGUILayer.hpp>
+# include <Siv3D/SimpleGUI/ISimpleGUIElement.hpp>
 # include <Siv3D/SimpleGUI.hpp>
 # include <Siv3D/SimpleGUI/SimpleButton.hpp>
 # include <Siv3D/SimpleGUI/SimpleCheckBox.hpp>
@@ -1754,6 +1834,21 @@
 
 # include <Siv3D/EngineOption.hpp>
 
+
+
+# include <Siv3D/MaterialAlphaMode.hpp>
+# include <Siv3D/MaterialTexture.hpp>
+# include <Siv3D/Material.hpp>
+# include <Siv3D/VertexNormalWeighting.hpp>
+# include <Siv3D/Vertex3D.hpp>
+# include <Siv3D/Box.hpp>
+# include <Siv3D/Sphere.hpp>
+# include <Siv3D/BoxFace.hpp>
+# include <Siv3D/BoxUVMapping.hpp>
+# include <Siv3D/Mesh3D.hpp>
+# include <Siv3D/Mesh3DPlacement.hpp>
+# include <Siv3D/Mesh3DBuilder.hpp>
+# include <Siv3D/Mesh3DAssembly.hpp>
 
 
 

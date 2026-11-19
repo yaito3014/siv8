@@ -10,6 +10,7 @@
 //-----------------------------------------------
 
 # pragma once
+# include <cmath>
 
 namespace s3d
 {
@@ -213,7 +214,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector4D<Float>& Vector4D<Float>::operator +=(const Vector4D v) noexcept
+	constexpr Vector4D<Float>& Vector4D<Float>::operator +=(const Vector4D v) & noexcept
 	{
 		x += v.x;
 		y += v.y;
@@ -229,7 +230,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector4D<Float>& Vector4D<Float>::operator -=(const Vector4D v) noexcept
+	constexpr Vector4D<Float>& Vector4D<Float>::operator -=(const Vector4D v) & noexcept
 	{
 		x -= v.x;
 		y -= v.y;
@@ -245,7 +246,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector4D<Float>& Vector4D<Float>::operator *=(const value_type s) noexcept
+	constexpr Vector4D<Float>& Vector4D<Float>::operator *=(const value_type s) & noexcept
 	{
 		x *= s;
 		y *= s;
@@ -255,7 +256,7 @@ namespace s3d
 	}
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector4D<Float>& Vector4D<Float>::operator *=(const Vector4D v) noexcept
+	constexpr Vector4D<Float>& Vector4D<Float>::operator *=(const Vector4D v) & noexcept
 	{
 		x *= v.x;
 		y *= v.y;
@@ -271,7 +272,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector4D<Float>& Vector4D<Float>::operator /=(const value_type s) noexcept
+	constexpr Vector4D<Float>& Vector4D<Float>::operator /=(const value_type s) & noexcept
 	{
 		const auto invS = (static_cast<value_type>(1.0) / s);
 		x *= invS;
@@ -282,7 +283,7 @@ namespace s3d
 	}
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector4D<Float>& Vector4D<Float>::operator /=(const Vector4D v) noexcept
+	constexpr Vector4D<Float>& Vector4D<Float>::operator /=(const Vector4D v) & noexcept
 	{
 		x /= v.x;
 		y /= v.y;
@@ -358,6 +359,21 @@ namespace s3d
 			||  std::isnan(y)
 			||  std::isnan(z)
 			||  std::isnan(w));
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	isFinite
+	//
+	////////////////////////////////////////////////////////////////
+
+	template <Concept::FloatingPoint Float>
+	bool Vector4D<Float>::isFinite() const noexcept
+	{
+		return (std::isfinite(x)
+			&&  std::isfinite(y)
+			&&  std::isfinite(z)
+			&&  std::isfinite(w));
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -952,7 +968,7 @@ namespace s3d
 	template <Concept::FloatingPoint Float>
 	uint64 Vector4D<Float>::hash() const noexcept
 	{
-		return BitwiseHash(*this);
+		return HashFloats(x, y, z, w);
 	}
 
 	////////////////////////////////////////////////////////////////

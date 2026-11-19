@@ -144,9 +144,9 @@ namespace s3d
 			
 			if (isAlphaPremultiplied)
 			{
-				for (size_t i = 0; i < image.num_pixels(); ++i)
+				for (size_t i = 0; i < image.pixelCount(); ++i)
 				{
-					const Color unmultiplied = Color::UnpremultiplyAlpha(*pSrc);
+					const Color unmultiplied = pSrc->unpremultiplied();
 
 					pDst[0] = unmultiplied.b;
 					pDst[1] = unmultiplied.g;
@@ -159,7 +159,7 @@ namespace s3d
 			}
 			else
 			{
-				for (size_t i = 0; i < image.num_pixels(); ++i)
+				for (size_t i = 0; i < image.pixelCount(); ++i)
 				{
 					pDst[0] = pSrc->b;
 					pDst[1] = pSrc->g;

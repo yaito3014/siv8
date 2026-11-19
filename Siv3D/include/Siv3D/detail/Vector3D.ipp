@@ -10,6 +10,7 @@
 //-----------------------------------------------
 
 # pragma once
+# include <cmath>
 
 namespace s3d
 {
@@ -182,7 +183,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector3D<Float>& Vector3D<Float>::operator +=(const Vector3D v) noexcept
+	constexpr Vector3D<Float>& Vector3D<Float>::operator +=(const Vector3D v) & noexcept
 	{
 		x += v.x;
 		y += v.y;
@@ -197,7 +198,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector3D<Float>& Vector3D<Float>::operator -=(const Vector3D v) noexcept
+	constexpr Vector3D<Float>& Vector3D<Float>::operator -=(const Vector3D v) & noexcept
 	{
 		x -= v.x;
 		y -= v.y;
@@ -212,7 +213,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector3D<Float>& Vector3D<Float>::operator *=(const value_type s) noexcept
+	constexpr Vector3D<Float>& Vector3D<Float>::operator *=(const value_type s) & noexcept
 	{
 		x *= s;
 		y *= s;
@@ -221,7 +222,7 @@ namespace s3d
 	}
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector3D<Float>& Vector3D<Float>::operator *=(const Vector3D v) noexcept
+	constexpr Vector3D<Float>& Vector3D<Float>::operator *=(const Vector3D v) & noexcept
 	{
 		x *= v.x;
 		y *= v.y;
@@ -236,7 +237,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector3D<Float>& Vector3D<Float>::operator /=(const value_type s) noexcept
+	constexpr Vector3D<Float>& Vector3D<Float>::operator /=(const value_type s) & noexcept
 	{
 		const auto invS = (static_cast<value_type>(1.0) / s);
 		x *= invS;
@@ -246,7 +247,7 @@ namespace s3d
 	}
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector3D<Float>& Vector3D<Float>::operator /=(const Vector3D v) noexcept
+	constexpr Vector3D<Float>& Vector3D<Float>::operator /=(const Vector3D v) & noexcept
 	{
 		x /= v.x;
 		y /= v.y;
@@ -318,6 +319,20 @@ namespace s3d
 		return (std::isnan(x)
 			||  std::isnan(y)
 			||  std::isnan(z));
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	isFinite
+	//
+	////////////////////////////////////////////////////////////////
+
+	template <Concept::FloatingPoint Float>
+	bool Vector3D<Float>::isFinite() const noexcept
+	{
+		return (std::isfinite(x)
+			&&  std::isfinite(y)
+			&&  std::isfinite(z));
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -942,7 +957,7 @@ namespace s3d
 	template <Concept::FloatingPoint Float>
 	uint64 Vector3D<Float>::hash() const noexcept
 	{
-		return BitwiseHash(*this);
+		return HashFloats(x, y, z);
 	}
 
 	////////////////////////////////////////////////////////////////

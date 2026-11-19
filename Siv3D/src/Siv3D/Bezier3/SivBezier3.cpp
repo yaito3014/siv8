@@ -12,6 +12,7 @@
 # include <Siv3D/Bezier.hpp>
 # include <Siv3D/LineCap.hpp>
 # include <Siv3D/FloatFormatter.hpp>
+# include <Siv3D/Geometry2D/BezierGeometry.hpp>
 
 namespace s3d
 {
@@ -34,37 +35,48 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getTangent
+	//	tangentAt
 	//
 	////////////////////////////////////////////////////////////////
 
-	Vec2 Bezier3::getTangent(const double t) const noexcept
+	Vec2 Bezier3::tangentAt(const double t) const noexcept
 	{
-		return getDerivative(t).normalized();
+		return derivativeAt(t).normalized();
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getNormal
+	//	normalAt
 	//
 	////////////////////////////////////////////////////////////////
 
-	Vec2 Bezier3::getNormal(const double t) const noexcept
+	Vec2 Bezier3::normalAt(const double t) const noexcept
 	{
-		const Vec2 d = getDerivative(t);
+		const Vec2 d = derivativeAt(t);
 		return Vec2{ d.y, -d.x }.normalized();
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getCurvature
+	//	headingAt
 	//
 	////////////////////////////////////////////////////////////////
 
-	double Bezier3::getCurvature(const double t) const noexcept
+	double Bezier3::headingAt(const double t) const noexcept
 	{
-		const Vec2 d1 = getDerivative(t);          // B'(t)
-		const Vec2 d2 = getSecondDerivative(t);    // B''(t)
+		return derivativeAt(t).getAngle();
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	curvatureAt
+	//
+	////////////////////////////////////////////////////////////////
+
+	double Bezier3::curvatureAt(const double t) const noexcept
+	{
+		const Vec2 d1 = derivativeAt(t);          // B'(t)
+		const Vec2 d2 = secondDerivativeAt(t);    // B''(t)
 
 		const double speed2 = d1.lengthSq();
 
@@ -80,13 +92,13 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getCurvatureRadius
+	//	radiusOfCurvatureAt
 	//
 	////////////////////////////////////////////////////////////////
 
-	double Bezier3::getCurvatureRadius(const double t) const noexcept
+	double Bezier3::radiusOfCurvatureAt(const double t) const noexcept
 	{
-		const double curvature = getCurvature(t);
+		const double curvature = curvatureAt(t);
 
 		if (curvature == 0.0)
 		{
@@ -94,17 +106,6 @@ namespace s3d
 		}
 
 		return (1.0 / Abs(curvature));
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	getHeading
-	//
-	////////////////////////////////////////////////////////////////
-
-	double Bezier3::getHeading(const double t) const noexcept
-	{
-		return getDerivative(t).getAngle();
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -130,17 +131,17 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	tAtLength
+	//	computeTAtDistance
 	//
 	////////////////////////////////////////////////////////////////
 
-	double Bezier3::tAtLength(const double s) const noexcept
+	double Bezier3::computeTAtDistance(const double distanceFromStart) const noexcept
 	{
 		constexpr int32 N = 32;
 		constexpr double invN = (1.0 / static_cast<double>(N));
 
 		// 端の扱い
-		if (s <= 0.0)
+		if (distanceFromStart <= 0.0)
 		{
 			return 0.0;
 		}
@@ -161,19 +162,19 @@ namespace s3d
 			return 0.0; // 退化（ほぼ長さ 0）
 		}
 
-		if (s >= total)
+		if (distanceFromStart >= total)
 		{
 			return 1.0;
 		}
 
-		// s が入る区間を探す（cum[i] <= s < cum[i+1]）
+		// distanceFromStart が入る区間を探す（cum[i] <= s < cum[i+1]）
 		int32 seg = 0;
 		{
 			int32 lo = 0, hi = N;
 			while (lo < hi)
 			{
 				const int32 mid = (lo + hi) >> 1;
-				if (cum[mid] < s) lo = mid + 1;
+				if (cum[mid] < distanceFromStart) lo = mid + 1;
 				else              hi = mid;
 			}
 			seg = (lo > 0) ? (lo - 1) : 0;
@@ -188,7 +189,7 @@ namespace s3d
 		double t = (0.5 * (a + b));
 		if (0.0 < segLen)
 		{
-			const double u = ((s - cum[seg]) / segLen); // 0..1
+			const double u = ((distanceFromStart - cum[seg]) / segLen); // 0..1
 			t = (a + (b - a) * Clamp(u, 0.0, 1.0));
 		}
 
@@ -209,7 +210,7 @@ namespace s3d
 
 			// L(t) = cum[seg] + ∫[a,t] |B'(u)| du
 			const double Lt = (cum[seg] + integrateSpeed(a, t));
-			const double f = (Lt - s);
+			const double f = (Lt - distanceFromStart);
 
 			if (Abs(f) <= tol)
 			{
@@ -240,197 +241,44 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getPosAtLength
+	//	computePointAtDistance
 	//
 	////////////////////////////////////////////////////////////////
 
-	Bezier3::position_type Bezier3::getPosAtLength(const double length) const noexcept
+	Bezier3::position_type Bezier3::computePointAtDistance(const double distanceFromStart) const noexcept
 	{
-		return getPos(tAtLength(length));
+		return pointAt(computeTAtDistance(distanceFromStart));
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	closestT
+	//	computeClosestT
 	//
 	////////////////////////////////////////////////////////////////
 
-	double Bezier3::closestT(const position_type& point) const noexcept
+	double Bezier3::computeClosestT(const position_type& targetPoint) const noexcept
 	{
-		constexpr double Eps = 1e-12;
-		constexpr double DegenerateRel = 1e-24; // relative threshold
-
-		// 退化: (ほぼ)直線 → 線分 [p0, p3] への射影
-		{
-			const Vec2 chord = (p3 - p0);
-			const double chordLenSq = chord.dot(chord);
-
-			if (chordLenSq <= Eps)
-			{
-				return 0.0; // ほぼ一点
-			}
-
-			const double scale = Max(1.0, chordLenSq);
-
-			// p1, p2 が chord にほぼ乗っているか（面積 = cross）
-			const double c1 = (p1 - p0).cross(chord);
-			const double c2 = (p2 - p0).cross(chord);
-
-			// cross^2 を length^4 に対して相対比較
-			if ((c1 * c1 <= (DegenerateRel * scale * scale))
-				&& (c2 * c2 <= (DegenerateRel * scale * scale)))
-			{
-				const double t = ((point - p0).dot(chord) / chordLenSq);
-				return Clamp(t, 0.0, 1.0);
-			}
-		}
-
-		// 端点を初期最良に
-		double bestT = 0.0;
-		double bestDistSq = point.distanceFromSq(p0);
-
-		{
-			const double d2 = point.distanceFromSq(p3);
-			if (d2 < bestDistSq)
-			{
-				bestDistSq = d2;
-				bestT = 1.0;
-			}
-		}
-
-		// D'(t)=0 を解く（数値）
-		// f(t) = (B(t)-P)·B'(t)
-		// f'(t)= B'(t)·B'(t) + (B(t)-P)·B''(t)
-		auto f = [this, &point](double t) noexcept -> double
-		{
-			const Vec2 r = (getPos(t) - point);
-			const Vec2 d = getDerivative(t);
-			return r.dot(d);
-		};
-
-		auto fp = [this, &point](double t) noexcept -> double
-		{
-			const Vec2 r = (getPos(t) - point);
-			const Vec2 d1 = getDerivative(t);
-			const Vec2 d2 = getSecondDerivative(t);
-			return (d1.dot(d1) + r.dot(d2));
-		};
-
-		auto consider = [this, &point, &bestT, &bestDistSq](double t) noexcept
-		{
-			t = Clamp(t, 0.0, 1.0);
-			const double d2 = point.distanceFromSq(getPos(t));
-			if (d2 < bestDistSq)
-			{
-				bestDistSq = d2;
-				bestT = t;
-			}
-		};
-
-		// 粗いサンプリングで bracket を作り、保証付き Newton で収束
-		constexpr int32 S = 64; // 分割数
-		constexpr int32 maxIter = 16;
-		constexpr double fpEps = 1e-14;
-		constexpr double tolF = 1e-12;
-
-		double tPrev = 0.0;
-		double fPrev = f(tPrev);
-
-		consider(0.0);
-
-		for (int32 i = 1; i <= S; ++i)
-		{
-			const double tCur = (static_cast<double>(i) / S);
-			const double fCur = f(tCur);
-
-			consider(tCur);
-
-			// sign change（または端のゼロ）を bracket として解く
-			const bool bracket =
-				((fPrev <= 0.0 && 0.0 <= fCur) || (fCur <= 0.0 && 0.0 <= fPrev));
-
-			if (bracket)
-			{
-				double lo = tPrev;
-				double hi = tCur;
-				double flo = fPrev;
-				double fhi = fCur;
-
-				// どちらかがほぼ 0 ならその点を候補に
-				if (Abs(flo) <= tolF) { consider(lo); }
-				if (Abs(fhi) <= tolF) { consider(hi); }
-
-				// bracket が有効なら refine
-				if (lo < hi && !(Abs(flo) <= tolF && Abs(fhi) <= tolF))
-				{
-					double t = (0.5 * (lo + hi));
-
-					for (int32 it = 0; it < maxIter; ++it)
-					{
-						t = Clamp(t, lo, hi);
-
-						const double ft = f(t);
-						if (Abs(ft) <= tolF)
-						{
-							break;
-						}
-
-						// bracket 更新
-						if ((flo <= 0.0 && 0.0 <= ft) || (ft <= 0.0 && 0.0 <= flo))
-						{
-							hi = t;
-							fhi = ft;
-						}
-						else
-						{
-							lo = t;
-							flo = ft;
-						}
-
-						double tNew = (0.5 * (lo + hi)); // fallback: bisection
-						const double fpt = fp(t);
-
-						if (fpEps < Abs(fpt))
-						{
-							const double cand = (t - ft / fpt);
-							if (cand > lo && cand < hi)
-							{
-								tNew = cand;
-							}
-						}
-
-						t = tNew;
-					}
-
-					consider(t);
-				}
-			}
-
-			tPrev = tCur;
-			fPrev = fCur;
-		}
-
-		return bestT; // [0,1]
+		return detail::ClosestPointOnBezier(*this, targetPoint).parameter;
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//  closestPoint
+	//  computeClosestPoint
 	//
 	////////////////////////////////////////////////////////////////
 
-	Bezier3::position_type Bezier3::closestPoint(const position_type& point) const noexcept
+	Bezier3::position_type Bezier3::computeClosestPoint(const position_type& targetPoint) const noexcept
 	{
-		return getPos(closestT(point));
+		return detail::ClosestPointOnBezier(*this, targetPoint).point;
 	}
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getLineString
+	//	toLineString
 	//
 	////////////////////////////////////////////////////////////////
 
-	LineString Bezier3::getLineString(int32 segments) const
+	LineString Bezier3::toLineString(int32 segments) const
 	{
 		segments = Max(1, segments);
 
@@ -443,7 +291,7 @@ namespace s3d
 			for (int32 i = 1; i < segments; ++i)
 			{
 				const double t = (static_cast<double>(i) / segments);
-				*pDst++ = getPos(t);
+				*pDst++ = pointAt(t);
 			}
 
 			// 終点
@@ -455,11 +303,11 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	getLineStringAdaptive
+	//	toLineStringAdaptive
 	//
 	////////////////////////////////////////////////////////////////
 
-	LineString Bezier3::getLineStringAdaptive(const double maxError, const int32 maxDepth) const
+	LineString Bezier3::toLineStringAdaptive(const double maxError, const int32 maxDepth) const
 	{
 		LineString polyline;
 		polyline.reserve(65);
@@ -609,7 +457,7 @@ namespace s3d
 
 		if (t0 == t1)
 		{
-			const Vec2 p = getPos(t0);
+			const Vec2 p = pointAt(t0);
 			return{ p, p, p, p };
 		}
 
@@ -627,11 +475,11 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	boundingRect
+	//	computeBoundingRect
 	//
 	////////////////////////////////////////////////////////////////
 
-	RectF Bezier3::boundingRect() const noexcept
+	RectF Bezier3::computeBoundingRect() const noexcept
 	{
 		constexpr double Eps = (64.0 * std::numeric_limits<double>::epsilon());
 		constexpr double tTol = (16.0 * Eps);
@@ -699,7 +547,7 @@ namespace s3d
 			// 桁落ちを防ぐための符号選択
 			const double q = (-0.5) * (qb + (qb >= 0.0 ? s : -s));
 
-			if (q == 0.0) // qb=0 かつ s=0 のケース等
+			if (q == 0.0) // qb=0 かつ distanceFromStart=0 のケース等
 			{
 				ConsiderT(-qb / (2.0 * qa));
 				return;
@@ -720,11 +568,11 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	inflectionTs
+	//	computeInflectionTs
 	//
 	////////////////////////////////////////////////////////////////
 
-	Array<double> Bezier3::inflectionTs() const
+	Array<double> Bezier3::computeInflectionTs() const
 	{
 		constexpr double Eps = 1e-12;
 
@@ -837,7 +685,7 @@ namespace s3d
 
 	const Bezier3& Bezier3::paint(Image& dst, const LineCap lineCap, double thickness, const Color& color, const EnableAntialiasing enableAntialiasing) const
 	{
-		getLineStringAdaptive().paint(dst, lineCap, thickness, color, enableAntialiasing);
+		toLineStringAdaptive().paint(dst, lineCap, thickness, color, enableAntialiasing);
 		return *this;
 	}
 
@@ -859,7 +707,7 @@ namespace s3d
 
 	const Bezier3& Bezier3::overwrite(Image& dst, const LineCap lineCap, double thickness, const Color& color, const EnableAntialiasing enableAntialiasing) const
 	{
-		getLineStringAdaptive().overwrite(dst, lineCap, thickness, color, enableAntialiasing);
+		toLineStringAdaptive().overwrite(dst, lineCap, thickness, color, enableAntialiasing);
 		return *this;
 	}
 
@@ -871,25 +719,25 @@ namespace s3d
 
 	const Bezier3& Bezier3::draw(const ColorF& color, const int32 segments) const
 	{
-		getLineString(segments).draw(color);
+		toLineString(segments).draw(color);
 		return *this;
 	}
 
 	const Bezier3& Bezier3::draw(const double thickness, const ColorF& color, const int32 segments) const
 	{
-		getLineString(segments).draw(thickness, color);
+		toLineString(segments).draw(thickness, color);
 		return *this;
 	}
 
 	const Bezier3& Bezier3::draw(const LineCap linaCap, const double thickness, const ColorF& color, const int32 segments) const
 	{
-		getLineString(segments).draw(linaCap, thickness, color);
+		toLineString(segments).draw(linaCap, thickness, color);
 		return *this;
 	}
 
 	const Bezier3& Bezier3::draw(const LineCap startCap, const LineCap endCap, const double thickness, const ColorF& color, const int32 segments) const
 	{
-		getLineString(segments).draw(startCap, endCap, thickness, color);
+		toLineString(segments).draw(startCap, endCap, thickness, color);
 		return *this;
 	}
 
@@ -901,25 +749,25 @@ namespace s3d
 
 	const Bezier3& Bezier3::drawAdaptive(const ColorF& color, const double maxError, const int32 maxDepth) const
 	{
-		getLineStringAdaptive(maxError, maxDepth).draw(color);
+		toLineStringAdaptive(maxError, maxDepth).draw(color);
 		return *this;
 	}
 
 	const Bezier3& Bezier3::drawAdaptive(const double thickness, const ColorF& color, const double maxError, const int32 maxDepth) const
 	{
-		getLineStringAdaptive(maxError, maxDepth).draw(thickness, color);
+		toLineStringAdaptive(maxError, maxDepth).draw(thickness, color);
 		return *this;
 	}
 
 	const Bezier3& Bezier3::drawAdaptive(const LineCap linaCap, const double thickness, const ColorF& color, const double maxError, const int32 maxDepth) const
 	{
-		getLineStringAdaptive(maxError, maxDepth).draw(linaCap, thickness, color);
+		toLineStringAdaptive(maxError, maxDepth).draw(linaCap, thickness, color);
 		return *this;
 	}
 
 	const Bezier3& Bezier3::drawAdaptive(const LineCap startCap, const LineCap endCap, const double thickness, const ColorF& color, const double maxError, const int32 maxDepth) const
 	{
-		getLineStringAdaptive(maxError, maxDepth).draw(startCap, endCap, thickness, color);
+		toLineStringAdaptive(maxError, maxDepth).draw(startCap, endCap, thickness, color);
 		return *this;
 	}
 
@@ -959,7 +807,7 @@ namespace s3d
 	double Bezier3::speed(double t) const noexcept
 	{
 		t = Clamp(t, 0.0, 1.0);
-		return getDerivative(t).length();
+		return derivativeAt(t).length();
 	}
 
 	double Bezier3::integrateSpeed(double a, double b) const noexcept
@@ -983,9 +831,9 @@ namespace s3d
 		return (h * local);
 	}
 
-	void Bezier3::ThrowPointAtIndexOutOfRange()
+	void Bezier3::ThrowControlPointAtIndexOutOfRange()
 	{
-		throw std::out_of_range{ "Bezier3::pointAtIndex() index out of range" };
+		throw std::out_of_range{ "Bezier3::controlPointAtIndex() index out of range" };
 	}
 }
 

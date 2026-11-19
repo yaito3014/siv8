@@ -198,8 +198,8 @@ MIT_LICENSE
 },
 
 {
-R"-(doctest)-",
-R"-(Copyright (c) 2016-2023 Viktor Kirilov)-",
+R"-(DirectXMesh)-",
+R"-(Copyright (c) Microsoft Corporation.)-",
 MIT_LICENSE
 },
 
@@ -662,6 +662,12 @@ APACHE_2_LICENSE
 },
 
 {
+R"-(MikkTSpace)-",
+R"-(Copyright (C) 2011 by Morten S. Mikkelsen)-",
+ZLIB_LICENSE
+},
+
+{
 R"-(mimalloc)-",
 R"-(Copyright (c) 2018-2025 Microsoft Corporation, Daan Leijen)-",
 MIT_LICENSE
@@ -670,12 +676,6 @@ MIT_LICENSE
 {
 R"-(miniaudio)-",
 R"-(Copyright 2025 David Reid)-",
-MIT_LICENSE
-},
-
-{
-R"-(miniutf)-",
-R"-(Copyright (c) 2013 Dropbox, Inc.)-",
 MIT_LICENSE
 },
 
@@ -931,6 +931,12 @@ MIT_LICENSE
 {
 R"-(WinToast)-",
 R"-(Copyright (C) 2016-2025 WinToast v1.3.2 - Mohammed Boujemaoui <mohabouje@gmail.com>)-",
+MIT_LICENSE
+},
+
+{
+R"-(Wuffs)-",
+R"-(Copyright 2023 The Wuffs Authors)-",
 MIT_LICENSE
 },
 

@@ -17,8 +17,10 @@
 # include "ArrayAlgorithm.hpp"
 # include "ArrayRandom.hpp"
 # include "2DShapes.hpp"
+# include "Optional.hpp"
 # include "PredefinedYesNo.hpp"
 # include "RangeFormatter.hpp"
+# include "StringView.hpp"
 
 namespace s3d
 {
@@ -28,6 +30,8 @@ namespace s3d
 	//
 	////////////////////////////////////////////////////////////////
 
+	/// @remark 要素を所有します。ポインタ・イテレータ・span の取得は左辺値に限定され、元の要素の寿命と無効化規則に従います。
+	/// @remark 右辺値の要素アクセスは値を返し、const 右辺値からの借用はできません。
 	class LineString
 	{
 	public:
@@ -90,28 +94,28 @@ namespace s3d
 		[[nodiscard]]
 		LineString(LineString&& other) = default;
 
-		/// @brief Array からのコピーで点の配列を作成します。
+		/// @brief Array からのコピーで頂点の配列を作成します。
 		/// @param other コピーする配列
 		[[nodiscard]]
 		constexpr LineString(const container_type& other);
 
-		/// @brief Array からのムーブで点の配列を作成します。
+		/// @brief Array からのムーブで頂点の配列を作成します。
 		/// @param other ムーブする配列
 		[[nodiscard]]
 		constexpr LineString(container_type&& other);
 
-		/// @brief count 個の value からなる点の配列を作成します。
+		/// @brief count 個の value からなる頂点の配列を作成します。
 		/// @param count 個数
 		/// @param value 要素
 		[[nodiscard]]
 		constexpr LineString(size_type count, const value_type& value);
 
-		/// @brief count 個の Vec2{ 0, 0 } からなる点の配列を作成します。
+		/// @brief count 個の Vec2{ 0, 0 } からなる頂点の配列を作成します。
 		/// @param count 個数
 		[[nodiscard]]
 		explicit constexpr LineString(size_type count);
 
-		/// @brief イテレータが指す範囲の要素から点の配列を作成します。
+		/// @brief イテレータが指す範囲の要素から頂点の配列を作成します。
 		/// @tparam Iterator イテレータ
 		/// @param first 範囲の開始位置を指すイテレータ
 		/// @param last 範囲の終端位置を指すイテレータ
@@ -119,46 +123,48 @@ namespace s3d
 		[[nodiscard]]
 		constexpr LineString(Iterator first, Iterator last);
 
-		/// @brief 点の配列を作成します。
-		/// @param points 
+		/// @brief 頂点の配列を作成します。
+		/// @param vertices 頂点の配列
 		[[nodiscard]]
-		explicit constexpr LineString(const Array<Point>& points);
+		explicit constexpr LineString(const Array<Point>& vertices);
 
-		/// @brief メンバ関数 `.asArray()` を持つ型から点の配列を作成します。
+		/// @brief メンバ関数 `.asArray()` を持つ型から頂点の配列を作成します。
 		/// @tparam ArrayIsh メンバ関数 `.asArray()` を持つ型
 		/// @param a `.asArray()` を持つ型のオブジェクト
 		[[nodiscard]]
-		explicit constexpr LineString(const HasAsArray auto& a);
+		explicit constexpr LineString(const HasAsArray auto& a)
+			requires detail::AsArrayOf<decltype(a), container_type>;
 
-		/// @brief メンバ関数 `.asArray()` を持つ型から点の配列を作成します。
+		/// @brief メンバ関数 `.asArray()` を持つ型から頂点の配列を作成します。
 		/// @tparam ArrayIsh メンバ関数 `.asArray()` を持つ型
 		/// @param a `.asArray()` を持つ型のオブジェクト
 		[[nodiscard]]
-		explicit constexpr LineString(HasAsArray auto&& a);
+		explicit constexpr LineString(HasAsArray auto&& a)
+			requires detail::AsArrayOf<decltype(a), container_type>;
 
-		/// @brief 初期化リストから点の配列を作成します。
+		/// @brief 初期化リストから頂点の配列を作成します。
 		/// @param list 初期化リスト
 		/// @param alloc アロケータ
 		[[nodiscard]]
 		constexpr LineString(std::initializer_list<value_type> list);
 
-		/// @brief 範囲から点の配列を作成します。
+		/// @brief 範囲から頂点の配列を作成します。
 		/// @tparam Range 範囲の型
+		/// @param tag 範囲から構築することを示すタグ
 		/// @param range 範囲
-		/// @param alloc アロケータ
 		template <Concept::ContainerCompatibleRange<Vec2> Range>
 		[[nodiscard]]
-		constexpr LineString(std::from_range_t, Range&& range);
+		constexpr LineString(std::from_range_t tag, Range&& range);
 
-		/// @brief 範囲から点の配列を作成します。
+		/// @brief 範囲から頂点の配列を作成します。
 		/// @tparam Range 範囲の型
+		/// @param tag 範囲から構築することを示すタグ
 		/// @param range 範囲
-		/// @param alloc アロケータ
 		template <Concept::ContainerCompatibleRange<Point> Range>
 		[[nodiscard]]
-		constexpr LineString(std::from_range_t, Range&& range);
+		constexpr LineString(std::from_range_t tag, Range&& range);
 
-		/// @brief 空の点の配列を作成し、`reserve()` します。
+		/// @brief 空の頂点の配列を作成し、`reserve()` します。
 		/// @param size `reserve()` するサイズ
 		[[nodiscard]]
 		explicit constexpr LineString(Arg::reserve_<size_type> size);
@@ -197,12 +203,14 @@ namespace s3d
 		/// @brief コピー代入演算子
 		/// @param a メンバ関数 `.asArray()` を持つ型
 		/// @return *this
-		constexpr LineString& operator =(const HasAsArray auto& a);
+		constexpr LineString& operator =(const HasAsArray auto& a)
+			requires detail::AsArrayOf<decltype(a), container_type>;
 
 		/// @brief ムーブ代入演算子
 		/// @param a メンバ関数 `.asArray()` を持つ型
 		/// @return *this
-		constexpr LineString& operator =(HasAsArray auto&& a);
+		constexpr LineString& operator =(HasAsArray auto&& a)
+			requires detail::AsArrayOf<decltype(a), container_type>;
 
 		/// @brief コピー代入演算子
 		/// @param list リスト
@@ -219,7 +227,10 @@ namespace s3d
 		/// @param count 要素数
 		/// @param value 要素の値
 		/// @return *this
-		constexpr LineString& assign(size_type count, const value_type& value);
+		constexpr LineString& assign(size_type count, const value_type& value) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString assign(size_type count, const value_type& value) &&;
 
 		/// @brief イテレータが指す範囲の要素から配列を作成します。
 		/// @tparam Iterator イテレータ
@@ -227,12 +238,19 @@ namespace s3d
 		/// @param last 範囲の終端位置を指すイテレータ
 		/// @return *this
 		template <std::input_iterator Iterator>
-		constexpr LineString& assign(Iterator first, Iterator last);
+		constexpr LineString& assign(Iterator first, Iterator last) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		template <std::input_iterator Iterator>
+		constexpr LineString assign(Iterator first, Iterator last) &&;
 
 		/// @brief リストから配列を作成します。
 		/// @param list リスト
 		/// @return *this
-		constexpr LineString& assign(std::initializer_list<value_type> list);
+		constexpr LineString& assign(std::initializer_list<value_type> list) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString assign(std::initializer_list<value_type> list) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -245,14 +263,22 @@ namespace s3d
 		/// @param range 範囲
 		/// @return *this
 		template <Concept::ContainerCompatibleRange<Vec2> Range>
-		constexpr LineString& assign_range(Range&& range);
+		constexpr LineString& assign_range(Range&& range) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		template <Concept::ContainerCompatibleRange<Vec2> Range>
+		constexpr LineString assign_range(Range&& range) &&;
 
 		/// @brief 範囲から配列を作成します。
 		/// @tparam Range 範囲の型
 		/// @param range 範囲
 		/// @return *this
 		template <Concept::ContainerCompatibleRange<Point> Range>
-		constexpr LineString& assign_range(Range&& range);
+		constexpr LineString& assign_range(Range&& range) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		template <Concept::ContainerCompatibleRange<Point> Range>
+		constexpr LineString assign_range(Range&& range) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -276,6 +302,9 @@ namespace s3d
 		[[nodiscard]]
 		constexpr const container_type& asArray() const& noexcept;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void asArray() const&& = delete;
+
 		/// @brief Array を返します。
 		/// @return Array
 		[[nodiscard]]
@@ -288,10 +317,12 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		/// @brief Array への暗黙の変換を行います。
+		/// @return Array
 		[[nodiscard]]
-		constexpr operator container_type() const& noexcept;
+		constexpr operator container_type() const&;
 
 		/// @brief Array への暗黙の変換を行います。
+		/// @return Array
 		[[nodiscard]]
 		constexpr operator container_type() && noexcept;
 
@@ -306,6 +337,9 @@ namespace s3d
 		/// @return 要素への参照
 		/// @throw std::out_of_range 範囲外アクセスの場合 throw
 		constexpr const value_type& at(size_type index) const&;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void at(size_type index) const&& = delete;
 
 		/// @brief 要素にアクセスします。
 		/// @param index 要素へのインデックス
@@ -330,6 +364,9 @@ namespace s3d
 		/// @return 要素への参照
 		[[nodiscard]]
 		constexpr const value_type& operator [](size_type index) const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void operator [](size_type index) const&& = delete;
 
 		/// @brief 要素にアクセスします。
 		/// @param index 要素へのインデックス
@@ -359,6 +396,9 @@ namespace s3d
 		[[nodiscard]]
 		constexpr const_reference front() const& noexcept;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void front() const&& = delete;
+
 		/// @brief 先頭の要素を返します。
 		/// @return 先頭の要素
 		[[nodiscard]]
@@ -380,6 +420,9 @@ namespace s3d
 		[[nodiscard]]
 		constexpr const_reference back() const& noexcept;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void back() const&& = delete;
+
 		/// @brief 末尾の要素を返します。
 		/// @return 末尾の要素
 		[[nodiscard]]
@@ -394,12 +437,15 @@ namespace s3d
 		/// @brief 先頭の要素を指すポインタを返します。
 		/// @return 先頭の要素を指すポインタ
 		[[nodiscard]]
-		constexpr value_type* data() noexcept;
+		constexpr value_type* data() & noexcept;
 
 		/// @brief 先頭の要素を指すポインタを返します。
 		/// @return 先頭の要素を指すポインタ
 		[[nodiscard]]
-		constexpr const value_type* data() const noexcept;
+		constexpr const value_type* data() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void data() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -410,24 +456,30 @@ namespace s3d
 		/// @brief 配列の先頭位置を指すイテレータを返します。
 		/// @return 配列の先頭位置を指すイテレータ
 		[[nodiscard]]
-		constexpr iterator begin() noexcept;
+		constexpr iterator begin() & noexcept;
 
 		/// @brief 配列の終端位置を指すイテレータを返します。
 		/// @remark 有効な範囲は [begin, end) であるため、この位置に要素は存在しません
 		/// @return 配列の終端位置を指すイテレータ
 		[[nodiscard]]
-		constexpr iterator end() noexcept;
+		constexpr iterator end() & noexcept;
 
 		/// @brief 配列の先頭位置を指すイテレータを返します。
 		/// @return 配列の先頭位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator begin() const noexcept;
+		constexpr const_iterator begin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void begin() const&& = delete;
 
 		/// @brief 配列の終端位置を指すイテレータを返します。
 		/// @remark 有効な範囲は [begin, end) であるため、この位置に要素は存在しません
 		/// @return 配列の終端位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator end() const noexcept;
+		constexpr const_iterator end() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void end() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -438,13 +490,19 @@ namespace s3d
 		/// @brief 配列の先頭位置を指すイテレータを返します。
 		/// @return 配列の先頭位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator cbegin() const noexcept;
+		constexpr const_iterator cbegin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void cbegin() const&& = delete;
 
 		/// @brief 配列の終端位置を指すイテレータを返します。
 		/// @remark 有効な範囲は [begin, end) であるため、この位置に要素は存在しません
 		/// @return 配列の終端位置を指すイテレータ
 		[[nodiscard]]
-		constexpr const_iterator cend() const noexcept;
+		constexpr const_iterator cend() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void cend() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -455,24 +513,30 @@ namespace s3d
 		/// @brief 配列の末尾位置を指すリバース・イテレータを返します。
 		/// @return 配列の末尾位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr reverse_iterator rbegin() noexcept;
+		constexpr reverse_iterator rbegin() & noexcept;
 
 		/// @brief 配列の先端位置を指すリバース・イテレータを返します。
 		/// @remark 有効な範囲は [rbegin, rend) であるため、この位置に要素は存在しません
 		/// @return 配列の先端位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr reverse_iterator rend() noexcept;
+		constexpr reverse_iterator rend() & noexcept;
 
 		/// @brief 配列の末尾位置を指すリバース・イテレータを返します。
 		/// @return 配列の末尾位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator rbegin() const noexcept;
+		constexpr const_reverse_iterator rbegin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void rbegin() const&& = delete;
 
 		/// @brief 配列の先端位置を指すリバース・イテレータを返します。
 		/// @remark 有効な範囲は [rbegin, rend) であるため、この位置に要素は存在しません
 		/// @return 配列の先端位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator rend() const noexcept;
+		constexpr const_reverse_iterator rend() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void rend() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -483,13 +547,19 @@ namespace s3d
 		/// @brief 配列の末尾位置を指すリバース・イテレータを返します。
 		/// @return 配列の末尾位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator crbegin() const noexcept;
+		constexpr const_reverse_iterator crbegin() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void crbegin() const&& = delete;
 
 		/// @brief 配列の先端位置を指すリバース・イテレータを返します。
 		/// @remark 有効な範囲は [rbegin, rend) であるため、この位置に要素は存在しません
 		/// @return 配列の先端位置を指すリバース・イテレータ
 		[[nodiscard]]
-		constexpr const_reverse_iterator crend() const noexcept;
+		constexpr const_reverse_iterator crend() const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void crend() const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -641,14 +711,14 @@ namespace s3d
 		/// @param pos 挿入する位置
 		/// @param value 挿入する値
 		/// @return 挿入された要素を指すイテレータ
-		constexpr iterator insert(const_iterator pos, const value_type& value);
+		constexpr iterator insert(const_iterator pos, const value_type& value) &;
 
 		/// @brief 指定した位置に count 個の value を挿入します。
 		/// @param pos 挿入する位置
 		/// @param count 挿入する個数
 		/// @param value 挿入する値
 		/// @return 挿入された要素の先頭を指すイテレータ
-		constexpr iterator insert(const_iterator pos, size_type count, const value_type& value);
+		constexpr iterator insert(const_iterator pos, size_type count, const value_type& value) &;
 
 		/// @brief 指定した位置にイテレータが指す範囲の要素を挿入します。
 		/// @tparam Iterator イテレータ
@@ -657,13 +727,13 @@ namespace s3d
 		/// @param last 範囲の終端位置を指すイテレータ
 		/// @return 挿入された要素の先頭を指すイテレータ
 		template <std::input_iterator Iterator>
-		constexpr iterator insert(const_iterator pos, Iterator first, Iterator last);
+		constexpr iterator insert(const_iterator pos, Iterator first, Iterator last) &;
 
 		/// @brief 指定した位置にリストの要素を挿入します。
 		/// @param pos 挿入する位置
 		/// @param list リスト
 		/// @return 挿入された要素の先頭を指すイテレータ
-		constexpr iterator insert(const_iterator pos, std::initializer_list<value_type> list);
+		constexpr iterator insert(const_iterator pos, std::initializer_list<value_type> list) &;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -677,7 +747,7 @@ namespace s3d
 		/// @param range 範囲
 		/// @return 挿入された要素の先頭を指すイテレータ
 		template <Concept::ContainerCompatibleRange<Vec2> Range>
-		constexpr iterator insert_range(const_iterator pos, Range&& range);
+		constexpr iterator insert_range(const_iterator pos, Range&& range) &;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -686,12 +756,12 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 指定した位置に要素を構築して挿入します。
-		/// @tparam ...Args 構築する要素の引数の型
+		/// @tparam Args 構築する要素の引数の型
 		/// @param pos 挿入する位置
-		/// @param ...args 構築する要素の引数
+		/// @param args 構築する要素の引数
 		/// @return 挿入された要素を指すイテレータ
 		template <class... Args>
-		constexpr iterator emplace(const_iterator pos, Args&&... args);
+		constexpr iterator emplace(const_iterator pos, Args&&... args) &;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -720,13 +790,13 @@ namespace s3d
 		/// @brief 指定した位置の要素を削除します。
 		/// @param pos 削除する要素の位置
 		/// @return 削除した要素の次の要素を指すイテレータ
-		constexpr iterator erase(const_iterator pos);
+		constexpr iterator erase(const_iterator pos) &;
 
 		/// @brief 指定した範囲の要素を削除します。
 		/// @param first 削除する範囲の開始位置
 		/// @param last 削除する範囲の終端位置
 		/// @return 削除された範囲の次を指すイテレータ
-		constexpr iterator erase(const_iterator first, const_iterator last);
+		constexpr iterator erase(const_iterator first, const_iterator last) &;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -812,11 +882,11 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 配列の末尾に要素を構築して追加します。
-		/// @tparam ...Args 構築する要素の引数の型
-		/// @param ...args 構築する要素の引数
+		/// @tparam Args 構築する要素の引数の型
+		/// @param args 構築する要素の引数
 		/// @return 追加された要素への参照
 		template <class... Args>
-		constexpr reference emplace_back(Args&&... args);
+		constexpr reference emplace_back(Args&&... args) &;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -870,11 +940,11 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 配列の先頭に要素を構築して追加します。
-		/// @tparam ...Args 構築する要素の引数の型
-		/// @param ...args 構築する要素の引数
+		/// @tparam Args 構築する要素の引数の型
+		/// @param args 構築する要素の引数
 		/// @return 追加された要素への参照
 		template <class... Args>
-		constexpr reference emplace_front(Args&&... args);
+		constexpr reference emplace_front(Args&&... args) &;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -916,7 +986,10 @@ namespace s3d
 		/// @brief 配列の末尾に要素を追加します。
 		/// @param value 追加する値
 		/// @return *this
-		constexpr LineString& operator <<(const value_type& value);
+		constexpr LineString& operator <<(const value_type& value) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString operator <<(const value_type& value) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -929,14 +1002,17 @@ namespace s3d
 		/// @param count 部分配列の要素数
 		/// @return 部分配列を指す span
 		[[nodiscard]]
-		constexpr std::span<value_type> subspan(size_type pos, size_type count) noexcept;
+		constexpr std::span<value_type> subspan(size_type pos, size_type count) & noexcept;
 
 		/// @brief 部分配列を指す span を返します。
 		/// @param pos 部分配列の開始位置
 		/// @param count 部分配列の要素数
 		/// @return 部分配列を指す span
 		[[nodiscard]]
-		constexpr std::span<const value_type> subspan(size_type pos, size_type count) const noexcept;
+		constexpr std::span<const value_type> subspan(size_type pos, size_type count) const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void subspan(size_type pos, size_type count) const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -988,12 +1064,18 @@ namespace s3d
 		/// @brief 配列の末尾に別の LineString を追加します。
 		/// @param other 追加する LineString
 		/// @return *this
-		constexpr LineString& append(const LineString& other);
+		constexpr LineString& append(const LineString& other) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString append(const LineString& other) &&;
 
 		/// @brief 配列の末尾に別の配列を追加します。
 		/// @param other 追加する配列
 		/// @return *this
-		constexpr LineString& append(const container_type& other);
+		constexpr LineString& append(const container_type& other) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString append(const container_type& other) &&;
 
 		/// @brief 配列の末尾に別の範囲の要素を追加します。
 		/// @tparam Iterator イテレータ
@@ -1001,18 +1083,44 @@ namespace s3d
 		/// @param last 範囲の終端位置を指すイテレータ
 		/// @return *this
 		template <std::input_iterator Iterator>
-		constexpr LineString& append(Iterator first, Iterator last);
+		constexpr LineString& append(Iterator first, Iterator last) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		template <std::input_iterator Iterator>
+		constexpr LineString append(Iterator first, Iterator last) &&;
 
 		/// @brief 配列の末尾にリストの要素を追加します。
 		/// @param list リスト
 		/// @return *this
-		constexpr LineString& append(std::initializer_list<value_type> list);
+		constexpr LineString& append(std::initializer_list<value_type> list) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString append(std::initializer_list<value_type> list) &&;
 
 		/// @brief 配列の末尾に要素を追加します。
 		/// @param count 追加する個数
 		/// @param value 追加する値
 		/// @return *this
-		constexpr LineString& append(size_type count, const value_type& value);
+		constexpr LineString& append(size_type count, const value_type& value) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString append(size_type count, const value_type& value) &&;
+
+		/// @brief 配列をムーブして末尾に追加します。自己ムーブでは変更しません。
+		/// @return *this
+		constexpr LineString& append(LineString&& other) &;
+
+		/// @brief 配列をムーブして末尾に追加します。自己ムーブでは変更しません。
+		/// @return 操作後のオブジェクト
+		constexpr LineString append(LineString&& other) &&;
+
+		/// @brief 配列をムーブして末尾に追加します。自己ムーブでは変更しません。
+		/// @return *this
+		constexpr LineString& append(container_type&& other) &;
+
+		/// @brief 配列をムーブして末尾に追加します。自己ムーブでは変更しません。
+		/// @return 操作後のオブジェクト
+		constexpr LineString append(container_type&& other) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1020,40 +1128,58 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 点列の要素を 1 つランダムに返します。
-		/// @return 点列からランダムに選ばれた要素への参照
+		/// @brief 頂点列の要素を 1 つランダムに返します。
+		/// @return 頂点列からランダムに選ばれた要素への参照
 		[[nodiscard]]
-		value_type& choice();
+		value_type& choice() &;
 
-		/// @brief 点列の要素を 1 つランダムに返します。
-		/// @return 点列からランダムに選ばれた要素への参照
+		/// @brief 頂点列の要素を 1 つランダムに返します。
+		/// @return 頂点列からランダムに選ばれた要素への参照
 		[[nodiscard]]
-		const value_type& choice() const;
+		const value_type& choice() const&;
 
-		/// @brief 指定した乱数エンジンを用いて、点列の要素を 1 つランダムに返します。
-		/// @param rbg 使用する乱数エンジン
-		/// @return 点列からランダムに選ばれた要素への参照
+		/// @brief 選択した要素をムーブして返します。空の場合は std::out_of_range を送出します。
 		[[nodiscard]]
-		value_type& choice(Concept::UniformRandomBitGenerator auto&& rbg);
+		value_type choice() &&
+		{
+			return std::move(m_vertices).choice();
+		}
 
-		/// @brief 指定した乱数エンジンを用いて、点列の要素を 1 つランダムに返します。
-		/// @param rbg 使用する乱数エンジン
-		/// @return 点列からランダムに選ばれた要素への参照
+		void choice() const&& = delete;
+
+		/// @brief 指定した乱数エンジンを用いて、頂点列の要素を 1 つランダムに返します。
+		/// @param urbg 使用する乱数エンジン
+		/// @return 頂点列からランダムに選ばれた要素への参照
 		[[nodiscard]]
-		const value_type& choice(Concept::UniformRandomBitGenerator auto&& rbg) const;
+		value_type& choice(Concept::UniformRandomBitGenerator auto&& urbg) &;
 
-		/// @brief 点列の要素から指定した個数だけ重複なくランダムに選んで返します。
+		/// @brief 指定した乱数エンジンを用いて、頂点列の要素を 1 つランダムに返します。
+		/// @param urbg 使用する乱数エンジン
+		/// @return 頂点列からランダムに選ばれた要素への参照
+		[[nodiscard]]
+		const value_type& choice(Concept::UniformRandomBitGenerator auto&& urbg) const&;
+
+		/// @brief 選択した要素をムーブして返します。空の場合は std::out_of_range を送出します。
+		[[nodiscard]]
+		value_type choice(Concept::UniformRandomBitGenerator auto&& urbg) &&
+		{
+			return std::move(m_vertices).choice(std::forward<decltype(urbg)>(urbg));
+		}
+
+		void choice(Concept::UniformRandomBitGenerator auto&& urbg) const&& = delete;
+
+		/// @brief 頂点列の要素から指定した個数だけ重複なくランダムに選んで返します。
 		/// @param n 選択する個数
 		/// @return ランダムに選ばれた要素の LineString
 		[[nodiscard]]
 		LineString choice(size_t n) const;
 
-		/// @brief 指定した乱数エンジンを用いて、点列の要素から指定した個数だけ重複なくランダムに選んで返します。
+		/// @brief 指定した乱数エンジンを用いて、頂点列の要素から指定した個数だけ重複なくランダムに選んで返します。
 		/// @param n 選択する個数
-		/// @param rbg 使用する乱数エンジン
+		/// @param urbg 使用する乱数エンジン
 		/// @return ランダムに選ばれた要素の LineString
 		[[nodiscard]]
-		LineString choice(size_t n, Concept::UniformRandomBitGenerator auto&& rbg) const;
+		LineString choice(size_t n, Concept::UniformRandomBitGenerator auto&& urbg) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1061,9 +1187,9 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 点列を指定した個数の要素を持つグループに分割します。最後のグループの要素数は n 個未満になることがあります。
+		/// @brief 頂点列を指定した個数の要素を持つグループに分割します。最後のグループの要素数は n 個未満になることがあります。
 		/// @param n 1 つのグループが持つ要素数
-		/// @return 分割された点列のグループ
+		/// @return 分割された頂点列のグループ
 		[[nodiscard]]
 		constexpr Array<LineString> chunk(size_type n) const;
 
@@ -1073,9 +1199,10 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 指定した値と等しい要素があるかを返します。
-		/// @param value 検索する値
-		/// @return 指定した値と等しい要素がある場合 true, それ以外の場合は false
+		/// @brief 格納された頂点に指定した座標と等しいものがあるかを返します。
+		/// @param value 検索する座標
+		/// @return value と等しい頂点がある場合 true, それ以外の場合は false
+		/// @remark 線分上にある点も含めて判定するには intersects(value) を使います。
 		[[nodiscard]]
 		constexpr bool contains(const value_type& value) const;
 
@@ -1120,6 +1247,42 @@ namespace s3d
 		template <class Fty>
 		[[nodiscard]]
 		constexpr isize count_if(Fty f) const
+			requires std::predicate<Fty&, const value_type&>;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	drop
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 先頭の Min(n, size()) 個を除いた列を返します。
+		/// @remark 個数と位置の単位は要素です。右辺値では元の記憶領域を再利用します。
+		[[nodiscard]]
+		constexpr LineString drop(size_type n) const&;
+
+		/// @brief 先頭の Min(n, size()) 個を除いた列を返します。
+		/// @remark 元の記憶領域を再利用します。
+		[[nodiscard]]
+		constexpr LineString drop(size_type n) &&;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	drop_while
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 先頭から条件を満たす間の要素を除いた列を返します。
+		/// @remark 個数と位置の単位は要素です。右辺値では元の記憶領域を再利用します。
+		template <class Fty>
+		[[nodiscard]]
+		constexpr LineString drop_while(Fty f) const&
+			requires std::predicate<Fty&, const value_type&>;
+
+		/// @brief 先頭から条件を満たす間の要素を除いた列を返します。
+		/// @remark 元の記憶領域を再利用します。
+		template <class Fty>
+		[[nodiscard]]
+		constexpr LineString drop_while(Fty f) &&
 			requires std::predicate<Fty&, const value_type&>;
 
 		////////////////////////////////////////////////////////////////
@@ -1208,7 +1371,10 @@ namespace s3d
 		/// @brief 指定した値をすべての要素に代入します。
 		/// @param value 代入する値
 		/// @return *this
-		constexpr LineString& fill(const value_type& value);
+		constexpr LineString& fill(const value_type& value) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString fill(const value_type& value) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1222,8 +1388,51 @@ namespace s3d
 		/// @return 指定した条件を満たす要素を集めた新しい LineString
 		template <class Fty>
 		[[nodiscard]]
-		constexpr LineString filter(Fty f) const
+		constexpr LineString filter(Fty f) const&
 			requires std::predicate<Fty&, const value_type&>;
+		/// @brief 条件を満たす要素を順序を保って残し、元の記憶領域を再利用します。
+		template <class Fty>
+		[[nodiscard]]
+		constexpr LineString filter(Fty f) &&
+			requires std::predicate<Fty&, const value_type&>;
+
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	find_if
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 最初に条件を満たす要素へのポインタを返します。見つからない場合は nullptr を返します。
+		template <class Fty>
+		[[nodiscard]]
+		constexpr value_type* find_if(Fty f) &
+			requires std::predicate<Fty&, const value_type&>;
+
+		/// @brief 最初に条件を満たす要素へのポインタを返します。見つからない場合は nullptr を返します。
+		template <class Fty>
+		[[nodiscard]]
+		constexpr const value_type* find_if(Fty f) const&
+			requires std::predicate<Fty&, const value_type&>;
+
+		template <class Fty>
+		void find_if(Fty) const&& = delete;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	get_if
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定位置の要素へのポインタを返します。範囲外では nullptr を返します。
+		[[nodiscard]]
+		constexpr value_type* get_if(size_type index) & noexcept;
+
+		/// @brief 指定位置の要素へのポインタを返します。範囲外では nullptr を返します。
+		[[nodiscard]]
+		constexpr const value_type* get_if(size_type index) const& noexcept;
+
+		void get_if(size_type) const&& = delete;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1231,10 +1440,10 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 点列を指定したグループ数に分割します。
+		/// @brief 頂点列を指定したグループ数に分割します。
 		/// @param group グループ数
 		/// @remark group が要素数より大きい場合、空のグループは作られず、返されるグループ数は要素数になります。
-		/// @return 分割した点列のグループ
+		/// @return 分割した頂点列のグループ
 		[[nodiscard]]
 		constexpr Array<LineString> in_groups(size_type group) const;
 
@@ -1249,6 +1458,18 @@ namespace s3d
 		/// @return 指定した値と等しい最初の要素のインデックス。見つからなかった場合は none
 		[[nodiscard]]
 		constexpr Optional<size_t> indexOf(const value_type& value) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	indexOf_if
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 最初に条件を満たす要素の位置を返します。見つからない場合は none を返します。
+		template <class Fty>
+		[[nodiscard]]
+		constexpr Optional<size_type> indexOf_if(Fty f) const
+			requires std::predicate<Fty&, const value_type&>;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1276,6 +1497,7 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @remark 呼び出しは std::invoke に従います。結果は所有可能な値型である必要があり、void は受け付けません。
 		/// @brief 各要素に関数を適用した戻り値からなる新しい配列を返します。
 		/// @tparam Fty 各要素に適用する関数の型
 		/// @param f 各要素に適用する関数
@@ -1283,7 +1505,7 @@ namespace s3d
 		template <class Fty>
 		[[nodiscard]]
 		constexpr auto map(Fty f) const
-			requires std::invocable<Fty&, const value_type&>;
+			requires detail::ArrayMapFunction<Fty, value_type>;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1306,6 +1528,16 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief index から末尾までを返します。index > size() は std::out_of_range を送出します。
+		/// @remark 個数と位置の単位は要素です。右辺値では元の記憶領域を再利用します。
+		[[nodiscard]]
+		constexpr LineString slice(size_type index) const&;
+
+		/// @brief 指定した範囲を返します。不正な範囲では std::out_of_range を送出します。
+		/// @remark 元の記憶領域を再利用します。
+		[[nodiscard]]
+		constexpr LineString slice(size_type index) &&;
+
 		/// @brief 指定した範囲の要素からなる新しい LineString を返します。
 		/// @param index インデックス
 		/// @param length 長さ
@@ -1319,24 +1551,6 @@ namespace s3d
 		/// @return 新しい LineString
 		[[nodiscard]]
 		constexpr LineString slice(size_type index, size_type length) &&;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	head
-		//
-		////////////////////////////////////////////////////////////////
-
-		/// @brief 先頭から最大 n 個の要素を取り出した新しい LineString を返します。
-		/// @param n 取り出す最大要素数
-		/// @return 先頭から最大 n 個の要素を含む新しい LineString
-		[[nodiscard]]
-		constexpr LineString head(size_type n) const&;
-
-		/// @brief 先頭から最大 n 個の要素を取り出した新しい LineString を返します。
-		/// @param n 取り出す最大要素数
-		/// @return 先頭から最大 n 個の要素を含む新しい LineString
-		[[nodiscard]]
-		constexpr LineString head(size_type n) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1355,6 +1569,9 @@ namespace s3d
 		/// @return 先頭から最大 n 個の要素を参照する `std::span`
 		[[nodiscard]]
 		constexpr std::span<const value_type> head_span(size_type n) const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void head_span(size_type n) const&& = delete;
 
 		/// @brief 先頭から最大 n 個の要素を参照する span を返します。
 		/// @param n 参照する最大要素数
@@ -1378,6 +1595,9 @@ namespace s3d
 		/// @return `std::views::take` による遅延評価ビュー
 		[[nodiscard]]
 		constexpr auto head_view(size_type n) const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void head_view(size_type n) const&& = delete;
 
 		/// @brief 先頭から最大 n 個の要素を取り出す Ranges ビューを返します。
 		/// @param n 取り出す最大要素数
@@ -1421,6 +1641,9 @@ namespace s3d
 		[[nodiscard]]
 		constexpr std::span<const value_type> tail_span(size_type n) const& noexcept;
 
+		/// @brief const 右辺値からの借用を禁止します。
+		void tail_span(size_type n) const&& = delete;
+
 		/// @brief 末尾の最大 n 個の要素を参照する span を返します。
 		/// @param n 参照する最大要素数
 		/// @return 末尾の最大 n 個の要素を参照する `std::span`
@@ -1443,6 +1666,9 @@ namespace s3d
 		/// @return `std::views::take` による遅延評価ビュー
 		[[nodiscard]]
 		constexpr auto tail_view(size_type n) const& noexcept;
+
+		/// @brief const 右辺値からの借用を禁止します。
+		void tail_view(size_type n) const&& = delete;
 
 		/// @brief 末尾の最大 n 個の要素を取り出す Ranges ビューを返します。
 		/// @param n 取り出す最大要素数
@@ -1648,24 +1874,24 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 指定した位置を境に点列の前半と後半を入れ替えます。
+		/// @brief 指定した位置を境に頂点列の前半と後半を入れ替えます。
 		/// @param middle 境の位置
 		/// @return *this
 		constexpr LineString& rotate(size_type middle)&;
 
-		/// @brief 指定した位置を境に点列の前半と後半を入れ替えた新しい LineString を返します。
+		/// @brief 指定した位置を境に頂点列の前半と後半を入れ替えた新しい LineString を返します。
 		/// @param middle 境の位置
 		/// @return 新しい LineString
 		[[nodiscard]]
 		constexpr LineString rotate(size_type middle) &&;
 
-		/// @brief 指定した位置を境に点列の前半と後半を入れ替えた新しい LineString を返します。
+		/// @brief 指定した位置を境に頂点列の前半と後半を入れ替えた新しい LineString を返します。
 		/// @param middle 境の位置
 		/// @return 新しい LineString
 		[[nodiscard]]
 		constexpr LineString rotated(size_type middle) const&;
 
-		/// @brief 指定した位置を境に点列の前半と後半を入れ替えた新しい LineString を返します。
+		/// @brief 指定した位置を境に頂点列の前半と後半を入れ替えた新しい LineString を返します。
 		/// @param middle 境の位置
 		/// @return 新しい LineString
 		[[nodiscard]]
@@ -1697,18 +1923,21 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 点列の逆順ビューを返します。
-		/// @return 点列の逆順ビュー
+		/// @brief 頂点列の逆順ビューを返します。
+		/// @return 頂点列の逆順ビュー
 		[[nodiscard]]
 		constexpr auto reverse_view() &;
 
-		/// @brief 点列の逆順ビューを返します。
-		/// @return 点列の逆順ビュー
+		/// @brief 頂点列の逆順ビューを返します。
+		/// @return 頂点列の逆順ビュー
 		[[nodiscard]]
 		constexpr auto reverse_view() const&;
 
-		/// @brief 点列の逆順ビューを返します。
-		/// @return 点列の逆順ビュー
+		/// @brief const 右辺値からの借用を禁止します。
+		void reverse_view() const&& = delete;
+
+		/// @brief 頂点列の逆順ビューを返します。
+		/// @return 頂点列の逆順ビュー
 		[[nodiscard]]
 		constexpr auto reverse_view() &&;
 
@@ -1718,47 +1947,47 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 点列の並び順をランダムにシャッフルします。
+		/// @brief 頂点列の並び順をランダムにシャッフルします。
 		/// @return *this
 		constexpr LineString& shuffle()&;
 
-		/// @brief 点列の並び順をランダムにシャッフルした新しい LineString を返します。
+		/// @brief 頂点列の並び順をランダムにシャッフルした新しい LineString を返します。
 		/// @return 新しい LineString
 		[[nodiscard]]
 		constexpr LineString shuffle() &&;
 
-		/// @brief 点列の並び順をランダムにシャッフルした新しい LineString を返します。
+		/// @brief 頂点列の並び順をランダムにシャッフルした新しい LineString を返します。
 		/// @return 新しい LineString
 		[[nodiscard]]
 		constexpr LineString shuffled() const&;
 
-		/// @brief 点列の並び順をランダムにシャッフルした新しい LineString を返します。
+		/// @brief 頂点列の並び順をランダムにシャッフルした新しい LineString を返します。
 		/// @return 新しい LineString
 		[[nodiscard]]
 		constexpr LineString shuffled() &&;
 
-		/// @brief 指定した乱数エンジンを用いて、点列の並び順をランダムにシャッフルします。
-		/// @param rbg 使用する乱数エンジン
+		/// @brief 指定した乱数エンジンを用いて、頂点列の並び順をランダムにシャッフルします。
+		/// @param urbg 使用する乱数エンジン
 		/// @return *this
-		constexpr LineString& shuffle(Concept::UniformRandomBitGenerator auto&& rbg)&;
+		constexpr LineString& shuffle(Concept::UniformRandomBitGenerator auto&& urbg)&;
 
-		/// @brief 指定した乱数エンジンを用いて、点列の並び順をランダムにシャッフルした新しい LineString を返します。
-		/// @param rbg 使用する乱数エンジン
+		/// @brief 指定した乱数エンジンを用いて、頂点列の並び順をランダムにシャッフルした新しい LineString を返します。
+		/// @param urbg 使用する乱数エンジン
 		/// @return 新しい LineString
 		[[nodiscard]]
-		constexpr LineString shuffle(Concept::UniformRandomBitGenerator auto&& rbg) &&;
+		constexpr LineString shuffle(Concept::UniformRandomBitGenerator auto&& urbg) &&;
 
-		/// @brief 指定した乱数エンジンを用いて、点列の並び順をランダムにシャッフルした新しい LineString を返します。
-		/// @param rbg 使用する乱数エンジン
+		/// @brief 指定した乱数エンジンを用いて、頂点列の並び順をランダムにシャッフルした新しい LineString を返します。
+		/// @param urbg 使用する乱数エンジン
 		/// @return 新しい LineString
 		[[nodiscard]]
-		constexpr LineString shuffled(Concept::UniformRandomBitGenerator auto&& rbg) const&;
+		constexpr LineString shuffled(Concept::UniformRandomBitGenerator auto&& urbg) const&;
 
-		/// @brief 指定した乱数エンジンを用いて、点列の並び順をランダムにシャッフルした新しい LineString を返します。
-		/// @param rbg 使用する乱数エンジン
+		/// @brief 指定した乱数エンジンを用いて、頂点列の並び順をランダムにシャッフルした新しい LineString を返します。
+		/// @param urbg 使用する乱数エンジン
 		/// @return 新しい LineString
 		[[nodiscard]]
-		constexpr LineString shuffled(Concept::UniformRandomBitGenerator auto&& rbg) &&;
+		constexpr LineString shuffled(Concept::UniformRandomBitGenerator auto&& urbg) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1766,7 +1995,7 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 指定した関数を用いて点列を昇順に並び替えます。
+		/// @brief 指定した関数を用いて頂点列を昇順に並び替えます。
 		/// @tparam Fty 比較に使用する関数の型
 		/// @param f 比較に使用する関数
 		/// @return *this
@@ -1774,7 +2003,7 @@ namespace s3d
 		constexpr LineString& sort_by(Fty f)&
 			requires std::strict_weak_order<Fty&, const value_type&, const value_type&>;
 
-		/// @brief 指定した関数を用いて点列を昇順に並び替えた新しい LineString を返します。
+		/// @brief 指定した関数を用いて頂点列を昇順に並び替えた新しい LineString を返します。
 		/// @tparam Fty 比較に使用する関数の型
 		/// @param f 比較に使用する関数
 		/// @return 新しい LineString
@@ -1783,7 +2012,7 @@ namespace s3d
 		constexpr LineString sort_by(Fty f) &&
 			requires std::strict_weak_order<Fty&, const value_type&, const value_type&>;
 
-		/// @brief 指定した関数を用いて点列を昇順に並び替えた新しい LineString を返します。
+		/// @brief 指定した関数を用いて頂点列を昇順に並び替えた新しい LineString を返します。
 		/// @tparam Fty 比較に使用する関数の型
 		/// @param f 比較に使用する関数
 		/// @return 新しい LineString
@@ -1792,7 +2021,7 @@ namespace s3d
 		constexpr LineString sorted_by(Fty f) const&
 			requires std::strict_weak_order<Fty&, const value_type&, const value_type&>;
 
-		/// @brief 指定した関数を用いて点列を昇順に並び替えた新しい LineString を返します。
+		/// @brief 指定した関数を用いて頂点列を昇順に並び替えた新しい LineString を返します。
 		/// @tparam Fty 比較に使用する関数の型
 		/// @param f 比較に使用する関数
 		/// @return 新しい LineString
@@ -1807,7 +2036,7 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 点列の要素を `+` 演算子を用いて合計します。
+		/// @brief 頂点列の要素を `+` 演算子を用いて合計します。
 		/// @return 合計値
 		[[nodiscard]]
 		constexpr auto sum() const;
@@ -1868,10 +2097,9 @@ namespace s3d
 		[[nodiscard]]
 		constexpr LineString uniqued_consecutive() && noexcept;
 
-
 		////////////////////////////////////////////////////////////////
 		//
-		//	num_points
+		//	vertexCount
 		//
 		////////////////////////////////////////////////////////////////
 
@@ -1879,11 +2107,11 @@ namespace s3d
 		/// @remark `size()` と同じです。
 		/// @return LineString を構成する頂点の数
 		[[nodiscard]]
-		constexpr size_t num_points() const noexcept;
+		constexpr size_t vertexCount() const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	num_segments
+		//	segmentCount
 		//
 		////////////////////////////////////////////////////////////////
 
@@ -1891,7 +2119,7 @@ namespace s3d
 		/// @param closeRing 終点と始点を結ぶか
 		/// @return LineString を構成する線分の数
 		[[nodiscard]]
-		constexpr size_t num_segments(CloseRing closeRing = CloseRing::No) const noexcept;
+		constexpr size_t segmentCount(CloseRing closeRing = CloseRing::No) const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1908,33 +2136,7 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	getNormalAtPoint
-		//
-		////////////////////////////////////////////////////////////////
-
-		/// @brief 指定した頂点における進行方向左手の単位ベクトルを返します。
-		/// @param index 頂点のインデックス
-		/// @param closeRing 終点と始点を結ぶか
-		/// @return 指定した頂点における進行方向左手の単位ベクトル
-		[[nodiscard]]
-		Vec2 getNormalAtPoint(size_t index, CloseRing closeRing = CloseRing::No) const;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	getNormalAtSegment
-		//
-		////////////////////////////////////////////////////////////////
-
-		/// @brief 指定した線分における進行方向左手の単位ベクトルを返します。
-		/// @param index 線分のインデックス
-		/// @param closeRing 終点と始点を結ぶか
-		/// @return  指定した線分における進行方向左手の単位ベクトル
-		[[nodiscard]]
-		Vec2 getNormalAtSegment(size_t index, CloseRing closeRing = CloseRing::No) const;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	getTangentAtPoint
+		//	tangentAtVertex
 		//
 		////////////////////////////////////////////////////////////////
 
@@ -1943,11 +2145,11 @@ namespace s3d
 		/// @param closeRing 終点と始点を結ぶか
 		/// @return 指定した頂点における進行方向の単位ベクトル
 		[[nodiscard]]
-		Vec2 getTangentAtPoint(size_t index, CloseRing closeRing = CloseRing::No) const;
+		Vec2 tangentAtVertex(size_t index, CloseRing closeRing = CloseRing::No) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	getTangentAtSegment
+		//	tangentAtSegment
 		//
 		////////////////////////////////////////////////////////////////
 
@@ -1956,7 +2158,33 @@ namespace s3d
 		/// @param closeRing 終点と始点を結ぶか
 		/// @return 指定した線分における進行方向の単位ベクトル
 		[[nodiscard]]
-		Vec2 getTangentAtSegment(size_t index, CloseRing closeRing = CloseRing::No) const;
+		Vec2 tangentAtSegment(size_t index, CloseRing closeRing = CloseRing::No) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	normalAtVertex
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した頂点における進行方向左手の単位ベクトルを返します。
+		/// @param index 頂点のインデックス
+		/// @param closeRing 終点と始点を結ぶか
+		/// @return 指定した頂点における進行方向左手の単位ベクトル
+		[[nodiscard]]
+		Vec2 normalAtVertex(size_t index, CloseRing closeRing = CloseRing::No) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	normalAtSegment
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定した線分における進行方向左手の単位ベクトルを返します。
+		/// @param index 線分のインデックス
+		/// @param closeRing 終点と始点を結ぶか
+		/// @return  指定した線分における進行方向左手の単位ベクトル
+		[[nodiscard]]
+		Vec2 normalAtSegment(size_t index, CloseRing closeRing = CloseRing::No) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1964,15 +2192,29 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 平行移動した LineString を返します。
+		/// @param x X 方向の移動量
+		/// @param y Y 方向の移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString movedBy(double x, double y) const&;
 
+		/// @brief 平行移動した LineString を返します。
+		/// @param x X 方向の移動量
+		/// @param y Y 方向の移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString movedBy(double x, double y) && noexcept;
 
+		/// @brief 平行移動した LineString を返します。
+		/// @param v 移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString movedBy(Vec2 v) const&;
 
+		/// @brief 平行移動した LineString を返します。
+		/// @param v 移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString movedBy(Vec2 v) && noexcept;
 
@@ -1982,9 +2224,22 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		constexpr LineString& moveBy(double x, double y) noexcept;
+		/// @brief LineString を平行移動します。
+		/// @param x X 方向の移動量
+		/// @param y Y 方向の移動量
+		/// @return *this
+		constexpr LineString& moveBy(double x, double y) & noexcept;
 
-		constexpr LineString& moveBy(Vec2 v) noexcept;
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString moveBy(double x, double y) && noexcept;
+
+		/// @brief LineString を平行移動します。
+		/// @param v 移動量
+		/// @return *this
+		constexpr LineString& moveBy(Vec2 v) & noexcept;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString moveBy(Vec2 v) && noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1992,15 +2247,29 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 平行移動した LineString を返します。
+		/// @param x X 方向の移動量
+		/// @param y Y 方向の移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffset(double x, double y) const&;
 		
+		/// @brief 平行移動した LineString を返します。
+		/// @param x X 方向の移動量
+		/// @param y Y 方向の移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffset(double x, double y) && noexcept;
 		
+		/// @brief 平行移動した LineString を返します。
+		/// @param v 移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffset(Vec2 v) const&;
 		
+		/// @brief 平行移動した LineString を返します。
+		/// @param v 移動量
+		/// @return 平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffset(Vec2 v) && noexcept;
 
@@ -2010,15 +2279,27 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief X 方向に平行移動した LineString を返します。
+		/// @param x X 方向の移動量
+		/// @return X 方向に平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffsetX(double x) const&;
 		
+		/// @brief X 方向に平行移動した LineString を返します。
+		/// @param x X 方向の移動量
+		/// @return X 方向に平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffsetX(double x) && noexcept;
 		
+		/// @brief Y 方向に平行移動した LineString を返します。
+		/// @param y Y 方向の移動量
+		/// @return Y 方向に平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffsetY(double y) const&;
 		
+		/// @brief Y 方向に平行移動した LineString を返します。
+		/// @param y Y 方向の移動量
+		/// @return Y 方向に平行移動した LineString
 		[[nodiscard]]
 		constexpr LineString withOffsetY(double y) && noexcept;
 
@@ -2028,21 +2309,41 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 原点 (0, 0) を中心に拡大・縮小した LineString を返します。
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFromOrigin(double s) const&;
 
+		/// @brief 原点 (0, 0) を中心に拡大・縮小した LineString を返します。
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFromOrigin(double s) && noexcept;
 
+		/// @brief 原点 (0, 0) を中心に拡大・縮小した LineString を返します。
+		/// @param sx X 方向の拡大率
+		/// @param sy Y 方向の拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFromOrigin(double sx, double sy) const&;
 
+		/// @brief 原点 (0, 0) を中心に拡大・縮小した LineString を返します。
+		/// @param sx X 方向の拡大率
+		/// @param sy Y 方向の拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFromOrigin(double sx, double sy) && noexcept;
 
+		/// @brief 原点 (0, 0) を中心に拡大・縮小した LineString を返します。
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFromOrigin(Vec2 s) const&;
 
+		/// @brief 原点 (0, 0) を中心に拡大・縮小した LineString を返します。
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFromOrigin(Vec2 s) && noexcept;
 
@@ -2052,11 +2353,30 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		constexpr LineString& scaleFromOrigin(double s);
+		/// @brief 原点 (0, 0) を中心に LineString を拡大・縮小します。
+		/// @param s 拡大率
+		/// @return *this
+		constexpr LineString& scaleFromOrigin(double s) &;
 
-		constexpr LineString& scaleFromOrigin(double sx, double sy);
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString scaleFromOrigin(double s) &&;
 
-		constexpr LineString& scaleFromOrigin(Vec2 s);
+		/// @brief 原点 (0, 0) を中心に LineString を拡大・縮小します。
+		/// @param sx X 方向の拡大率
+		/// @param sy Y 方向の拡大率
+		/// @return *this
+		constexpr LineString& scaleFromOrigin(double sx, double sy) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString scaleFromOrigin(double sx, double sy) &&;
+
+		/// @brief 原点 (0, 0) を中心に LineString を拡大・縮小します。
+		/// @param s 拡大率
+		/// @return *this
+		constexpr LineString& scaleFromOrigin(Vec2 s) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString scaleFromOrigin(Vec2 s) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -2064,21 +2384,47 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 指定した座標を中心に拡大・縮小した LineString を返します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFrom(Vec2 pos, double s) const&;
 
+		/// @brief 指定した座標を中心に拡大・縮小した LineString を返します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFrom(Vec2 pos, double s) && noexcept;
 
+		/// @brief 指定した座標を中心に拡大・縮小した LineString を返します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param sx X 方向の拡大率
+		/// @param sy Y 方向の拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFrom(Vec2 pos, double sx, double sy) const&;
 
+		/// @brief 指定した座標を中心に拡大・縮小した LineString を返します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param sx X 方向の拡大率
+		/// @param sy Y 方向の拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFrom(Vec2 pos, double sx, double sy) && noexcept;
 
+		/// @brief 指定した座標を中心に拡大・縮小した LineString を返します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFrom(Vec2 pos, Vec2 s) const&;
 
+		/// @brief 指定した座標を中心に拡大・縮小した LineString を返します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param s 拡大率
+		/// @return 拡大・縮小した LineString
 		[[nodiscard]]
 		constexpr LineString scaledFrom(Vec2 pos, Vec2 s) && noexcept;
 
@@ -2088,11 +2434,33 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		constexpr LineString& scaleFrom(Vec2 pos, double s);
+		/// @brief 指定した座標を中心に LineString を拡大・縮小します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param s 拡大率
+		/// @return *this
+		constexpr LineString& scaleFrom(Vec2 pos, double s) &;
 
-		constexpr LineString& scaleFrom(Vec2 pos, double sx, double sy);
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString scaleFrom(Vec2 pos, double s) &&;
 
-		constexpr LineString& scaleFrom(Vec2 pos, Vec2 s);
+		/// @brief 指定した座標を中心に LineString を拡大・縮小します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param sx X 方向の拡大率
+		/// @param sy Y 方向の拡大率
+		/// @return *this
+		constexpr LineString& scaleFrom(Vec2 pos, double sx, double sy) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString scaleFrom(Vec2 pos, double sx, double sy) &&;
+
+		/// @brief 指定した座標を中心に LineString を拡大・縮小します。
+		/// @param pos 拡大・縮小の中心座標
+		/// @param s 拡大率
+		/// @return *this
+		constexpr LineString& scaleFrom(Vec2 pos, Vec2 s) &;
+
+		/// @brief 操作後のオブジェクトをムーブして返します。
+		constexpr LineString scaleFrom(Vec2 pos, Vec2 s) &&;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -2100,6 +2468,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 連続する線分を含む最小の長方形を返します。
+		/// @return 連続する線分を含む最小の長方形
 		[[nodiscard]]
 		RectF computeBoundingRect() const noexcept;
 
@@ -2109,10 +2479,13 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 連続する線分を単純化した LineString を返します。
-		/// @param maxDistance 単純化の大きさ
-		/// @param closeRing 終点と始点を結ぶか
-		/// @return 単純化した LineString
+		/// @brief Douglas–Peucker 法で連続する線分を単純化した LineString を返します。
+		/// @param maxDistance 頂点を省略するときに許容する線分からの距離。有限の値。負の場合は元の点列を返します。
+		/// @param closeRing 終点と始点を結ぶ区間も単純化の対象にするか
+		/// @return 入力の頂点を順序を保って間引いた LineString
+		/// @remark 始点は保持します。開いた点列では終点も保持します。2 頂点が同じ位置に縮退した結果は 1 頂点にまとめます。
+		/// @remark 閉じた点列の末尾に始点を重複して追加しません。入力にある閉じ点は、結果が 1 頂点になる場合を除いて保持します。
+		/// @remark 自己交差の発生や、閉じた点列の面積・向きの維持は保証しません。
 		[[nodiscard]]
 		LineString simplified(double maxDistance = 2.0, CloseRing closeRing = CloseRing::No) const;
 
@@ -2122,12 +2495,15 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 点と点の間の距離が `maxDistance` より大きくならないよう、区間ごとに最小回数で均等に分割した結果を返します。
-		/// @param maxDistance 点と点の間の最大距離
-		/// @param closeRing 終点と始点を結ぶか
-		/// @return 分割した結果
+		/// @brief 各線分が `maxSegmentLength` 以下になる最小の区間数に均等分割した結果を返します。
+		/// @param maxSegmentLength 分割後の各線分の最大長。有限の正の値。
+		/// @param closeRing 終点と始点を結ぶ区間も分割の対象にするか
+		/// @return 元の頂点の間に分割点を追加した LineString。頂点が 2 個未満の場合は元の点列。
+		/// @throws std::invalid_argument 頂点が 2 個以上あり、maxSegmentLength が 0 以下の場合
+		/// @remark 元の頂点とその順序を保持します。長さ 4 の線分に最大長 2 を指定すると、長さ 2 の 2 区間になります。
+		/// @remark 閉じた点列の末尾に始点を重複して追加しません。入力にある閉じ点は保持します。
 		[[nodiscard]]
-		LineString densified(double maxDistance, CloseRing closeRing = CloseRing::No) const;
+		LineString densified(double maxSegmentLength, CloseRing closeRing = CloseRing::No) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -2136,17 +2512,23 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		/// @brief Catmull-Rom スプライン曲線を返します。
-		/// @param interpolation 分割の品質
+		/// @param subdivisionsPerSegment 線分ごとの分割数
 		/// @return Catmull-Rom スプライン曲線
 		[[nodiscard]]
-		LineString catmullRom(int32 interpolation = 24) const;
+		LineString catmullRom(int32 subdivisionsPerSegment = 24) const;
 
 		/// @brief Catmull-Rom スプライン曲線を返します。
 		/// @param closeRing 終点と始点を結ぶか
-		/// @param interpolation 分割の品質
+		/// @param subdivisionsPerSegment 線分ごとの分割数
 		/// @return Catmull-Rom スプライン曲線
 		[[nodiscard]]
-		LineString catmullRom(CloseRing closeRing, int32 interpolation = 24) const;
+		LineString catmullRom(CloseRing closeRing, int32 subdivisionsPerSegment = 24) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeLength
+		//
+		////////////////////////////////////////////////////////////////
 
 		/// @brief 連続する線分全体の長さを返します。
 		/// @param closeRing 終点と始点を結ぶか
@@ -2154,85 +2536,129 @@ namespace s3d
 		[[nodiscard]]
 		double computeLength(CloseRing closeRing = CloseRing::No) const noexcept;
 
-//		/// @brief 始点から指定した距離にある、線分上の点を返します
-//		/// @param distanceFromOrigin 始点からの距離
-//		/// @param closeRing 終点と始点を結ぶか
-//		/// @return 始点から指定した距離にある線分上の点
+		////////////////////////////////////////////////////////////////
+		//
+		//	computePointAtDistance
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 始点から指定した距離にある、線分上の点を返します
+		/// @param distanceFromStart 始点からの距離
+		/// @param closeRing 終点と始点を結ぶか
+		/// @return 始点から指定した距離にある線分上の点
+		[[nodiscard]]
+		Vec2 computePointAtDistance(double distanceFromStart, CloseRing closeRing = CloseRing::No) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeVertexNormals
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 各頂点における進行方向左手の単位ベクトルを返します。
+		/// @param closeRing 終点と始点を結ぶか
+		/// @return 各頂点における進行方向左手の単位ベクトル
+		[[nodiscard]]
+		Array<Vec2> computeVertexNormals(CloseRing closeRing = CloseRing::No) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	sliceByDistance
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 部分 LineString を返します。
+		/// @param distanceFromStart 始点からの距離
+		/// @param closeRing 終点と始点を結ぶか
+		/// @return 部分 LineString
+		[[nodiscard]]
+		LineString sliceByDistance(double distanceFromStart, CloseRing closeRing = CloseRing::No) const;
+
+		/// @brief 部分 LineString を返します。
+		/// @param distanceFromStart 始点からの距離
+		/// @param length 長さ
+		/// @param closeRing 終点と始点を結ぶか
+		/// @return 部分 LineString
+		[[nodiscard]]
+		LineString sliceByDistance(double distanceFromStart, double length, CloseRing closeRing = CloseRing::No) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeMiterBufferPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief LineString を指定した距離だけ太らせた Polygon を返します。
+		/// @param distance 太らせる距離（ピクセル）
+		/// @return LineString を指定した距離だけ太らせた Polygon
+		[[nodiscard]]
+		Polygon computeMiterBufferPolygon(double distance) const;
+
+		/// @brief LineString を指定した距離だけ太らせた Polygon を返します。
+		/// @param distance 太らせる距離（ピクセル）
+		/// @param closeRing 終点と始点を結ぶか
+		/// @return LineString を指定した距離だけ太らせた Polygon
+		[[nodiscard]]
+		Polygon computeMiterBufferPolygon(double distance, CloseRing closeRing) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeRoundBufferPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief LineString を指定した距離だけ丸く太らせた Polygon を返します。
+		/// @param distance 太らせる距離（ピクセル）
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return LineString を指定した距離だけ丸く太らせた Polygon
+		[[nodiscard]]
+		Polygon computeRoundBufferPolygon(double distance, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
+		
+		/// @brief LineString を指定した距離だけ丸く太らせた Polygon を返します。
+		/// @param distance 太らせる距離（ピクセル）
+		/// @param closeRing 終点と始点を結ぶか
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return LineString を指定した距離だけ丸く太らせた Polygon
+		[[nodiscard]]
+		Polygon computeRoundBufferPolygon(double distance, CloseRing closeRing, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	toSpline
+		//
+		////////////////////////////////////////////////////////////////
+
 //		[[nodiscard]]
-//		Vec2 calculatePointFromOrigin(double distanceFromOrigin, CloseRing closeRing = CloseRing::No) const;
-//
-//		/// @brief 部分 LineString を返します。
-//		/// @param distanceFromOrigin 始点からの距離
-//		/// @param closeRing 終点と始点を結ぶか
-//		/// @return 部分 LineString
-//		[[nodiscard]]
-//		LineString subLineString(double distanceFromOrigin, CloseRing closeRing = CloseRing::No) const;
-//
-//		/// @brief 部分 LineString を返します。
-//		/// @param distanceFromOrigin 始点からの距離
-//		/// @param length 長さ
-//		/// @param closeRing 終点と始点を結ぶか
-//		/// @return 部分 LineString
-//		[[nodiscard]]
-//		LineString subLineString(double distanceFromOrigin, double length, CloseRing closeRing = CloseRing::No) const;
-//
-//		[[nodiscard]]
-//		Array<Vec2> computeNormals(CloseRing closeRing = CloseRing::No) const;
-//
-//		/// @brief 太らせた多角形を作成します。
-//		/// @param distance 太らせる距離（ピクセル）
-//		/// @param bufferQuality 品質
-//		/// @return 太らせた多角形
-//		[[nodiscard]]
-//		Polygon calculateBuffer(double distance, int32 bufferQuality = 24) const;
-//
-//		/// @brief 終点と始点を結んだうえで、太らせた多角形を作成します。
-//		/// @param distance 太らせる距離（ピクセル）
-//		/// @param bufferQuality 品質
-//		/// @return 太らせた多角形
-//		[[nodiscard]]
-//		Polygon calculateBufferClosed(double distance, int32 bufferQuality = 24) const;
-//
-//		/// @brief 丸く太らせた多角形を作成します。
-//		/// @param distance 太らせる距離（ピクセル）
-//		/// @param bufferQuality 品質
-//		/// @return 丸く太らせた多角形
-//		[[nodiscard]]
-//		Polygon calculateRoundBuffer(double distance, int32 bufferQuality = 24) const;
-//
-//		/// @brief 終点と始点を結んだうえで、丸く太らせた多角形を作成します。
-//		/// @param distance 太らせる距離（ピクセル）
-//		/// @param bufferQuality 品質
-//		/// @return 丸く太らせた多角形
-//		[[nodiscard]]
-//		Polygon calculateRoundBufferClosed(double distance, int32 bufferQuality = 24) const;
-//
-//		[[nodiscard]]
-//		Spline2D asSpline(CloseRing closeRing = CloseRing::No) const;
-//
-//		template <class Shape2DType>
-//		[[nodiscard]]
-//		constexpr bool intersects(const Shape2DType& other) const;
-//
-//		template <class Shape2DType>
-//		[[nodiscard]]
-//		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
-//
-//		const LineString& paint(Image& dst, const Color& color) const;
-//
-//		const LineString& paint(Image& dst, int32 thickness, const Color& color) const;
-//
-//		const LineString& paintClosed(Image& dst, const Color& color) const;
-//
-//		const LineString& paintClosed(Image& dst, int32 thickness, const Color& color) const;
-//
-//		const LineString& overwrite(Image& dst, const Color& color, Antialiased antialiased = Antialiased::Yes) const;
-//
-//		const LineString& overwrite(Image& dst, int32 thickness, const Color& color, Antialiased antialiased = Antialiased::Yes) const;
-//
-//		const LineString& overwriteClosed(Image& dst, const Color& color, Antialiased antialiased = Antialiased::Yes) const;
-//
-//		const LineString& overwriteClosed(Image& dst, int32 thickness, const Color& color, Antialiased antialiased = Antialiased::Yes) const;
+//		Spline2D toSpline(CloseRing closeRing = CloseRing::No) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersects
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形と交差しているかを返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+		[[nodiscard]]
+		constexpr bool intersects(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -2258,7 +2684,7 @@ namespace s3d
 		template <class CharType>
 		friend std::basic_ostream<CharType>& operator <<(std::basic_ostream<CharType>& output, const LineString& value)
 		{
-			return output << Format(value.m_points);
+			return output << Format(value.m_vertices);
 		}
 
 		////////////////////////////////////////////////////////////////
@@ -2267,10 +2693,28 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 連続する線分を Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& paint(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 連続する線分を Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& paint(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 連続する線分を Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param lineCap 線端の形状
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& paint(Image& dst, LineCap lineCap, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -2279,10 +2723,28 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 連続する線分を Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& overwrite(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 連続する線分を Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& overwrite(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 連続する線分を Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param lineCap 線端の形状
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& overwrite(Image& dst, LineCap lineCap, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -2291,8 +2753,19 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 終点と始点を結んだ連続する線分を Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& paintClosed(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 終点と始点を結んだ連続する線分を Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& paintClosed(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -2301,8 +2774,19 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 終点と始点を結んだ連続する線分を Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& overwriteClosed(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 終点と始点を結んだ連続する線分を Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const LineString& overwriteClosed(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -2311,36 +2795,112 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 連続する線分を描画します。
+		/// @param color 色
+		/// @return *this
 		const LineString& draw(const ColorF& color = Palette::White) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param colorStart 始点側の色
+		/// @param colorEnd 終点側の色
+		/// @return *this
 		const LineString& draw(const ColorF& colorStart, const ColorF& colorEnd) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param pattern パターン
+		/// @return *this
 		const LineString& draw(const PatternParameters& pattern) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @return *this
 		const LineString& draw(double thickness, const ColorF& color = Palette::White) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param thickness 線の太さ
+		/// @param colorStart 始点側の色
+		/// @param colorEnd 終点側の色
+		/// @return *this
 		const LineString& draw(double thickness, const ColorF& colorStart, const ColorF& colorEnd) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param thickness 線の太さ
+		/// @param pattern パターン
+		/// @return *this
 		const LineString& draw(double thickness, const PatternParameters& pattern) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param lineCap 線端の形状
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @return *this
 		const LineString& draw(LineCap lineCap, double thickness, const ColorF& color = Palette::White) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param lineCap 線端の形状
+		/// @param thickness 線の太さ
+		/// @param colorStart 始点側の色
+		/// @param colorEnd 終点側の色
+		/// @return *this
 		const LineString& draw(LineCap lineCap, double thickness, const ColorF& colorStart, const ColorF& colorEnd) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param lineCap 線端の形状
+		/// @param thickness 線の太さ
+		/// @param pattern パターン
+		/// @return *this
 		const LineString& draw(LineCap lineCap, double thickness, const PatternParameters& pattern) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param startCap 始点側の線端の形状
+		/// @param endCap 終点側の線端の形状
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @return *this
 		const LineString& draw(LineCap startCap, LineCap endCap, double thickness, const ColorF& color = Palette::White) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param startCap 始点側の線端の形状
+		/// @param endCap 終点側の線端の形状
+		/// @param thickness 線の太さ
+		/// @param colorStart 始点側の色
+		/// @param colorEnd 終点側の色
+		/// @return *this
 		const LineString& draw(LineCap startCap, LineCap endCap, double thickness, const ColorF& colorStart, const ColorF& colorEnd) const;
 
+		/// @brief 連続する線分を描画します。
+		/// @param startCap 始点側の線端の形状
+		/// @param endCap 終点側の線端の形状
+		/// @param thickness 線の太さ
+		/// @param pattern パターン
+		/// @return *this
 		const LineString& draw(LineCap startCap, LineCap endCap, double thickness, const PatternParameters& pattern) const;
 
+		/// @brief 頂点ごとの色で連続する線分を描画します。
+		/// @param colors 頂点ごとの色
+		/// @return *this
 		const LineString& draw(std::span<const ColorF> colors) const;
 
+		/// @brief 頂点ごとの色で連続する線分を描画します。
+		/// @param thickness 線の太さ
+		/// @param colors 頂点ごとの色
+		/// @return *this
 		const LineString& draw(double thickness, std::span<const ColorF> colors) const;
 
+		/// @brief 頂点ごとの色で連続する線分を描画します。
+		/// @param lineCap 線端の形状
+		/// @param thickness 線の太さ
+		/// @param colors 頂点ごとの色
+		/// @return *this
 		const LineString& draw(LineCap lineCap, double thickness, std::span<const ColorF> colors) const;
 
+		/// @brief 頂点ごとの色で連続する線分を描画します。
+		/// @param startCap 始点側の線端の形状
+		/// @param endCap 終点側の線端の形状
+		/// @param thickness 線の太さ
+		/// @param colors 頂点ごとの色
+		/// @return *this
 		const LineString& draw(LineCap startCap, LineCap endCap, double thickness, std::span<const ColorF> colors) const;
 
 		////////////////////////////////////////////////////////////////
@@ -2349,35 +2909,71 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 終点と始点を結んだ連続する線分を描画します。
+		/// @param color 色
+		/// @return *this
 		const LineString& drawClosed(const ColorF& color = Palette::White) const;
 
+		/// @brief 終点と始点を結んだ連続する線分を描画します。
+		/// @param pattern パターン
+		/// @return *this
 		const LineString& drawClosed(const PatternParameters& pattern) const;
 
+		/// @brief 終点と始点を結んだ連続する線分を描画します。
+		/// @param thickness 線の太さ
+		/// @param color 色
+		/// @return *this
 		const LineString& drawClosed(double thickness, const ColorF& color = Palette::White) const;
 
+		/// @brief 終点と始点を結んだ連続する線分を描画します。
+		/// @param thickness 線の太さ
+		/// @param pattern パターン
+		/// @return *this
 		const LineString& drawClosed(double thickness, const PatternParameters& pattern) const;
 
+		/// @brief 頂点ごとの色で、終点と始点を結んだ連続する線分を描画します。
+		/// @param colors 頂点ごとの色
+		/// @return *this
 		const LineString& drawClosed(std::span<const ColorF> colors) const;
 
+		/// @brief 頂点ごとの色で、終点と始点を結んだ連続する線分を描画します。
+		/// @param thickness 線の太さ
+		/// @param colors 頂点ごとの色
+		/// @return *this
 		const LineString& drawClosed(double thickness, std::span<const ColorF> colors) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	drawPoints
+		//	drawVertices
 		//
 		////////////////////////////////////////////////////////////////
 
-		const LineString& drawPoints(double r, const ColorF& color = Palette::White) const;
+		/// @brief 各頂点を円で描画します。
+		/// @param r 円の半径
+		/// @param color 色
+		/// @return *this
+		const LineString& drawVertices(double r, const ColorF& color = Palette::White) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	drawPointsFrame
+		//	drawVerticesFrame
 		//
 		////////////////////////////////////////////////////////////////
 
-		const LineString& drawPointsFrame(double r, double thickness = 1.0, const ColorF& color = Palette::White) const;
+		/// @brief 各頂点を円の枠で描画します。
+		/// @param r 円の半径
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @return *this
+		const LineString& drawVerticesFrame(double r, double thickness = 1.0, const ColorF& color = Palette::White) const;
 
-		const LineString& drawPointsFrame(double r, double innerThickness, double outerThickness, const ColorF& color = Palette::White) const;
+		/// @brief 各頂点を円の枠で描画します。
+		/// @param r 円の半径
+		/// @param innerThickness 内側方向の枠の太さ
+		/// @param outerThickness 外側方向の枠の太さ
+		/// @param color 色
+		/// @return *this
+		const LineString& drawVerticesFrame(double r, double innerThickness, double outerThickness, const ColorF& color = Palette::White) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -2407,6 +3003,24 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	Parse
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 文字列から LineString をパースします。
+		/// @param s パースする文字列
+		/// @return パースに成功した場合は LineString、失敗した場合は none
+		[[nodiscard]]
+		static Optional<LineString> Parse(std::string_view s);
+
+		/// @brief 文字列から LineString をパースします。
+		/// @param s パースする文字列
+		/// @return パースに成功した場合は LineString、失敗した場合は none
+		[[nodiscard]]
+		static Optional<LineString> Parse(StringView s);
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	operator ==
 		//
 		////////////////////////////////////////////////////////////////
@@ -2418,7 +3032,7 @@ namespace s3d
 		[[nodiscard]]
 		friend constexpr bool operator ==(const LineString& lhs, const LineString& rhs)
 		{
-			return (lhs.m_points == rhs.m_points);
+			return (lhs.m_vertices == rhs.m_vertices);
 		}
 
 		////////////////////////////////////////////////////////////////
@@ -2441,11 +3055,15 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief LineString を文字列に変換します。
+		/// @param formatData 文字列バッファ
+		/// @param value LineString
+		/// @remark この関数は Format 用の関数です。通常、ユーザーが直接呼び出す必要はありません。
 		friend void Formatter(FormatData& formatData, const LineString& value);
 
 	private:
 
-		container_type m_points;
+		container_type m_vertices;
 	};
 }
 

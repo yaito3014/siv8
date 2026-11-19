@@ -10,57 +10,10 @@
 //-----------------------------------------------
 
 # pragma once
+# include <cmath>
 
 namespace s3d
 {
-	namespace Geometry2D
-	{
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Point& b) noexcept;
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Vec2& b) noexcept;
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Line& b) noexcept;
-
-		[[nodiscard]]
-		bool Intersect(const Vec2& a, const Bezier2& b);
-
-		//[[nodiscard]]
-		//bool Intersect(const Vec2& a, const Bezier3& b);
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Rect& b) noexcept;
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const RectF& b) noexcept;
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Circle& b) noexcept;
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Ellipse& b) noexcept;
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Triangle& b) noexcept;
-
-		[[nodiscard]]
-		constexpr bool Intersect(const Vec2& a, const Quad& b) noexcept;
-
-		[[nodiscard]]
-		bool Intersect(const Vec2& a, const RoundRect& b) noexcept;
-
-		[[nodiscard]]
-		bool Intersect(const Vec2& a, const Polygon& b) noexcept;
-
-		[[nodiscard]]
-		bool Intersect(const Vec2& a, const MultiPolygon& b) noexcept;
-
-		[[nodiscard]]
-		bool Intersect(const Vec2& a, const LineString& b) noexcept;
-	}
-
 	////////////////////////////////////////////////////////////////
 	//
 	//	(constructor)
@@ -210,7 +163,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector2D<Float>& Vector2D<Float>::operator +=(const Vector2D v) noexcept
+	constexpr Vector2D<Float>& Vector2D<Float>::operator +=(const Vector2D v) & noexcept
 	{
 		x += v.x;
 		y += v.y;
@@ -224,7 +177,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 	
 	template <Concept::FloatingPoint Float>
-	constexpr Vector2D<Float>& Vector2D<Float>::operator -=(const Vector2D v) noexcept
+	constexpr Vector2D<Float>& Vector2D<Float>::operator -=(const Vector2D v) & noexcept
 	{
 		x -= v.x;
 		y -= v.y;
@@ -238,7 +191,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector2D<Float>& Vector2D<Float>::operator *=(const value_type s) noexcept
+	constexpr Vector2D<Float>& Vector2D<Float>::operator *=(const value_type s) & noexcept
 	{
 		x *= s;
 		y *= s;
@@ -246,7 +199,7 @@ namespace s3d
 	}
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector2D<Float>& Vector2D<Float>::operator *=(const Vector2D v) noexcept
+	constexpr Vector2D<Float>& Vector2D<Float>::operator *=(const Vector2D v) & noexcept
 	{
 		x *= v.x;
 		y *= v.y;
@@ -260,13 +213,13 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector2D<Float>& Vector2D<Float>::operator /=(const value_type s) noexcept
+	constexpr Vector2D<Float>& Vector2D<Float>::operator /=(const value_type s) & noexcept
 	{
 		return (*this *= (static_cast<value_type>(1.0) / s));
 	}
 
 	template <Concept::FloatingPoint Float>
-	constexpr Vector2D<Float>& Vector2D<Float>::operator /=(const Vector2D v) noexcept
+	constexpr Vector2D<Float>& Vector2D<Float>::operator /=(const Vector2D v) & noexcept
 	{
 		x /= v.x;
 		y /= v.y;
@@ -334,6 +287,19 @@ namespace s3d
 	{
 		return (std::isnan(x)
 			 || std::isnan(y));
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	isFinite
+	//
+	////////////////////////////////////////////////////////////////
+
+	template <Concept::FloatingPoint Float>
+	bool Vector2D<Float>::isFinite() const noexcept
+	{
+		return (std::isfinite(x)
+			&&  std::isfinite(y));
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -1039,11 +1005,31 @@ namespace s3d
 	{
 		if constexpr (std::is_same_v<value_type, double>)
 		{
-			return Geometry2D::Intersect(*this, other);
+			return Geometry2D::Intersects(*this, other);
 		}
 		else
 		{
-			return Geometry2D::Intersect(Vector2D<double>{ *this }, other);
+			return Geometry2D::Intersects(Vector2D<double>{ *this }, other);
+		}
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	intersectsAt
+	//
+	////////////////////////////////////////////////////////////////
+
+	template <Concept::FloatingPoint Float>
+	template <class Shape2DType>
+	Optional<Array<Vec2>> Vector2D<Float>::intersectsAt(const Shape2DType& other) const
+	{
+		if constexpr (std::is_same_v<value_type, double>)
+		{
+			return Geometry2D::IntersectsAt(*this, other);
+		}
+		else
+		{
+			return Geometry2D::IntersectsAt(Vector2D<double>{ *this }, other);
 		}
 	}
 
@@ -1056,7 +1042,7 @@ namespace s3d
 	template <Concept::FloatingPoint Float>
 	uint64 Vector2D<Float>::hash() const noexcept
 	{
-		return BitwiseHash(*this);
+		return HashFloats(x, y);
 	}
 
 	////////////////////////////////////////////////////////////////

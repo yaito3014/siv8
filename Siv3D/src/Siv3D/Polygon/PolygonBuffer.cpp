@@ -10,73 +10,40 @@
 //-----------------------------------------------
 
 # include "PolygonBuffer.hpp"
-# include "PolygonDetail.hpp"
 # include "GeometryCommon.hpp"
 
 namespace s3d
 {
 	////////////////////////////////////////////////////////////////
 	//
-	//	CalculateLineRoundBuffer
+	//	ComputeRoundPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon CalculateLineRoundBuffer(const Line& line, const double distance, const QualityFactor& qualityFactor)
+	Polygon ComputeRoundPolygon(const std::span<const Vec2> outer, const double distance, const QualityFactor& qualityFactor)
 	{
-		if (distance <= 0.0)
-		{
-			return{};
-		}
+		const CWOpenRing polygon{ outer.begin(), outer.end() };
 
-		const boost::geometry::model::linestring<Vec2> segment{ line.start, line.end };
+		boost::geometry::model::multi_polygon<CwOpenPolygon> insetPolygon;
 
-		boost::geometry::model::multi_polygon<CwOpenPolygon> multiPolygon;
-
-		boost::geometry::buffer(segment, multiPolygon,
-			boost::geometry::strategy::buffer::distance_symmetric<double>{ distance },
-			boost::geometry::strategy::buffer::side_straight{},
-			boost::geometry::strategy::buffer::join_round{},
-			boost::geometry::strategy::buffer::end_round{ detail::CalculateCircleQuality(distance * qualityFactor.value()) },
-			boost::geometry::strategy::buffer::point_circle{ 0 });
-
-		if (multiPolygon.size() != 1)
-		{
-			return{};
-		}
-
-		return detail::ToPolygon(multiPolygon.front());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	CalculateRoundedQuad
-	//
-	////////////////////////////////////////////////////////////////
-
-	Polygon CalculateRoundedQuad(const Quad& quad, const double distance, const QualityFactor& qualityFactor)
-	{
-		const CwOpenPolygon polygon{ { quad.p0, quad.p1, quad.p2, quad.p3 } };
-
-		boost::geometry::model::multi_polygon<CwOpenPolygon> stretchedPolygon;
-
-		boost::geometry::buffer(polygon, stretchedPolygon,
+		boost::geometry::buffer(polygon, insetPolygon,
 			boost::geometry::strategy::buffer::distance_symmetric<double>{ -distance },
 			boost::geometry::strategy::buffer::side_straight{},
 			boost::geometry::strategy::buffer::join_miter{},
 			boost::geometry::strategy::buffer::end_flat{},
 			boost::geometry::strategy::buffer::point_circle{ 0 });
 
-		if (stretchedPolygon.size() != 1)
+		if (insetPolygon.size() != 1)
 		{
 			return{};
 		}
 
 		boost::geometry::model::multi_polygon<CwOpenPolygon> multiPolygon;
 
-		boost::geometry::buffer(stretchedPolygon.front(), multiPolygon,
+		boost::geometry::buffer(insetPolygon.front(), multiPolygon,
 			boost::geometry::strategy::buffer::distance_symmetric<double>{ distance },
 			boost::geometry::strategy::buffer::side_straight{},
-			boost::geometry::strategy::buffer::join_round{ detail::CalculateCircleQuality(distance * qualityFactor.value()) },
+			boost::geometry::strategy::buffer::join_round{ detail::CalculateCircleQuality(Abs(distance) * qualityFactor.value()) },
 			boost::geometry::strategy::buffer::end_round{},
 			boost::geometry::strategy::buffer::point_circle{ 0 });
 
@@ -96,13 +63,13 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	CalculatePolygonBuffer
+	//	ComputeMiterBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon CalculatePolygonBuffer(std::initializer_list<Vec2> outer, const double distance)
+	Polygon ComputeMiterBufferPolygon(const std::span<const Vec2> outer, const double distance)
 	{
-		const CwOpenPolygon polygon{ outer };
+		const CWOpenRing polygon{ outer.begin(), outer.end() };
 
 		boost::geometry::model::multi_polygon<CwOpenPolygon> multiPolygon;
 
@@ -123,20 +90,20 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	CalculatePolygonRoundBuffer
+	//	ComputeRoundBufferPolygon
 	//
 	////////////////////////////////////////////////////////////////
 
-	Polygon CalculatePolygonRoundBuffer(std::initializer_list<Vec2> outer, const double distance, const QualityFactor& qualityFactor)
+	Polygon ComputeRoundBufferPolygon(const std::span<const Vec2> outer, const double distance, const QualityFactor& qualityFactor)
 	{
-		const CwOpenPolygon polygon{ outer };
+		const CWOpenRing polygon{ outer.begin(), outer.end() };
 
 		boost::geometry::model::multi_polygon<CwOpenPolygon> multiPolygon;
 
 		boost::geometry::buffer(polygon, multiPolygon,
 			boost::geometry::strategy::buffer::distance_symmetric<double>{ distance },
 			boost::geometry::strategy::buffer::side_straight{},
-			boost::geometry::strategy::buffer::join_round{ detail::CalculateCircleQuality(distance * qualityFactor.value()) },
+			boost::geometry::strategy::buffer::join_round{ detail::CalculateCircleQuality(Abs(distance) * qualityFactor.value()) },
 			boost::geometry::strategy::buffer::end_round{},
 			boost::geometry::strategy::buffer::point_circle{ 0 });
 
@@ -146,47 +113,5 @@ namespace s3d
 		}
 
 		return detail::ToPolygon(multiPolygon.front());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	CircleToPolygon
-	//
-	////////////////////////////////////////////////////////////////
-
-	Polygon CircleToPolygon(const Circle& circle, const QualityFactor& qualityFactor)
-	{
-		if (circle.r <= 0.0)
-		{
-			return{};
-		}
-
-		const size_t quality = detail::CalculateCircleQuality(circle.r * qualityFactor.value());
-
-		Array<Vec2> vertices(quality, circle.center);
-		Vec2* pPos = vertices.data();
-
-		const double d = (Math::TwoPi / quality);
-
-		for (uint32 i = 0; i < quality; ++i)
-		{
-			*pPos += Circular{ circle.r, (i * d) }.fastToVec2();
-			++pPos;
-		}
-
-		const RectF boundingRect = circle.boundingRect();
-
-		Array<TriangleIndex> indices(quality - 2);
-		TriangleIndex* pIndex = indices.data();
-
-		for (Vertex2D::IndexType i = 0; i < (quality - 2); ++i)
-		{
-			pIndex->i0 = 0;
-			pIndex->i1 = (i + 1);
-			pIndex->i2 = (i + 2);
-			++pIndex;
-		}
-
-		return Polygon{ vertices, std::move(indices), boundingRect, SkipValidation::Yes };
 	}
 }

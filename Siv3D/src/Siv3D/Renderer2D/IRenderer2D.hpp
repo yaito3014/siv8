@@ -19,6 +19,7 @@
 # include <Siv3D/VertexShader.hpp>
 # include <Siv3D/PixelShader.hpp>
 # include "ColorFillDirection.hpp"
+# include <Siv3D/ShaderStage.hpp>
 
 namespace s3d
 {
@@ -29,6 +30,7 @@ namespace s3d
 	struct RasterizerState;
 	struct SamplerState;
 	struct Mat3x2;
+	struct Mat3x3;
 	enum class LineCap : uint8;
 	struct PatternParameters;
 
@@ -65,6 +67,8 @@ namespace s3d
 
 		virtual void addRectFrame(const FloatRect& innerRect, float thickness, const PatternParameters& pattern) = 0;
 
+		virtual void addRectDashedFrame(const FloatRect& innerRect, float offset, float thickness, float dashRatio, uint32 dashCount, const Float4& color) = 0;
+
 		virtual void addCircle(const Float2& center, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) = 0;
 
 		virtual void addCircle(const Float2& center, float r, const PatternParameters& pattern) = 0;
@@ -72,6 +76,8 @@ namespace s3d
 		virtual void addCircleFrame(const Float2& center, float rInner, float thickness, const Float4& innerColor, const Float4& outerColor) = 0;
 
 		virtual void addCircleFrame(const Float2& center, float rInner, float thickness, const PatternParameters& pattern) = 0;
+
+		virtual void addCircleDashedFrame(const Float2& center, float rInner, float startAngle, float thickness, float dashRatio, uint32 dashCount, const Float4& innerColor, const Float4& outerColor) = 0;
 
 		virtual void addCirclePie(const Float2& center, float r, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) = 0;
 
@@ -92,6 +98,8 @@ namespace s3d
 		virtual void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const Float4& innerColor, const Float4& outerColor) = 0;
 
 		virtual void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const PatternParameters& pattern) = 0;
+
+		virtual void addEllipseDashedFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, float offset, float dashRatio, uint32 dashCount, const Float4& innerColor, const Float4& outerColor) = 0;
 
 		virtual void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) = 0;
 
@@ -119,6 +127,8 @@ namespace s3d
 
 		virtual void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const PatternParameters& pattern) = 0;
 
+		virtual void addRoundRectDashedFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, float offset, float dashRatio, uint32 dashCount, const Float4& color) = 0;
+
 		virtual void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const Float4& color) = 0;
 
 		virtual void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const PatternParameters& pattern) = 0;
@@ -131,9 +141,9 @@ namespace s3d
 
 		virtual void addPolygonTransformed(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, float s, float c, const Float2& offset, const PatternParameters& pattern) = 0;
 
-		virtual void addShape2DFrame(std::span<const Float2> vertices, float thickness, const Float4& color) = 0;
+		virtual void addShape2DFrame(std::span<const Float2> vertices, const Optional<Float2>& offset, float thickness, const Float4& color) = 0;
 
-		virtual void addShape2DFrame(std::span<const Float2> vertices, float thickness, const PatternParameters& pattern) = 0;
+		virtual void addShape2DFrame(std::span<const Float2> vertices, const Optional<Float2>& offset, float thickness, const PatternParameters& pattern) = 0;
 
 		virtual void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const Float4& color) = 0;
 
@@ -160,10 +170,15 @@ namespace s3d
 		virtual void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) = 0;
 
 
-		virtual void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) = 0;
+		virtual void addMesh2D(std::span<const Vertex2D> vertices, std::span<const TriangleIndex> indices, const Optional<Float2>& offset) = 0;
 
-		virtual void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) = 0;
+		virtual void addMesh2D(const Texture& texture, std::span<const Vertex2D> vertices, std::span<const TriangleIndex> indices, const Optional<Float2>& offset) = 0;
 
+		virtual void setConstantBuffer(ShaderStage stage, uint32 slot, const void* data, size_t size) = 0;
+
+		virtual uint32 beginConstantBufferScope(ShaderStage stage, uint32 slot, const void* data, size_t size) = 0;
+
+		virtual void endConstantBufferScope(ShaderStage stage, uint32 slot, uint32 previous) = 0;
 
 		virtual void flush() = 0;
 
@@ -220,7 +235,10 @@ namespace s3d
 
 		virtual void setCameraTransform(const Mat3x2& matrix) = 0;
 
-		virtual float getMaxScaling() const noexcept = 0;
+		virtual const Mat3x3& getQuadWarpTransform() const = 0;
+		virtual void setQuadWarpTransform(const Mat3x3& matrix) = 0;
+
+		virtual float getRMSScaling() const noexcept = 0;
 
 
 

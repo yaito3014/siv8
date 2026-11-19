@@ -1,0 +1,972 @@
+﻿//-----------------------------------------------
+//
+//	This file is part of the Siv3D Engine.
+//
+//	Copyright (c) 2008-2026 Ryo Suzuki
+//	Copyright (c) 2016-2026 OpenSiv3D Project
+//
+//	Licensed under the MIT License.
+//
+//-----------------------------------------------
+//	Authors (OpenSiv3D challenge participants)
+//	- Ebishu
+//	- fal_rnd
+//	- きつねび
+//-----------------------------------------------
+
+# pragma once
+# include "../Common.hpp"
+# include "../Array.hpp"
+# include "../Optional.hpp"
+# include "../PointVector.hpp"
+# include "../2DShapes.hpp"
+# include "Geometry2DCommon.hpp"
+# include "PointContainment.hpp"
+
+namespace s3d
+{
+	namespace Geometry2D
+	{
+		/// @defgroup geometry2d_queries 図形の交差・包含判定
+		/// @brief Intersects(), Overlaps(), Contains(), IntersectsAt() と対応するメンバー関数の共通契約。
+		///
+		/// | 関数 | 判定の意味 |
+		/// |---|---|
+		/// | Intersects(a, b) | 境界を含め、共通する点があるか。接触だけでも true。 |
+		/// | Overlaps(a, b) | 共通部分が正の面積を持つか。点・線分での接触は false。 |
+		/// | Contains(a, b) | 境界を含め、b 全体が a に収まるか。 |
+		/// | IntersectsAt(a, b) | @ref geometry2d_intersection_points を参照。 |
+		///
+		/// Contains() の左辺が MultiPolygon の場合は、いずれか一つの要素が右辺全体を含む必要があります。
+		/// 右辺も MultiPolygon の場合、その空でない全要素が左辺の同じ一要素に収まる必要があります。
+		/// LineString::contains() はこの包含判定ではなく、格納された頂点の検索です。
+		///
+		/// @par 有効な入力
+		/// 座標・パラメータは有限値、幅・高さ・半径は非負、SuperEllipse::n は正である必要があります。
+		/// Quad, Polygon, MultiPolygon は各型の頂点順序・要素構成の条件にも従います。有効でない入力の判定結果は保証しません。
+		/// LineString は隣接頂点を結ぶ折れ線であり、末尾から先頭への辺は自動では追加しません。
+		/// RoundRect の角丸半径は、幅と高さの小さい方の半分を上限として扱います。
+		///
+		/// @par 空形状と縮退
+		/// どちらかが空なら、Intersects(), Overlaps(), Contains() は false、IntersectsAt() は none を返します。
+		/// 空形状は、半径 0 の Circle、縦横の寸法がともに 0 の Rect / RectF / Ellipse / SuperEllipse / RoundRect、
+		/// 頂点のない LineString、空の Polygon、空でない要素を持たない MultiPolygon です。RoundRect は rect の寸法で判断します。
+		/// 上記の縦横の寸法の片方だけが 0 の場合は線分です。長さ 0 の Line、1 頂点の LineString、
+		/// 面積 0 の Triangle、および各型で認められた Quad / Polygon の縮退は、空ではなく点・線分として判定します。
+		/// MultiPolygon の空要素は無視するため、幾何的な空と MultiPolygon::isEmpty() は一致しない場合があります。
+		///
+		/// @par 数値判定
+		/// 曲線を含む Contains() は組み合わせにより近似判定となり、完全に含まれていても false を返すことがあります。
+		/// Intersects() の直線と円・楕円の判定には形状サイズに応じた許容誤差があり、ごく小さな隙間でも true を返すことがあります。
+		/// Intersects() / Overlaps() の許容誤差と近似判定の制約は、各オーバーロードの説明を参照してください。
+		/// @{
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Point, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Point& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Point& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Point& a, const Bezier3& b);
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Point& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Point& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Point& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Point& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Vec2, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Vec2& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Vec2& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Vec2& a, const Bezier3& b);
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Vec2& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Vec2& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Vec2& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Vec2& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Line, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Line& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Line& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Line& a, const Bezier3& b);
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Line& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Line& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Line& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Line& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(LineString, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const LineString& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Bezier2, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Point& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Vec2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Line& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const LineString& b);
+
+		/// @brief Bezier 曲線同士の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 図形の大きさに対する丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Bezier2& b);
+
+		/// @brief Bezier 曲線同士の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 図形の大きさに対する丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Rect& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const RectF& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Circle& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Ellipse& b);
+
+		/// @brief Bezier 曲線と SuperEllipse の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const SuperEllipse& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Triangle& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Quad& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const RoundRect& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const Polygon& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier2& a, const MultiPolygon& b);
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Bezier3, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Point& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Vec2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Line& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const LineString& b);
+
+		/// @brief Bezier 曲線同士の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 図形の大きさに対する丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Bezier2& b);
+
+		/// @brief Bezier 曲線同士の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 図形の大きさに対する丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Rect& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const RectF& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Circle& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Ellipse& b);
+
+		/// @brief Bezier 曲線と SuperEllipse の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const SuperEllipse& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Triangle& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Quad& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const RoundRect& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const Polygon& b);
+
+		[[nodiscard]]
+		bool Intersects(const Bezier3& a, const MultiPolygon& b);
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Rect, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Rect& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Rect& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Rect& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const Bezier3& b);
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Rect& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Rect& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Rect& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Rect& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Rect& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(RectF, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RectF& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RectF& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RectF& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const Bezier3& b);
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RectF& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RectF& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RectF& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RectF& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RectF& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Circle, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Circle& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Circle& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Circle& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const Bezier3& b);
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Circle& a, const Rect& b) noexcept;
+		
+		[[nodiscard]]
+		constexpr bool Intersects(const Circle& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Circle& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Circle& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Ellipse, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Ellipse& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Ellipse& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Ellipse& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const Bezier3& b);
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Ellipse& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Ellipse& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const Circle& b) noexcept;
+
+		/// @remark 丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const Quad& b) noexcept;
+
+		/// @remark 有効な角丸半径が正の場合、丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Ellipse& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(SuperEllipse, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Vec2& b) noexcept;
+
+		/// @remark n が 2 以外の場合、丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Line& b) noexcept;
+
+		/// @remark n が 2 以外の場合、丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const LineString& b) noexcept;
+
+		/// @brief Bezier 曲線と SuperEllipse の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Bezier2& b);
+
+		/// @brief Bezier 曲線と SuperEllipse の交差を近似判定します。
+		/// @return 交差する場合、または計算の上限内で交差を否定できない場合 true。
+		/// @remark 丸め誤差内の隙間を接触として扱う場合があります。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const RectF& b) noexcept;
+
+		/// @remark n が 2 以外の場合、丸め誤差内の差は接触として扱います。
+		/// @remark 凹形状との近似判定では、離れている図形にも true を返すことがあります。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Circle& b) noexcept;
+	
+		/// @remark 丸め誤差内の差は接触として扱います。
+		/// @remark 凹形状との近似判定では、離れている図形にも true を返すことがあります。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Ellipse& b) noexcept;
+
+		/// @remark 近似判定のため、離れている図形にも true を返すことがあります。
+		/// @remark 丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const SuperEllipse& b) noexcept;
+
+		/// @remark n が 2 以外の場合、丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Triangle& b) noexcept;
+
+		/// @remark n が 2 以外の場合、丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Quad& b) noexcept;
+
+		/// @remark 有効な角丸半径が正の場合、丸め誤差内の差は接触として扱います。
+		/// @remark 凹形状との近似判定では、離れている図形にも true を返すことがあります。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const RoundRect& b) noexcept;
+
+		/// @remark n が 2 以外の場合、丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const Polygon& b) noexcept;
+
+		/// @remark n が 2 以外の場合、丸め誤差内の差は接触として扱います。
+		[[nodiscard]]
+		bool Intersects(const SuperEllipse& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Triangle, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Triangle& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Triangle& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Triangle& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Triangle& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Triangle& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Triangle& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Quad, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Quad& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Quad& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Quad& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Quad& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const Quad& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Quad& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(RoundRect, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RoundRect& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RoundRect& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		constexpr bool Intersects(const RoundRect& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const RoundRect& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(Polygon, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const RectF& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Ellipse& b) noexcept;
+		
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const Polygon& a, const MultiPolygon& b) noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	Intersects(MultiPolygon, _)
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Point& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Vec2& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Line& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const LineString& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Bezier2& b);
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Bezier3& b);
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Rect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const RectF& b) noexcept;
+		
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Circle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Ellipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const SuperEllipse& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Triangle& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Quad& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const RoundRect& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const Polygon& b) noexcept;
+
+		[[nodiscard]]
+		bool Intersects(const MultiPolygon& a, const MultiPolygon& b) noexcept;
+
+		/// @}
+	}
+}
+
+# include "detail/Intersects.ipp"

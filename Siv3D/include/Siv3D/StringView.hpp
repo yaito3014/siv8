@@ -36,6 +36,7 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	/// @brief 所有権を持たない文字列クラス | Non-owning string class
+	/// @remark 文字列を所有しません。一時的なビューからの借用も有効ですが、元の文字列は結果の使用が終わるまで存続する必要があります。
 	class StringView
 	{
 	public:
@@ -930,17 +931,17 @@ namespace s3d
 
 		/// @brief 文字列の要素を 1 つランダムに返します。
 		/// @return 文字列からランダムに選ばれた要素への参照
-		/// @throws std::out_of_range 文字列が空の場合
+		/// @throw std::out_of_range 文字列が空の場合
 		[[nodiscard]]
 		value_type choice() const;
 
 		/// @brief 指定した乱数エンジンを用いて、配列の要素を 1 つランダムに返します。
 		/// @tparam URBG 乱数生成器の型
-		/// @param rbg 使用する乱数エンジン
+		/// @param urbg 使用する乱数エンジン
 		/// @return 文字列からランダムに選ばれた要素への参照
-		/// @throws std::out_of_range 文字列が空の場合
+		/// @throw std::out_of_range 文字列が空の場合
 		[[nodiscard]]
-		value_type choice(Concept::UniformRandomBitGenerator auto&& rbg) const;
+		value_type choice(Concept::UniformRandomBitGenerator auto&& urbg) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1076,19 +1077,6 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	head
-		//
-		////////////////////////////////////////////////////////////////
-
-		/// @brief 先頭から最大 n 個の要素を取り出した新しい文字列を返します。
-		/// @param n 取り出す最大要素数
-		/// @return 先頭から最大 n 個の要素を含む新しい文字列
-		/// @remark `n` が現在の要素数を超える場合は現在の要素数にクランプされます。
-		[[nodiscard]]
-		constexpr String head(size_type n) const;
-
-		////////////////////////////////////////////////////////////////
-		//
 		//	isSorted
 		//
 		////////////////////////////////////////////////////////////////
@@ -1184,6 +1172,7 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @remark 呼び出しは std::invoke に従います。結果は所有可能な値型である必要があり、void は受け付けません。
 		/// @brief 文字列の各要素に関数を適用した戻り値からなる配列を返します。
 		/// @tparam Fty 各文字に適用する関数の型
 		/// @param f 各文字に適用する関数
@@ -1191,7 +1180,10 @@ namespace s3d
 		template <class Fty>
 		[[nodiscard]]
 		constexpr auto map(Fty f) const
-			requires std::invocable<Fty&, const value_type&>;
+			requires std::invocable<Fty&, const value_type&>
+			&& std::is_object_v<std::decay_t<std::invoke_result_t<Fty&, const value_type&>>>
+			&& std::constructible_from<std::decay_t<std::invoke_result_t<Fty&, const value_type&>>, std::invoke_result_t<Fty&, const value_type&>>
+			&& std::move_constructible<std::decay_t<std::invoke_result_t<Fty&, const value_type&>>>;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1381,10 +1373,10 @@ namespace s3d
 
 		/// @brief 指定された乱数生成器を使って要素をシャッフルした新しい文字列を返します。
 		/// @tparam URBG 乱数生成器の型
-		/// @param rbg 乱数生成器
+		/// @param urbg 乱数生成器
 		/// @return 新しい文字列
 		[[nodiscard]]
-		String shuffled(Concept::UniformRandomBitGenerator auto&& rbg) const;
+		String shuffled(Concept::UniformRandomBitGenerator auto&& urbg) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1434,8 +1426,9 @@ namespace s3d
 		/// @param ch 区切り文字
 		/// @return 分割された文字列
 		/// @remark 戻り値は元の文字列を参照します。元の文字列のライフタイムに注意してください。
+		/// @remark 結果は元の文字列を借用します。この StringView オブジェクト自体の寿命には依存しません。
 		[[nodiscard]]
-		Array<StringView, std::allocator<StringView>> splitView(value_type ch) const SIV3D_LIFETIMEBOUND;
+		Array<StringView, std::allocator<StringView>> splitView(value_type ch) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1458,8 +1451,9 @@ namespace s3d
 
 		/// @brief 文字列を行ごとに分割します。
 		/// @return 分割された文字列
+		/// @remark 結果は元の文字列を借用します。この StringView オブジェクト自体の寿命には依存しません。
 		[[nodiscard]]
-		Array<StringView, std::allocator<StringView>> splitLines() const SIV3D_LIFETIMEBOUND;
+		Array<StringView, std::allocator<StringView>> splitLines() const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -1584,7 +1578,7 @@ namespace s3d
 		/// @param indices インデックス
 		/// @remark `StringView{ U"abcde" }.values_at({0, 3, 4}); // U"ade"`
 		/// @return 新しい文字列
-		/// @throws std::out_of_range indices のいずれかが文字列の長さ以上の場合
+		/// @throw std::out_of_range indices のいずれかが文字列の長さ以上の場合
 		[[nodiscard]]
 		String values_at(std::initializer_list<size_type> indices) const;
 
@@ -1615,7 +1609,7 @@ namespace s3d
 		/// @brief 指定したインデックスにある要素を文字列から削除した新しい文字列を返します。
 		/// @param index インデックス
 		/// @return 新しい文字列
-		/// @throws std::out_of_range index が文字列の長さ以上の場合
+		/// @throw std::out_of_range index が文字列の長さ以上の場合
 		[[nodiscard]]
 		String without_at(size_type index) const;
 

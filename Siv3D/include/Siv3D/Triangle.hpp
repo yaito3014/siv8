@@ -11,6 +11,7 @@
 
 # pragma once
 # include "Common.hpp"
+# include "Geometry2D/Geometry2DConcepts.hpp"
 # include "PointVector.hpp"
 # include "ColorHSV.hpp"
 # include "JoinStyle.hpp"
@@ -609,15 +610,45 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	pointAtIndex
+		//	vertices
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 三角形の頂点の座標を配列として返します。
+		/// @return 三角形の頂点の座標を格納した配列
 		[[nodiscard]]
-		position_type& pointAtIndex(size_t index);
+		constexpr std::array<position_type, 3> vertices() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	sides
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 三角形の辺を配列として返します。
+		/// @return 三角形の辺を格納した配列
+		[[nodiscard]]
+		constexpr std::array<Line, 3> sides() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	vertexAtIndex
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定したインデックスの頂点への参照を返します。
+		/// @param index 頂点のインデックス（0 が p0, 1 が p1, 2 が p2）
+		/// @return 指定したインデックスの頂点への参照
+		/// @throw std::out_of_range index が範囲外の場合
+		[[nodiscard]]
+		position_type& vertexAtIndex(size_t index);
 	
+		/// @brief 指定したインデックスの頂点への参照を返します。
+		/// @param index 頂点のインデックス（0 が p0, 1 が p1, 2 が p2）
+		/// @return 指定したインデックスの頂点への参照
+		/// @throw std::out_of_range index が範囲外の場合
 		[[nodiscard]]
-		const position_type& pointAtIndex(size_t index) const;
+		const position_type& vertexAtIndex(size_t index) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -749,8 +780,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 三角形を囲む最小の矩形を返します。
-		/// @return 三角形を囲む最小の矩形
+		/// @brief 三角形を囲む最小の長方形を返します。
+		/// @return 三角形を囲む最小の長方形
 		[[nodiscard]]
 		RectF boundingRect() const noexcept;
 
@@ -793,11 +824,18 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//[[nodiscard]]
-		//LineString outline(CloseRing closeRing = CloseRing::No) const;
+		/// @brief 三角形の輪郭を LineString として返します。
+		/// @param closeRing 頂点配列の終点を始点と重ねるか
+		/// @return 三角形の輪郭の LineString
+		[[nodiscard]]
+		LineString outline(CloseRing closeRing = CloseRing::No) const;
 
-		//[[nodiscard]]
-		//LineString outline(double distanceFromOrigin, double length) const;
+		/// @brief 三角形の輪郭の一部を LineString として返します。
+		/// @param distanceFromOrigin 開始地点の距離（三角形の頂点から時計回りでの距離）
+		/// @param length 長さ
+		/// @return 三角形の輪郭の一部の LineString
+		[[nodiscard]]
+		LineString outline(double distanceFromOrigin, double length) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -847,7 +885,19 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	calculateRoundBuffer
+		//	computeMiterBufferPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 三角形を太らせた、新しい多角形を返します。
+		/// @param distance 太らせる距離。負の場合は細らせます。
+		/// @return 新しい多角形
+		[[nodiscard]]
+		Polygon computeMiterBufferPolygon(double distance) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeRoundBufferPolygon
 		//
 		////////////////////////////////////////////////////////////////
 
@@ -856,7 +906,7 @@ namespace s3d
 		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
 		/// @return 新しい多角形。distance が 0 以下の場合は空の多角形
 		[[nodiscard]]
-		Polygon calculateRoundBuffer(double distance, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
+		Polygon computeRoundBufferPolygon(double distance, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -892,19 +942,26 @@ namespace s3d
 		/// @tparam Shape2DType 別の図形の型
 		/// @param other 別の図形
 		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool intersects(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	intersectsAt
+		//	overlaps
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
+		/// @brief 別の図形と交差する領域が面積を持つかを返します。
+		/// @tparam Shape2DType `Geometry2D::Overlaps(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形と交差する領域が面積を持つ場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsOverlaps<Triangle, Shape2DType>
+		[[nodiscard]]
+		constexpr bool overlaps(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -912,9 +969,29 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//bool contains(const Shape2DType& other) const;
+		/// @brief 別の図形を完全に含んでいるかを返します。
+		/// @tparam Shape2DType `Geometry2D::Contains(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形を完全に含んでいる場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsContains<Triangle, Shape2DType>
+		[[nodiscard]]
+		constexpr bool contains(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -975,6 +1052,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 三角形を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Triangle& paint(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -983,6 +1065,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 三角形を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Triangle& overwrite(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -991,6 +1078,12 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 三角形の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Triangle& paintFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -999,6 +1092,12 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 三角形の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Triangle& overwriteFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1142,7 +1241,7 @@ namespace s3d
 	private:
 
 		[[noreturn]]
-		static void ThrowPointAtIndexOutOfRange();
+		static void ThrowVertexAtIndexOutOfRange();
 
 		[[noreturn]]
 		static void ThrowSideAtIndexOutOfRange();

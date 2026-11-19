@@ -11,14 +11,24 @@
 
 # pragma once
 # include <Siv3D/Polygon.hpp>
-# include "GeometryCommon.hpp"
 
 namespace s3d
 {
-	namespace detail
+	struct PolygonData
 	{
-		Polygon ToPolygon(const CwOpenPolygon& polygon);
-	}
+		// 外周の頂点配列（時計回り）
+		Array<Vec2> outer;
+
+		// 穴を構成する頂点配列（反時計回り）の配列
+		Array<Array<Vec2>> inners;
+	};
+
+	struct PolygonCentroidResult
+	{
+		Vec2 centroid;
+		
+		double area;
+	};
 
 	class Polygon::PolygonDetail
 	{
@@ -46,7 +56,7 @@ namespace s3d
 		PolygonDetail(std::span<const Vec2> outer, Array<Array<Vec2>> holes, Array<Float2> vertices, Array<TriangleIndex> indices, const RectF& boundingRect, SkipValidation skipValidation);
 
 		[[nodiscard]]
-		PolygonDetail(std::span<const Float2> outer, Array<TriangleIndex> indices);
+		PolygonDetail(std::span<const Float2> outer, Array<TriangleIndex> indices, const RectF& boundingRect);
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -101,15 +111,6 @@ namespace s3d
 
 		[[nodiscard]]
 		const RectF& boundingRect() const noexcept;
-
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	getBoostPolygon
-		//
-		////////////////////////////////////////////////////////////////
-
-		const CwOpenPolygon& getBoostPolygon() const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -180,7 +181,7 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		[[nodiscard]]
-		Vec2 centroid() const;
+		Optional<PolygonCentroidResult> centroid() const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -193,21 +194,39 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	calculateBuffer
+		//	computeMiterBufferPolygon
 		//
 		////////////////////////////////////////////////////////////////
 
 		[[nodiscard]]
-		Polygon calculateBuffer(double distance) const;
+		Polygon computeMiterBufferPolygon(double distance) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	calculateRoundBuffer
+		//	computeRoundBufferPolygon
 		//
 		////////////////////////////////////////////////////////////////
 
 		[[nodiscard]]
-		Polygon calculateRoundBuffer(double distance, const QualityFactor& qualityFactor) const;
+		Polygon computeRoundBufferPolygon(double distance, const QualityFactor& qualityFactor) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeMiterBufferMultiPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		MultiPolygon computeMiterBufferMultiPolygon(double distance) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeRoundBufferMultiPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		MultiPolygon computeRoundBufferMultiPolygon(double distance, const QualityFactor& qualityFactor) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -216,7 +235,7 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		[[nodiscard]]
-		Polygon simplified(double maxDistance) const;
+		Optional<PolygonData> simplified(double maxDistance) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -227,41 +246,6 @@ namespace s3d
 		bool append(const RectF& other);
 
 		bool append(const Polygon& other);
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	intersects
-		//
-		////////////////////////////////////////////////////////////////
-
-		[[nodiscard]]
-		bool intersects(const Vec2& other) const;
-
-		[[nodiscard]]
-		bool intersects(const Line& other) const;
-
-		[[nodiscard]]
-		bool intersects(const RectF& other) const;
-
-		[[nodiscard]]
-		bool intersects(const Circle& other) const;
-
-		[[nodiscard]]
-		bool intersects(const Ellipse& other) const;
-
-		[[nodiscard]]
-		bool intersects(const Triangle& other) const;
-
-		[[nodiscard]]
-		bool intersects(const Quad& other) const;
-
-		[[nodiscard]]
-		bool intersects(const PolygonDetail& other) const;
-
-
-
-
-
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -305,6 +289,15 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
+		//	Parse
+		//
+		////////////////////////////////////////////////////////////////
+
+		[[nodiscard]]
+		static Optional<Polygon> Parse(StringView s);
+
+		////////////////////////////////////////////////////////////////
+		//
 		//	Validate
 		//
 		////////////////////////////////////////////////////////////////
@@ -321,11 +314,14 @@ namespace s3d
 		[[nodiscard]]
 		static Array<Polygon> Correct(std::span<const Vec2> outer, const Array<Array<Vec2>>& holes);
 
+		[[nodiscard]]
+		static Polygon CorrectOne(std::span<const Vec2> outer, const Array<Array<Vec2>>& holes);
+
 	private:
 
-		CwOpenPolygon m_polygon;
+		bool initialize(std::span<const Vec2> outer, Array<Array<Vec2>> holes, SkipValidation skipValidation);
 
-		Array<Array<Vec2>> m_holes;
+		PolygonData m_polygon;
 
 		Array<Float2> m_vertices;
 

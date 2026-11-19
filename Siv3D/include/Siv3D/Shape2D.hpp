@@ -15,14 +15,16 @@
 # include "PointVector.hpp"
 # include "TriangleIndex.hpp"
 # include "2DShapes.hpp"
-# include "PredefinedNamedParameter.hpp"
 # include "QualityFactor.hpp"
 
 namespace s3d
 {
+	struct Mat3x2;
+	struct Mesh2D;
+
 	////////////////////////////////////////////////////////////////
 	//
-	//	draw
+	//	Shape2D
 	//
 	////////////////////////////////////////////////////////////////
 
@@ -46,6 +48,13 @@ namespace s3d
 		/// @param indices 頂点インデックス
 		[[nodiscard]]
 		Shape2D(Array<Float2> vertices, Array<TriangleIndex> indices);
+
+		/// @brief 頂点配列と頂点インデックスから多角形を作成します。
+		/// @param vertices 頂点配列
+		/// @param indices 頂点インデックス
+		/// @param boundingRect 外接長方形
+		[[nodiscard]]
+		Shape2D(Array<Float2> vertices, Array<TriangleIndex> indices, const Optional<RectF>& boundingRect);
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -310,14 +319,117 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	asPolygon
+		//	boundingRect
+		//
+		////////////////////////////////////////////////////////////////
+		
+		/// @brief 図形の外接長方形を返します。
+		/// @return 図形の外接長方形
+		[[nodiscard]]
+		const RectF& boundingRect() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	toPolygon
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 図形を Polygon として返します。
-		/// @return 図形の Polygon
+		/// @brief 図形をもとに新しい Polygon を作成します。
+		/// @return 新しい Polygon
 		[[nodiscard]]
-		Polygon asPolygon() const;
+		Polygon toPolygon() const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	rounded
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 角を丸めて作成した、新しい多角形を返します。分割数は半径に応じて自動的に決定されます。
+		/// @param round 角の半径
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return 新しい多角形
+		[[nodiscard]]
+		Polygon rounded(double round, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeMiterBufferPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 辺を外側に拡大または内側に縮小した新しい多角形を返します。
+		/// @param distance 拡大縮小の量（正の値で外側に拡大、負の値で内側に縮小）
+		/// @return 拡大縮小した新しい多角形
+		/// @remark 縮小時に三角形になる場合にも正しく処理されます。
+		[[nodiscard]]
+		Polygon computeMiterBufferPolygon(double distance) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeRoundBufferPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 多角形を丸く太らせて作成した、新しい多角形を返します。分割数は半径に応じて自動的に決定されます。
+		/// @param distance 太らせる距離
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return 新しい多角形。distance が 0 以下の場合は空の多角形
+		[[nodiscard]]
+		Polygon computeRoundBufferPolygon(double distance, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	leftClicked, leftPressed, leftReleased
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 多角形が現在のフレームで左クリックされ始めたかを返します。
+		/// @return 多角形が現在のフレームで左クリックされ始めた場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool leftClicked() const noexcept;
+
+		/// @brief 多角形が左クリックされているかを返します。
+		/// @return 多角形が左クリックされている場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool leftPressed() const noexcept;
+
+		/// @brief 現在のフレームで多角形への左クリックが離されたかを返します。
+		/// @return 現在のフレームで多角形への左クリックが離された場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool leftReleased() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	rightClicked, rightPressed, rightReleased
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 多角形が現在のフレームで右クリックされ始めたかを返します。
+		/// @return 多角形が現在のフレームで右クリックされ始めた場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool rightClicked() const noexcept;
+
+		/// @brief 多角形が右クリックされているかを返します。
+		/// @return 多角形が右クリックされている場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool rightPressed() const noexcept;
+
+		/// @brief 現在のフレームで多角形への右クリックが離されたかを返します。
+		/// @return 現在のフレームで多角形への右クリックが離された場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool rightReleased() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	mouseOver
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 多角形上にマウスカーソルがあるかを返します。
+		/// @return 多角形上にマウスカーソルがある場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool mouseOver() const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -325,7 +437,20 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 図形を Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Shape2D& paint(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
+
+		/// @brief 図形を移動させた位置に Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param offset 座標のオフセット
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
+		const Shape2D& paint(Image& dst, const Vec2& offset, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -333,7 +458,20 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 図形を Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Shape2D& overwrite(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
+
+		/// @brief 図形を移動させた位置に Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param offset 座標のオフセット
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
+		const Shape2D& overwrite(Image& dst, const Vec2& offset, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -341,7 +479,22 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 図形の枠を Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Shape2D& paintFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
+
+		/// @brief 図形の枠を移動させた位置に Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param offset 座標のオフセット
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
+		const Shape2D& paintFrame(Image& dst, const Vec2& offset, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -349,7 +502,22 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 図形の枠を Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Shape2D& overwriteFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
+
+		/// @brief 図形の枠を移動させた位置に Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param offset 座標のオフセット
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
+		const Shape2D& overwriteFrame(Image& dst, const Vec2& offset, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -361,8 +529,23 @@ namespace s3d
 		/// @param color 色
 		/// @return *this
 		const Shape2D& draw(const ColorF& color = Palette::White) const;
+		
+		/// @brief 図形を移動させた位置に描画します。
+		/// @param offset 座標のオフセット
+		/// @param color 色
+		/// @return *this
+		const Shape2D& draw(const Vec2& offset, const ColorF& color = Palette::White) const;
 
+		/// @brief 図形を描画します。
+		/// @param pattern パターン
+		/// @return *this
 		const Shape2D& draw(const PatternParameters& pattern) const;
+
+		/// @brief 図形を移動させた位置に描画します。
+		/// @param offset 座標のオフセット
+		/// @param pattern パターン
+		/// @return *this
+		const Shape2D& draw(const Vec2& offset, const PatternParameters& pattern) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -376,7 +559,25 @@ namespace s3d
 		/// @return *this
 		const Shape2D& drawFrame(double thickness = 1.0, const ColorF& color = Palette::White) const;
 
+		/// @brief 図形の枠を移動させた位置に描画します。
+		/// @param offset 座標のオフセット
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @return *this
+		const Shape2D& drawFrame(const Vec2& offset, double thickness = 1.0, const ColorF& color = Palette::White) const;
+
+		/// @brief 図形の枠を描画します。
+		/// @param thickness 枠の太さ
+		/// @param pattern パターン
+		/// @return *this
 		const Shape2D& drawFrame(double thickness, const PatternParameters& pattern) const;
+
+		/// @brief 図形の枠を移動させた位置に描画します。
+		/// @param offset 座標のオフセット
+		/// @param thickness 枠の太さ
+		/// @param pattern パターン
+		/// @return *this
+		const Shape2D& drawFrame(const Vec2& offset, double thickness, const PatternParameters& pattern) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -390,47 +591,62 @@ namespace s3d
 		/// @return *this
 		const Shape2D& drawWireframe(double thickness = 1.0, const ColorF& color = Palette::White) const;
 
+		/// @brief 図形を構成する三角形をワイヤフレームで、移動させた位置に描画します。
+		/// @param offset 座標のオフセット
+		/// @param thickness ワイヤフレームの太さ
+		/// @param color 色
+		/// @return *this
+		const Shape2D& drawWireframe(const Vec2& offset, double thickness = 1.0, const ColorF& color = Palette::White) const;
+
+		/// @brief 図形を構成する三角形をワイヤフレームで描画します。
+		/// @param thickness ワイヤフレームの太さ
+		/// @param pattern パターン
+		/// @return *this
 		const Shape2D& drawWireframe(double thickness, const PatternParameters& pattern) const;
 
+		/// @brief 図形を構成する三角形をワイヤフレームで、移動させた位置に描画します。
+		/// @param offset 座標のオフセット
+		/// @param thickness ワイヤフレームの太さ
+		/// @param pattern パターン
+		/// @return *this
+		const Shape2D& drawWireframe(const Vec2& offset, double thickness, const PatternParameters& pattern) const;
+
 		////////////////////////////////////////////////////////////////
 		//
-		//	toBuffer2D
+		//	toMesh2D
 		//
 		////////////////////////////////////////////////////////////////
 
-		///// @brief 図形に UV 座標をマッピングして Buffer2D を作成します。
-		///// @param uvOrigin UV 座標 (0, 0) をマッピングする位置
-		///// @param uvScale マッピングする UV のスケール
-		///// @return Buffer2D
-		//[[nodiscard]]
-		//Buffer2D toBuffer2D(const Vec2& uvOrigin, const Vec2& uvScale) const;
+		/// @brief 図形をもとに新しい Mesh2D を作成します。
+		/// @return 新しい Mesh2D
+		/// @remark 各頂点の色は白に、UV 座標は `(0, 0)` に設定されます。
+		/// @remark 頂点数が `Mesh2D::MaxVertexCount` を超える場合は空の Mesh2D を返します。
+		[[nodiscard]]
+		Mesh2D toMesh2D() const;
 
-		///// @brief 図形に UV 座標をマッピングして Buffer2D を作成します。
-		///// @param uvCenter UV 座標 (0.5, 0.5) をマッピングする位置
-		///// @param uvScale マッピングする UV のスケール
-		///// @return Buffer2D
-		//[[nodiscard]]
-		//Buffer2D toBuffer2D(Arg::center_<Vec2> uvCenter, const Vec2& uvScale) const;
+		/// @brief 図形をもとに、指定した長方形を UV 空間に対応させた新しい Mesh2D を作成します。
+		/// @param mappingRect UV 座標 `(0, 0)` から `(1, 1)` に対応させる座標空間上の長方形
+		/// @return 新しい Mesh2D
+		/// @remark `mappingRect` の左上が UV 座標 `(0, 0)`、右下が UV 座標 `(1, 1)` に対応します。
+		/// @remark `mappingRect` の外側にある頂点の UV 座標は `[0, 1]` の範囲外になることがあります。
+		/// @remark 頂点数が `Mesh2D::MaxVertexCount` を超える場合、または `mappingRect` の幅または高さが 0 の場合は空の Mesh2D を返します。
+		[[nodiscard]]
+		Mesh2D toMesh2D(const RectF& mappingRect) const;
 
-		///// @brief 図形に UV 座標をマッピングして Buffer2D を作成します。
-		///// @param uvCenter UV 座標 (0.5, 0.5) をマッピングする位置
-		///// @param uvScale マッピングする UV のスケール
-		///// @param uvRotation マッピングする UV の時計回りの回転
-		///// @return Buffer2D
-		//[[nodiscard]]
-		//Buffer2D toBuffer2D(Arg::center_<Vec2> uvCenter, const Vec2& uvScale, double uvRotation) const;
-
-		///// @brief 図形に UV 座標をマッピングして Buffer2D を作成します。
-		///// @param uvMat 頂点の座標から UV 座標を計算する行列
-		///// @return Buffer2D
-		//[[nodiscard]]
-		//Buffer2D toBuffer2D(const Mat3x2& uvMat) const;
+		/// @brief 図形をもとに、指定した変換によって UV 座標を生成した新しい Mesh2D を作成します。
+		/// @param uvTransform 頂点座標から UV 座標を計算する変換行列
+		/// @return 新しい Mesh2D
+		/// @remark 頂点数が `Mesh2D::MaxVertexCount` を超える場合は空の Mesh2D を返します。
+		[[nodiscard]]
+		Mesh2D toMesh2D(const Mat3x2& uvTransform) const;
 
 	private:
 
 		Array<Float2> m_vertices;
 
 		Array<TriangleIndex> m_indices;
+
+		mutable Optional<RectF> m_boundingRect;
 	};
 }
 

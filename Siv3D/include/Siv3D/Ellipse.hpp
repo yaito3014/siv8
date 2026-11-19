@@ -11,6 +11,7 @@
 
 # pragma once
 # include "Common.hpp"
+# include "Geometry2D/Geometry2DConcepts.hpp"
 # include "PointVector.hpp"
 # include "ColorHSV.hpp"
 # include "PredefinedNamedParameter.hpp"
@@ -129,13 +130,13 @@ namespace s3d
 
 		/// @brief 楕円（円）を作成します。
 		/// @param _center 中心座標
-		/// @param _r 楕円の半径
+		/// @param r 楕円の半径
 		[[nodiscard]]
 		constexpr Ellipse(const position_type& _center, value_type r) noexcept;
 
 		/// @brief 楕円（円）を作成します。
 		/// @param _center 中心座標
-		/// @param _r 楕円の半径
+		/// @param r 楕円の半径
 		[[nodiscard]]
 		constexpr Ellipse(const position_type& _center, Concept::Arithmetic auto r) noexcept;
 
@@ -638,11 +639,17 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 楕円の外周を表現する頂点配列を返します。
+		/// @param pointsPerCircle 円周の分割数
+		/// @return 楕円の外周を表現する頂点配列
 		[[nodiscard]]
 		Array<Vec2> outer(const PointsPerCircle& pointsPerCircle) const;
 
+		/// @brief 楕円の外周を表現する頂点配列を返します。分割数は半径と qualityFactor に応じて自動的に決定されます。
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return 楕円の外周を表現する頂点配列
 		[[nodiscard]]
-		Array<Vec2> outer(const QualityFactor& qualityFactor) const;
+		Array<Vec2> outer(const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -660,7 +667,7 @@ namespace s3d
 		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
 		/// @return Polygon
 		[[nodiscard]]
-		Polygon asPolygon(const QualityFactor& qualityFactor) const;
+		Polygon asPolygon(const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -696,19 +703,26 @@ namespace s3d
 		/// @tparam Shape2DType 別の図形の型
 		/// @param other 別の図形
 		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool intersects(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	intersetsAt
+		//	overlaps
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
+		/// @brief 別の図形と交差する領域が面積を持つかを返します。
+		/// @tparam Shape2DType `Geometry2D::Overlaps(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形と交差する領域が面積を持つ場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsOverlaps<Ellipse, Shape2DType>
+		[[nodiscard]]
+		constexpr bool overlaps(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -716,9 +730,29 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//bool contains(const Shape2DType& other) const;
+		/// @brief 別の図形を完全に含んでいるかを返します。
+		/// @tparam Shape2DType `Geometry2D::Contains(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形を完全に含んでいる場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsContains<Ellipse, Shape2DType>
+		[[nodiscard]]
+		constexpr bool contains(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -779,6 +813,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 楕円を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Ellipse& paint(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -787,6 +826,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 楕円を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Ellipse& overwrite(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -795,8 +839,21 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 楕円の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Ellipse& paintFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 楕円の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param innerThickness 基準の楕円から内側方向への枠の太さ
+		/// @param outerThickness 基準の楕円から外側方向への枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Ellipse& paintFrame(Image& dst, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -805,8 +862,21 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 楕円の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Ellipse& overwriteFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
+		/// @brief 楕円の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param innerThickness 基準の楕円から内側方向への枠の太さ
+		/// @param outerThickness 基準の楕円から外側方向への枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Ellipse& overwriteFrame(Image& dst, double innerThickness, double outerThickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -889,6 +959,44 @@ namespace s3d
 		/// @param pattern 塗りつぶしパターン
 		/// @return *this
 		const Ellipse& drawFrame(double innerThickness, double outerThickness, const PatternParameters& pattern) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	drawDashedFrame
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 楕円の破線を描きます。
+		/// @param thickness 枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const Ellipse& drawDashedFrame(double thickness, const RectangularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		/// @brief 楕円の破線を描きます。
+		/// @param thickness 枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param innerColor 内側部分の色
+		/// @param outerColor 外側部分の色
+		/// @return *this
+		const Ellipse& drawDashedFrame(double thickness, const RectangularDashStyle& style, const ColorF& innerColor, const ColorF& outerColor) const;
+
+		/// @brief 楕円の破線を描きます。
+		/// @param innerThickness 基準の楕円から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の楕円から外側方向への枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param color 色
+		/// @return *this
+		const Ellipse& drawDashedFrame(double innerThickness, double outerThickness, const RectangularDashStyle& style = {}, const ColorF& color = Palette::White) const;
+
+		/// @brief 楕円の破線を描きます。
+		/// @param innerThickness 基準の楕円から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の楕円から外側方向への枠の太さ（ピクセル）
+		/// @param style 破線のスタイル
+		/// @param innerColor 内側部分の色
+		/// @param outerColor 外側部分の色
+		/// @return *this
+		const Ellipse& drawDashedFrame(double innerThickness, double outerThickness, const RectangularDashStyle& style, const ColorF& innerColor, const ColorF& outerColor) const;
 
 		////////////////////////////////////////////////////////////////
 		//

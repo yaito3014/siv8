@@ -11,6 +11,7 @@
 
 # pragma once
 # include "Common.hpp"
+# include "Geometry2D/Geometry2DConcepts.hpp"
 # include "PointVector.hpp"
 # include "ColorHSV.hpp"
 # include "JoinStyle.hpp"
@@ -27,6 +28,8 @@ namespace s3d
 	////////////////////////////////////////////////////////////////
 
 	/// @brief 凸四角形
+	/// @remark 幾何判定では、凸な境界に沿って頂点を並べます。時計回り・反時計回りの両方を扱い、面積を保つ隣接頂点の共線も許容します。凹形状・自己交差・境界順でない入力の結果は保証しません。
+	/// @remark 縮退は、`{ A, B, C, C }`, `{ A, B, B, C }`, `{ A, A, B, C }`, `{ A, B, C, A }` を三角形 ABC、`{ A, B, B, A }`, `{ A, A, B, B }` を線分 AB、`{ A, A, A, A }` を点 A として扱います。その他の縮退の結果は保証しません。
 	struct Quad
 	{
 		/// @brief 四角形の座標を表現する型
@@ -302,19 +305,6 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	stretchedPolygon
-		//
-		////////////////////////////////////////////////////////////////
-
-		/// @brief 辺を外側に拡大または内側に縮小した新しい多角形を返します。
-		/// @param size 拡大縮小の量（正の値で外側に拡大、負の値で内側に縮小）
-		/// @return 拡大縮小した新しい多角形
-		/// @remark 縮小時に三角形になる場合にも正しく処理されます。
-		[[nodiscard]]
-		Polygon stretchedPolygon(value_type size) const noexcept;
-
-		////////////////////////////////////////////////////////////////
-		//
 		//	rotatedAt
 		//
 		////////////////////////////////////////////////////////////////
@@ -496,15 +486,45 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	pointAtIndex
+		//	vertices
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 四角形の頂点の座標を配列として返します。
+		/// @return 四角形の頂点の座標を格納した配列
 		[[nodiscard]]
-		position_type& pointAtIndex(size_t index);
+		constexpr std::array<position_type, 4> vertices() const noexcept;
 
+		////////////////////////////////////////////////////////////////
+		//
+		//	sides
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 四角形の辺を配列として返します。
+		/// @return 四角形の辺を格納した配列
 		[[nodiscard]]
-		const position_type& pointAtIndex(size_t index) const;
+		constexpr std::array<Line, 4> sides() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	vertexAtIndex
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 指定したインデックスの頂点への参照を返します。
+		/// @param index 頂点のインデックス（0 が p0, 1 が p1, 2 が p2, 3 が p3）
+		/// @return 指定したインデックスの頂点への参照
+		/// @throw std::out_of_range index が範囲外の場合
+		[[nodiscard]]
+		position_type& vertexAtIndex(size_t index);
+
+		/// @brief 指定したインデックスの頂点への参照を返します。
+		/// @param index 頂点のインデックス（0 が p0, 1 が p1, 2 が p2, 3 が p3）
+		/// @return 指定したインデックスの頂点への参照
+		/// @throw std::out_of_range index が範囲外の場合
+		[[nodiscard]]
+		const position_type& vertexAtIndex(size_t index) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -517,6 +537,58 @@ namespace s3d
 		/// @return 四角形の周上の指定した距離に対応する座標
 		[[nodiscard]]
 		Vec2 pointAtLength(double length) const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	p0p1, p1p2, p2p3, p3p0
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief p0 から p1 への線分を返します。
+		/// @return p0 から p1 への線分
+		[[nodiscard]]
+		constexpr Line p0p1() const noexcept;
+
+		/// @brief p1 から p2 への線分を返します。
+		/// @return p1 から p2 への線分
+		[[nodiscard]]
+		constexpr Line p1p2() const noexcept;
+
+		/// @brief p2 から p3 への線分を返します。
+		/// @return p2 から p3 への線分
+		[[nodiscard]]
+		constexpr Line p2p3() const noexcept;
+
+		/// @brief p3 から p0 への線分を返します。
+		/// @return p3 から p0 への線分
+		[[nodiscard]]
+		constexpr Line p3p0() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	p1p0, p2p1, p3p2, p0p3
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief p1 から p0 への線分を返します。
+		/// @return p1 から p0 への線分
+		[[nodiscard]]
+		constexpr Line p1p0() const noexcept;
+
+		/// @brief p2 から p1 への線分を返します。
+		/// @return p2 から p1 への線分
+		[[nodiscard]]
+		constexpr Line p2p1() const noexcept;
+
+		/// @brief p3 から p2 への線分を返します。
+		/// @return p3 から p2 への線分
+		[[nodiscard]]
+		constexpr Line p3p2() const noexcept;
+
+		/// @brief p0 から p3 への線分を返します。
+		/// @return p0 から p3 への線分
+		[[nodiscard]]
+		constexpr Line p0p3() const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -550,8 +622,8 @@ namespace s3d
 		////////////////////////////////////////////////////////////////
 
 		/// @brief 四角形の周上の指定した距離に対応する辺のインデックスを返します。
-		/// @param length 距離（p0-p1-p2 の順）
-		/// @return 四角形の周上の指定した距離に対応する辺のインデックス（0 が p0-p1, 1 が p1-p2, 2 が p2-p0）
+		/// @param length 距離（p0-p1-p2-p3 の順）
+		/// @return 四角形の周上の指定した距離に対応する辺のインデックス（0 が p0-p1, 1 が p1-p2, 2 が p2-p3, 3 が p3-p0）
 		[[nodiscard]]
 		size_t sideIndexAtLength(double length) const noexcept;
 
@@ -561,6 +633,9 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 四角形を構成する 2 つの三角形のうち、指定したインデックスの三角形を返します。
+		/// @param index 三角形のインデックス（0 または 1）
+		/// @return 指定したインデックスの三角形
 		[[nodiscard]]
 		constexpr Triangle triangleAtIndex(size_t index) const;
 
@@ -592,8 +667,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		/// @brief 四角形を囲む最小の矩形を返します。
-		/// @return 四角形を囲む最小の矩形
+		/// @brief 四角形を囲む最小の長方形を返します。
+		/// @return 四角形を囲む最小の長方形
 		[[nodiscard]]
 		RectF boundingRect() const noexcept;
 
@@ -603,10 +678,10 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		///// @brief 四角形を囲む最小の円を返します。
-		///// @return 四角形を囲む最小の円
-		//[[nodiscard]]
-		//Circle boundingCircle() const noexcept;
+		/// @brief 四角形を囲む最小の円を返します。
+		/// @return 四角形を囲む最小の円
+		[[nodiscard]]
+		Circle boundingCircle() const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -614,11 +689,18 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//[[nodiscard]]
-		//LineString outline(CloseRing closeRing = CloseRing::No) const;
+		/// @brief 四角形の輪郭を LineString として返します。
+		/// @param closeRing 頂点配列の終点を始点と重ねるか
+		/// @return 四角形の輪郭の LineString
+		[[nodiscard]]
+		LineString outline(CloseRing closeRing = CloseRing::No) const;
 
-		//[[nodiscard]]
-		//LineString outline(double distanceFromOrigin, double length) const;
+		/// @brief 四角形の輪郭の一部を LineString として返します。
+		/// @param distanceFromOrigin 開始地点の距離（四角形の頂点から時計回りでの距離）
+		/// @param length 長さ
+		/// @return 四角形の輪郭の一部の LineString
+		[[nodiscard]]
+		LineString outline(double distanceFromOrigin, double length) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -637,6 +719,8 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 四角形の頂点の配列 { p0, p1, p2, p3, p0 } を返します。
+		/// @return 四角形の頂点の配列 { p0, p1, p2, p3, p0 }
 		[[nodiscard]]
 		Array<Vec2> ring() const;
 
@@ -666,7 +750,20 @@ namespace s3d
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	calculateRoundBuffer
+		//	computeMiterBufferPolygon
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 辺を外側に拡大または内側に縮小した新しい多角形を返します。
+		/// @param distance 拡大縮小の量（正の値で外側に拡大、負の値で内側に縮小）
+		/// @return 拡大縮小した新しい多角形
+		/// @remark 縮小時に三角形になる場合にも正しく処理されます。
+		[[nodiscard]]
+		Polygon computeMiterBufferPolygon(double distance) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	computeRoundBufferPolygon
 		//
 		////////////////////////////////////////////////////////////////
 
@@ -675,7 +772,7 @@ namespace s3d
 		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
 		/// @return 新しい多角形。distance が 0 以下の場合は空の多角形
 		[[nodiscard]]
-		Polygon calculateRoundBuffer(double distance, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
+		Polygon computeRoundBufferPolygon(double distance, const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -711,19 +808,26 @@ namespace s3d
 		/// @tparam Shape2DType 別の図形の型
 		/// @param other 別の図形
 		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool intersects(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
-		//	intersectsAt
+		//	overlaps
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
+		/// @brief 別の図形と交差する領域が面積を持つかを返します。
+		/// @tparam Shape2DType `Geometry2D::Overlaps(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形と交差する領域が面積を持つ場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsOverlaps<Quad, Shape2DType>
+		[[nodiscard]]
+		constexpr bool overlaps(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -731,10 +835,29 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//template <class Shape2DType>
-		//[[nodiscard]]
-		//bool contains(const Shape2DType& other) const;
+		/// @brief 別の図形を完全に含んでいるかを返します。
+		/// @tparam Shape2DType `Geometry2D::Contains(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形を完全に含んでいる場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsContains<Quad, Shape2DType>
+		[[nodiscard]]
+		constexpr bool contains(const Shape2DType& other) const;
 
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -795,6 +918,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 四角形を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Quad& paint(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -803,6 +931,11 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 四角形を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Quad& overwrite(Image& dst, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -811,6 +944,12 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 四角形の枠を Image に描き込みます。
+		/// @param dst 描き込み先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Quad& paintFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -819,6 +958,12 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief 四角形の枠を Image に上書きします。
+		/// @param dst 上書き先の画像
+		/// @param thickness 枠の太さ
+		/// @param color 色
+		/// @param enableAntialiasing アンチエイリアスを有効にするか
+		/// @return *this
 		const Quad& overwriteFrame(Image& dst, double thickness, const Color& color, EnableAntialiasing enableAntialiasing = EnableAntialiasing::Yes) const;
 
 		////////////////////////////////////////////////////////////////
@@ -858,12 +1003,12 @@ namespace s3d
 		/// @return *this
 		const Quad& drawFrame(double thickness = 1.0, const ColorF& color = Palette::White, JoinStyle joinStyle = JoinStyle::Default) const;
 
-		///// @brief 四角形の枠を描きます。
-		///// @param innerThickness 基準の四角形から内側方向への枠の太さ（ピクセル）
-		///// @param outerThickness 基準の四角形から外側方向への枠の太さ（ピクセル）
-		///// @param color 枠の色
-		///// @return *this
-		//const Quad& drawFrame(double innerThickness, double outerThickness, const ColorF& color = Palette::White) const;
+		/// @brief 四角形の枠を描きます。
+		/// @param innerThickness 基準の四角形から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の四角形から外側方向への枠の太さ（ピクセル）
+		/// @param color 枠の色
+		/// @return *this
+		const Quad& drawFrame(double innerThickness, double outerThickness, const ColorF& color = Palette::White) const;
 
 		/// @brief 四角形の枠を描きます。
 		/// @param thickness 枠の太さ（ピクセル）
@@ -872,12 +1017,12 @@ namespace s3d
 		/// @return *this
 		const Quad& drawFrame(double thickness, const PatternParameters& pattern, JoinStyle joinStyle = JoinStyle::Default) const;
 
-		///// @brief 四角形の枠を描きます。
-		///// @param innerThickness 基準の四角形から内側方向への枠の太さ（ピクセル）
-		///// @param outerThickness 基準の四角形から外側方向への枠の太さ（ピクセル）
+		/// @brief 四角形の枠を描きます。
+		/// @param innerThickness 基準の四角形から内側方向への枠の太さ（ピクセル）
+		/// @param outerThickness 基準の四角形から外側方向への枠の太さ（ピクセル）
 		/// @param pattern 塗りつぶしパターン
-		///// @return *this
-		//const Quad& drawFrame(double innerThickness, double outerThickness, const PatternParameters& pattern) const;
+		/// @return *this
+		const Quad& drawFrame(double innerThickness, double outerThickness, const PatternParameters& pattern) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -885,11 +1030,17 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
-		//[[nodiscard]]
-		//TexturedQuad operator ()(const Texture& texture) const;
+		/// @brief テクスチャを四角形に貼り付けた TexturedQuad を返します。
+		/// @param texture テクスチャ
+		/// @return TexturedQuad
+		[[nodiscard]]
+		TexturedQuad operator ()(const Texture& texture) const;
 
-		//[[nodiscard]]
-		//TexturedQuad operator ()(const TextureRegion& textureRegion) const;
+		/// @brief テクスチャ領域を四角形に貼り付けた TexturedQuad を返します。
+		/// @param textureRegion テクスチャ領域
+		/// @return TexturedQuad
+		[[nodiscard]]
+		TexturedQuad operator ()(const TextureRegion& textureRegion) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -949,7 +1100,7 @@ namespace s3d
 	private:
 
 		[[noreturn]]
-		static void ThrowPointAtIndexOutOfRange();
+		static void ThrowVertexAtIndexOutOfRange();
 
 		[[noreturn]]
 		static void ThrowSideAtIndexOutOfRange();

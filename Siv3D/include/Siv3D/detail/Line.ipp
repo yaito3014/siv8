@@ -523,12 +523,23 @@ namespace s3d
 
 	////////////////////////////////////////////////////////////////
 	//
-	//	pointAtIndex
+	//	vertices
+	//
+	////////////////////////////////////////////////////////////////
+
+	constexpr std::array<Line::position_type, 2> Line::vertices() const noexcept
+	{
+		return{ start, end };
+	}
+
+	////////////////////////////////////////////////////////////////
+	//
+	//	vertexAtIndex
 	//
 	////////////////////////////////////////////////////////////////
 
 	[[nodiscard]]
-	inline Line::position_type& Line::pointAtIndex(const size_t index)
+	inline Line::position_type& Line::vertexAtIndex(const size_t index)
 	{
 		if (index == 0)
 		{
@@ -540,12 +551,12 @@ namespace s3d
 		}
 		else
 		{
-			ThrowPointAtIndexOutOfRange();
+			ThrowVertexAtIndexOutOfRange();
 		}
 	}
 
 	[[nodiscard]]
-	inline const Line::position_type& Line::pointAtIndex(const size_t index) const
+	inline const Line::position_type& Line::vertexAtIndex(const size_t index) const
 	{
 		if (index == 0)
 		{
@@ -557,7 +568,7 @@ namespace s3d
 		}
 		else
 		{
-			ThrowPointAtIndexOutOfRange();
+			ThrowVertexAtIndexOutOfRange();
 		}
 	}
 
@@ -627,7 +638,7 @@ namespace s3d
 
 	inline uint64 Line::hash() const noexcept
 	{
-		return BitwiseHash(*this);
+		return HashFloats(start.x, start.y, end.x, end.y);
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -639,14 +650,18 @@ namespace s3d
 	template <class Shape2DType>
 	constexpr bool Line::intersects(const Shape2DType& other) const
 	{
-		return Geometry2D::Intersect(*this, other);
+		return Geometry2D::Intersects(*this, other);
 	}
 
+	////////////////////////////////////////////////////////////////
+	//
+	//	intersectsAt
+	//
+	////////////////////////////////////////////////////////////////
 
-
-
-
-
-
-
+	template <class Shape2DType>
+	Optional<Array<Vec2>> Line::intersectsAt(const Shape2DType& other) const
+	{
+		return Geometry2D::IntersectsAt(*this, other);
+	}
 }

@@ -11,6 +11,7 @@
 
 # pragma once
 # include "Common.hpp"
+# include "Geometry2D/Geometry2DConcepts.hpp"
 # include "PointVector.hpp"
 # include "ColorHSV.hpp"
 # include "PredefinedNamedParameter.hpp"
@@ -77,30 +78,72 @@ namespace s3d
 		[[nodiscard]]
 		SuperEllipse() = default;
 
+		/// @brief スーパー楕円を作成します。
+		/// @param _x 中心の X 座標
+		/// @param _y 中心の Y 座標
+		/// @param _a X 軸上の半径
+		/// @param _b Y 軸上の半径
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(value_type _x, value_type _y, value_type _a, value_type _b, value_type _n) noexcept;
 
+		/// @brief スーパー楕円を作成します。
+		/// @param _x 中心の X 座標
+		/// @param _y 中心の Y 座標
+		/// @param _a X 軸上の半径
+		/// @param _b Y 軸上の半径
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(Concept::Arithmetic auto _x, Concept::Arithmetic auto _y, Concept::Arithmetic auto _a, Concept::Arithmetic auto _b, Concept::Arithmetic auto _n) noexcept;
 
+		/// @brief スーパー楕円を作成します。
+		/// @param _center 中心座標
+		/// @param _a X 軸上の半径
+		/// @param _b Y 軸上の半径
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(const position_type& _center, value_type _a, value_type _b, value_type _n) noexcept;
 
+		/// @brief スーパー楕円を作成します。
+		/// @param _center 中心座標
+		/// @param _a X 軸上の半径
+		/// @param _b Y 軸上の半径
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(const position_type& _center, Concept::Arithmetic auto _a, Concept::Arithmetic auto _b, Concept::Arithmetic auto _n) noexcept;
 
+		/// @brief スーパー楕円を作成します。
+		/// @param _x 中心の X 座標
+		/// @param _y 中心の Y 座標
+		/// @param _axes X 軸 Y 軸に沿った半径
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(value_type _x, value_type _y, const size_type& _axes, value_type _n) noexcept;
 
+		/// @brief スーパー楕円を作成します。
+		/// @param _x 中心の X 座標
+		/// @param _y 中心の Y 座標
+		/// @param _axes X 軸 Y 軸に沿った半径
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(Concept::Arithmetic auto _x, Concept::Arithmetic auto _y, const size_type& _axes, Concept::Arithmetic auto _n) noexcept;
 
+		/// @brief スーパー楕円を作成します。
+		/// @param _center 中心座標
+		/// @param _axes X 軸 Y 軸に沿った半径
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(const position_type& _center, const size_type& _axes, Concept::Arithmetic auto _n) noexcept;
 
+		/// @brief 楕円からスーパー楕円を作成します。
+		/// @param ellipse 元になる楕円
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(const Ellipse& ellipse, Concept::Arithmetic auto _n) noexcept;
 
+		/// @brief 長方形に内接するスーパー楕円を作成します。
+		/// @param rect スーパー楕円が内接する長方形
+		/// @param _n 形状を決定する指数（n = 2 で通常の楕円）
 		[[nodiscard]]
 		constexpr SuperEllipse(const RectF& rect, Concept::Arithmetic auto _n) noexcept;
 
@@ -557,11 +600,17 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief スーパー楕円の外周を表現する頂点配列を返します。
+		/// @param pointsPerCircle 円周の分割数
+		/// @return スーパー楕円の外周を表現する頂点配列
 		[[nodiscard]]
 		Array<Vec2> outer(const PointsPerCircle& pointsPerCircle) const;
 
+		/// @brief スーパー楕円の外周を表現する頂点配列を返します。分割数は半径と qualityFactor に応じて自動的に決定されます。
+		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
+		/// @return スーパー楕円の外周を表現する頂点配列
 		[[nodiscard]]
-		Array<Vec2> outer(const QualityFactor& qualityFactor) const;
+		Array<Vec2> outer(const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -579,7 +628,7 @@ namespace s3d
 		/// @param qualityFactor 品質係数。大きいほど分割数が増えます。
 		/// @return Polygon
 		[[nodiscard]]
-		Polygon asPolygon(const QualityFactor& qualityFactor) const;
+		Polygon asPolygon(const QualityFactor& qualityFactor = QualityFactor{ 1.0 }) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -615,29 +664,56 @@ namespace s3d
 		/// @tparam Shape2DType 別の図形の型
 		/// @param other 別の図形
 		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool intersects(const Shape2DType& other) const;
 
-		//////////////////////////////////////////////////////////////////
-		////
-		////	intersetsAt
-		////
-		//////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////
+		//
+		//	overlaps
+		//
+		////////////////////////////////////////////////////////////////
 
-		////template <class Shape2DType>
-		////[[nodiscard]]
-		////Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
+		/// @brief 別の図形と交差する領域が面積を持つかを返します。
+		/// @tparam Shape2DType `Geometry2D::Overlaps(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形と交差する領域が面積を持つ場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsOverlaps<SuperEllipse, Shape2DType>
+		[[nodiscard]]
+		constexpr bool overlaps(const Shape2DType& other) const;
 
-		//////////////////////////////////////////////////////////////////
-		////
-		////	contains
-		////
-		//////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////
+		//
+		//	contains
+		//
+		////////////////////////////////////////////////////////////////
 
-		////template <class Shape2DType>
-		////[[nodiscard]]
-		////bool contains(const Shape2DType& other) const;
+		/// @brief 別の図形を完全に含んでいるかを返します。
+		/// @tparam Shape2DType `Geometry2D::Contains(*this, other)` が呼び出せる型
+		/// @param other 別の図形
+		/// @return 別の図形を完全に含んでいる場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
+		template <class Shape2DType>
+			requires detail::SupportsContains<SuperEllipse, Shape2DType>
+		[[nodiscard]]
+		constexpr bool contains(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//

@@ -13,6 +13,7 @@
 # include "Common.hpp"
 # include "Concepts.hpp"
 # include "2DShapesFwd.hpp"
+# include "Array.hpp"
 # include "FormatLiteral.hpp"
 
 namespace s3d
@@ -195,7 +196,7 @@ namespace s3d
 		/// @brief ベクトルを加算します。
 		/// @param v 加算するベクトル
 		/// @return *this
-		constexpr Vector2D& operator +=(Vector2D v) noexcept;
+		constexpr Vector2D& operator +=(Vector2D v) & noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -206,7 +207,7 @@ namespace s3d
 		/// @brief ベクトルを減算します。
 		/// @param v 減算するベクトル
 		/// @return *this
-		constexpr Vector2D& operator -=(Vector2D v) noexcept;
+		constexpr Vector2D& operator -=(Vector2D v) & noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -217,12 +218,12 @@ namespace s3d
 		/// @brief ベクトルの各成分にスカラーを乗算します。
 		/// @param s スカラー
 		/// @return *this
-		constexpr Vector2D& operator *=(value_type s) noexcept;
+		constexpr Vector2D& operator *=(value_type s) & noexcept;
 
 		/// @brief ベクトル同士の各成分同士を乗算します。
 		/// @param v 乗算するベクトル
 		/// @return *this
-		constexpr Vector2D& operator *=(Vector2D v) noexcept;
+		constexpr Vector2D& operator *=(Vector2D v) & noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -233,12 +234,12 @@ namespace s3d
 		/// @brief ベクトルの各成分をスカラーで除算します。
 		/// @param s スカラー
 		/// @return *this
-		constexpr Vector2D& operator /=(value_type s) noexcept;
+		constexpr Vector2D& operator /=(value_type s) & noexcept;
 
 		/// @brief ベクトル同士の各成分同士を除算します。
 		/// @param v 除算するベクトル
 		/// @return *this
-		constexpr Vector2D& operator /=(Vector2D v) noexcept;
+		constexpr Vector2D& operator /=(Vector2D v) & noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -316,6 +317,17 @@ namespace s3d
 		/// @return NaN である成分を持つ場合 true, それ以外の場合は false
 		[[nodiscard]]
 		bool hasNaN() const noexcept;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	isFinite
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief すべての成分が有限値であるかを返します。
+		/// @return NaN または無限大の成分を含まない場合 true, それ以外の場合は false
+		[[nodiscard]]
+		bool isFinite() const noexcept;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -954,9 +966,24 @@ namespace s3d
 		/// @tparam Shape2DType 別の図形の型
 		/// @param other 別の図形
 		/// @return 別の図形と交差している場合 true, それ以外の場合は false
+		/// @see @ref geometry2d_queries
 		template <class Shape2DType>
 		[[nodiscard]]
 		constexpr bool intersects(const Shape2DType& other) const;
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	intersectsAt
+		//
+		////////////////////////////////////////////////////////////////
+
+		/// @brief 別の図形との孤立した交点を返します。
+		/// @tparam Shape2DType 別の図形の型
+		/// @param other 別の図形
+		/// @return 交点の配列、または none。空配列を含む返り値の意味は @ref geometry2d_intersection_points を参照。
+		template <class Shape2DType>
+		[[nodiscard]]
+		Optional<Array<Vec2>> intersectsAt(const Shape2DType& other) const;
 
 		////////////////////////////////////////////////////////////////
 		//
@@ -964,6 +991,10 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief この座標のピクセルを Image に描き込みます。
+		/// @param dst 描き込み先の Image
+		/// @param color 色
+		/// @return *this
 		const Vector2D& paint(Image& dst, const Color& color) const;
 
 		////////////////////////////////////////////////////////////////
@@ -972,6 +1003,10 @@ namespace s3d
 		//
 		////////////////////////////////////////////////////////////////
 
+		/// @brief この座標のピクセルを Image に上書きします。
+		/// @param dst 上書き先の Image
+		/// @param color 色
+		/// @return *this
 		const Vector2D& overwrite(Image& dst, const Color& color) const;
 
 		////////////////////////////////////////////////////////////////
@@ -1129,6 +1164,7 @@ namespace s3d
 		static constexpr Vector2D Up(value_type length = 1) noexcept;
 
 		/// @brief Vector2D{ 0, length } を返します。
+		/// @param length 値
 		/// @return Vector2D{ 0, length }
 		[[nodiscard]]
 		static constexpr Vector2D Down(value_type length = 1) noexcept;
