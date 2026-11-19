@@ -12,7 +12,10 @@
 # pragma once
 # include "Common.hpp"
 
-# if SIV3D_INTRINSIC(SSE)
+// Not on GCC: DirectXMath's SSE4 XMStoreFloat3 writes float members through
+// int* (an aliasing violation), and GCC's type-based alias analysis drops or
+// reorders those stores at -O2 and above. Its SSE2 path is used there instead.
+# if SIV3D_INTRINSIC(SSE) && !SIV3D_COMPILER(GCC)
 #	define _XM_SSE4_INTRINSICS_
 # endif
 
