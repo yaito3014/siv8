@@ -11,6 +11,7 @@
 
 # include <Siv3D/Unicode.hpp>
 # include <Siv3D/String.hpp>
+# include <algorithm>
 # include <simdutf.h>
 # include <type_traits>
 
@@ -65,9 +66,21 @@ namespace s3d
 					return;
 				}
 
+				// Copy element-wise into the existing buffer: assign(first, last) with
+				// iterators of another character type is specified as assigning a
+				// temporary string, which libstdc++ moves in, dropping dst's storage.
+				const auto copy = [&](auto* buf, size_t)
+					{
+						std::transform(s.begin(), s.end(), buf, [](const auto ch)
+							{
+								return static_cast<typename Destination::value_type>(ch);
+							});
+						return s.size();
+					};
+
 				if constexpr (std::is_same_v<typename Destination::value_type, char32>)
 				{
-					dst.assign(s.begin(), s.end());
+					dst.resize_and_overwrite(s.size(), copy);
 					if (not simdutf::validate_utf32(dst.data(), dst.size()))
 					{
 						dst.clear();
@@ -80,7 +93,7 @@ namespace s3d
 						dst.clear();
 						return;
 					}
-					dst.assign(s.begin(), s.end());
+					dst.resize_and_overwrite(s.size(), copy);
 				}
 			}
 
