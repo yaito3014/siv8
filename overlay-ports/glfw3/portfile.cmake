@@ -6,15 +6,15 @@ if (VCPKG_TARGET_IS_EMSCRIPTEN)
     return()
 endif()
 
-# Siv3D fork of glfw3 3.4: the same upstream source as the registry port, plus
+# Siv3D fork of glfw3 3.5.1: upstream release source, plus
 # siv3d-glfw.patch (the GLFW_Siv3D_DragDrop bridge + engine input/cocoa/monitor
-# hooks the engine relies on). Pinned to the registry SHA512 so the fork is just
-# "upstream 3.4 + a reviewable patch", in line with the other overlay forks.
+# hooks the engine relies on). Pinned by SHA512 so the fork is just
+# "upstream 3.5.1 + a reviewable patch", in line with the other overlay forks.
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO glfw/glfw
     REF ${VERSION}
-    SHA512 39ad7a4521267fbebc35d2ff0c389a56236ead5fa4bdff33db113bd302f70f5f2869ff4e6db1979512e1542813292dff5a482e94dfce231750f0746c301ae9ed
+    SHA512 42e8b8bdc2ecaab8d33d43cab6cf6e4bfd1f23492a5f13ec4b3762b74661dc3c9625721f436fbf841909b9af3ac6dcb8080201b36592d33c2bb196f768fc307f
     HEAD_REF master
     PATCHES
         siv3d-glfw.patch
