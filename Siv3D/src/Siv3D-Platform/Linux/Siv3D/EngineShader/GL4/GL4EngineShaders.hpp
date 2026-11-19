@@ -40,14 +40,13 @@ layout(location = 0) out vec4 v_colorPMA;
 layout(location = 1) out vec2 v_uv;
 layout(std140) uniform VSConstants2D
 {
-	vec4 g_transform[2];
+	vec4 g_transform[3];
 	vec4 g_colorMul;
 };
 vec4 s3d_positionTransform(vec2 pos)
 {
-	return vec4((vec2(g_transform[0].z, g_transform[0].w)
-		+ (pos.x * vec2(g_transform[0].x, g_transform[0].y))
-		+ (pos.y * vec2(g_transform[1].x, g_transform[1].y))), g_transform[1].z, g_transform[1].w);
+	vec4 clip = ((pos.x * g_transform[0]) + (pos.y * g_transform[1]) + g_transform[2]);
+	return vec4(clip.xy, 0.0, clip.w);
 }
 vec4 s3d_premultiplyAlpha(vec4 c) { return vec4((c.rgb * c.a), c.a); }
 )glsl";
@@ -61,7 +60,8 @@ R"glsl(void main()
 }
 )glsl";
 
-	constexpr std::string_view GLSL_VS_QuadWarp =
+	// Passes the drawing-space position for the pattern shaders.
+	constexpr std::string_view GLSL_VS_Pattern =
 R"glsl(void main()
 {
 	gl_Position = s3d_positionTransform(i_position);
@@ -112,8 +112,7 @@ layout(std140) uniform PSEffectConstants2D
 {
 	vec4 g_patternUVTransform[2];
 	vec4 g_patternBackgroundColor;
-	vec4 g_quadWarpInvHomography[3];
-	vec4 g_quadWarpUVTransform;
+	vec4 g_patternExtraParams;
 };
 vec4 Pattern_BackgroundColor()
 {
@@ -165,25 +164,6 @@ R"glsl(void main()
 R"glsl(void main()
 {
 	o_color = s3d_textureColor(v_colorPMA, texture(g_texture0, v_uv));
-}
-)glsl";
-
-	constexpr std::string_view GLSL_PS_QuadWarp =
-R"glsl(layout(std140) uniform PSEffectConstants2D
-{
-	vec4 g_patternUVTransform[2];
-	vec4 g_patternBackgroundColor;
-	vec4 g_quadWarpInvHomography[3];
-	vec4 g_quadWarpUVTransform;
-};
-void main()
-{
-	vec3 v = vec3(v_uv, 1.0);
-	vec3 t = (v.x * g_quadWarpInvHomography[0].xyz)
-		+ (v.y * g_quadWarpInvHomography[1].xyz)
-		+ (v.z * g_quadWarpInvHomography[2].xyz);
-	vec2 uv = ((t.xy / t.z) * g_quadWarpUVTransform.xy + g_quadWarpUVTransform.zw);
-	o_color = s3d_textureColor(v_colorPMA, texture(g_texture0, uv));
 }
 )glsl";
 
@@ -260,7 +240,7 @@ R"glsl(void main()
 	constexpr std::string_view GLSL_PS_PatternPolkaDot =
 R"glsl(void main()
 {
-	vec2 uv = Pattern_UVTransform(gl_FragCoord.xy);
+	vec2 uv = Pattern_UVTransform(v_uv);
 	vec2 repeat = (2.0 * fract(uv) - 1.0);
 	float value = length(repeat);
 	float fw = (length(vec2(dFdx(value), dFdy(value))) * 0.70710678118);
@@ -273,7 +253,7 @@ R"glsl(void main()
 	constexpr std::string_view GLSL_PS_PatternStripe =
 R"glsl(void main()
 {
-	float u = Pattern_UVTransform(gl_FragCoord.xy).x;
+	float u = Pattern_UVTransform(v_uv).x;
 	float fw = fwidth(u);
 	float value = abs(2.0 * fract(u) - 1.0);
 	float thicknessScale = (g_patternUVTransform[1].z * (1.0 + 2.0 * fw) - fw);
@@ -285,7 +265,7 @@ R"glsl(void main()
 	constexpr std::string_view GLSL_PS_PatternGrid =
 R"glsl(void main()
 {
-	vec2 uv = Pattern_UVTransform(gl_FragCoord.xy);
+	vec2 uv = Pattern_UVTransform(v_uv);
 	vec2 fw = fwidth(uv);
 	vec2 value = abs(2.0 * fract(uv) - 1.0);
 	vec2 thicknessScale = (vec2(g_patternUVTransform[1].z) * (1.0 + fw) - fw);
@@ -297,7 +277,7 @@ R"glsl(void main()
 	constexpr std::string_view GLSL_PS_PatternChecker =
 R"glsl(void main()
 {
-	vec2 uv = Pattern_UVTransform(gl_FragCoord.xy);
+	vec2 uv = Pattern_UVTransform(v_uv);
 	float c = Pattern_CheckersFiltered(uv, g_patternUVTransform[1].zw);
 	o_color = mix(s3d_shapeColor(v_colorPMA), Pattern_BackgroundColor(), c);
 }
@@ -306,7 +286,7 @@ R"glsl(void main()
 	constexpr std::string_view GLSL_PS_PatternTriangle =
 R"glsl(void main()
 {
-	vec2 uv = Pattern_UVTransform(gl_FragCoord.xy);
+	vec2 uv = Pattern_UVTransform(v_uv);
 	vec2 fw = (fwidth(uv) * 0.25);
 	vec2 s1 = Pattern_Skew(uv + vec2(-fw.x, -fw.y));
 	vec2 s2 = Pattern_Skew(uv + vec2( fw.x,  fw.y));
@@ -323,7 +303,7 @@ R"glsl(void main()
 	constexpr std::string_view GLSL_PS_PatternHexGrid =
 R"glsl(void main()
 {
-	vec2 uv = Pattern_UVTransform(gl_FragCoord.xy);
+	vec2 uv = Pattern_UVTransform(v_uv);
 	vec2 fw = fwidth(uv);
 	float w = (max(fw.x, fw.y) * 0.5);
 	float thicknessScale = (g_patternUVTransform[1].z * (1.0 + 2.0 * w));

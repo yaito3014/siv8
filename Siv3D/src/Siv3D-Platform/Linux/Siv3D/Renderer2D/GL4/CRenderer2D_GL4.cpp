@@ -23,7 +23,6 @@
 # include <Siv3D/Shader/IShader.hpp>
 # include <Siv3D/Shader/GL4/CShader_GL4.hpp>
 # include <Siv3D/EngineShader/IEngineShader.hpp>
-# include <Siv3D/Quad.hpp>
 # include <Siv3D/Mat3x3.hpp>
 
 namespace s3d
@@ -81,6 +80,26 @@ namespace s3d
 			case TextureAddressMode::BorderColor:	return GL_CLAMP_TO_BORDER;
 			case TextureAddressMode::MirrorClamp:	return GL_CLAMP_TO_EDGE; // GL_MIRROR_CLAMP_TO_EDGE is 4.4+
 			default:								return GL_CLAMP_TO_EDGE;
+			}
+		}
+
+		[[nodiscard]]
+		static EnginePS PatternPS(const PatternType pattern)
+		{
+			switch (pattern)
+			{
+			case PatternType::PolkaDot:	return EnginePS::PatternPolkaDot;
+			case PatternType::Stripe:	return EnginePS::PatternStripe;
+			case PatternType::Grid:		return EnginePS::PatternGrid;
+			case PatternType::Checker:	return EnginePS::PatternChecker;
+			case PatternType::Triangle:	return EnginePS::PatternTriangle;
+			case PatternType::HexGrid:	return EnginePS::PatternHexGrid;
+			case PatternType::Halftone:	return EnginePS::PatternHalftone;
+			case PatternType::Wave:		return EnginePS::PatternWave;
+			case PatternType::Ripple:	return EnginePS::PatternRipple;
+			case PatternType::Weave:	return EnginePS::PatternWeave;
+			case PatternType::Truchet:	return EnginePS::PatternTruchet;
+			default:					return EnginePS::Shape2D;
 			}
 		}
 
@@ -160,7 +179,7 @@ namespace s3d
 		}
 	}
 
-	Vertex2DBufferPointer CRenderer2D_GL4::createBuffer(const Vertex2D::IndexType vertexCount, const Vertex2D::IndexType indexCount)
+	Vertex2DBufferPointer CRenderer2D_GL4::createBuffer(const uint16 vertexCount, const uint32 indexCount)
 	{
 		const Vertex2D::IndexType vertexBase = static_cast<Vertex2D::IndexType>(m_vertices.size());
 		const size_t indexBase = m_indices.size();
@@ -178,7 +197,7 @@ namespace s3d
 
 	void CRenderer2D_GL4::addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedCircle(bufferCreator(), circle, uv, color, getMaxScaling()), Program::Texture, glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedCircle(bufferCreator(), circle, uv, color, getRMSScaling()), Program::Texture, glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::addTexturedQuad(const Texture& texture, const FloatQuad& quad, const FloatRect& uv, const Float4& color)
@@ -193,7 +212,7 @@ namespace s3d
 
 	void CRenderer2D_GL4::addTexturedRoundRect(const Texture& texture, const FloatRect& rect, const float w, const float h, const float r, const FloatRect& uvRect, const Float4& color)
 	{
-		pushCommand(Vertex2DBuilder::BuildTexturedRoundRect(bufferCreator(), rect, w, h, r, uvRect, color, getMaxScaling()), Program::Texture, glTextureOf(texture));
+		pushCommand(Vertex2DBuilder::BuildTexturedRoundRect(bufferCreator(), rect, w, h, r, uvRect, color, getRMSScaling()), Program::Texture, glTextureOf(texture));
 	}
 
 	void CRenderer2D_GL4::flush()
@@ -213,17 +232,17 @@ namespace s3d
 		::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
 		::glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(m_indices.size() * sizeof(Vertex2D::IndexType)), m_indices.data(), GL_STREAM_DRAW);
 
-		// vertex transform base: (local * camera); the screen->clip part is folded in
-		// per-command since a custom viewport changes the screen mapping.
+		// Each command carries its (local * camera) * quad-warp transform; the
+		// screen->clip part is folded in per command since a custom viewport changes
+		// the screen mapping.
 		const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
-		const Mat3x2 baseMatrix = (m_localTransform * m_cameraTransform);
 
 		// Bind the program pipeline + engine constant buffers (UBOs) once for the
 		// batch; per command we update the UBO data and swap the pipeline's stages.
 		auto* const shader = static_cast<CShader_GL4*>(SIV3D_ENGINE(Shader));
 		auto* const engineShader = SIV3D_ENGINE(EngineShader);
 		const VertexShader::IDType shapeVS = engineShader->getVS(EngineVS::Shape2D).id();
-		const VertexShader::IDType quadWarpVS = engineShader->getVS(EngineVS::QuadWarp).id();
+		const VertexShader::IDType patternVS = engineShader->getVS(EngineVS::Pattern2D).id();
 
 		const auto enginePSFor = [&](const DrawCommand& cmd) -> PixelShader::IDType
 		{
@@ -233,9 +252,8 @@ namespace s3d
 			case Program::Shape:	ps = EnginePS::Shape2D; break;
 			case Program::Texture:	ps = EnginePS::Texture2D; break;
 			case Program::MSDF:		ps = EnginePS::FontMSDF; break;
-			case Program::Pattern:	ps = static_cast<EnginePS>(static_cast<size_t>(EnginePS::PatternPolkaDot) + cmd.patternType); break;
+			case Program::Pattern:	ps = PatternPS(static_cast<PatternType>(cmd.patternType)); break;
 			case Program::Line:		ps = static_cast<EnginePS>(static_cast<size_t>(EnginePS::LineDot) + (cmd.patternType - 1)); break;
-			case Program::QuadWarp:	ps = EnginePS::QuadWarp; break;
 			}
 			return engineShader->getPS(ps).id();
 		};
@@ -284,12 +302,9 @@ namespace s3d
 				::glDisable(GL_SCISSOR_TEST);
 			}
 
-			const Mat3x2 matrix = (baseMatrix * Mat3x2::Screen(vp.size.x, vp.size.y));
-
 			// --- constants (UBOs) ---
-			m_vsConstants->transform[0]	= Float4{ matrix._11, matrix._12, matrix._31, matrix._32 };
-			m_vsConstants->transform[1]	= Float4{ matrix._21, matrix._22, 0.0f, 1.0f };
-			m_vsConstants->colorMul		= m_colorMul;
+			m_vsConstants->setTransform(command.transform * Mat3x3{ Mat3x2::Screen(vp.size.x, vp.size.y) });
+			m_vsConstants->colorMul = m_colorMul;
 
 			m_psConstants->colorAdd				= Float4{ m_colorAdd.x, m_colorAdd.y, m_colorAdd.z, 0.0f };
 			m_psConstants->sdfParam				= m_sdfParams[0];
@@ -300,12 +315,6 @@ namespace s3d
 			{
 				m_psEffectConstants->setPattern(command.patternParams);
 			}
-			else if (command.program == Program::QuadWarp)
-			{
-				const auto& p = command.patternParams;
-				const Quad quad{ p[0].xy(), p[0].zw(), p[1].xy(), p[1].zw() };
-				m_psEffectConstants->setQuadWarp(Mat3x3::Homography(quad).inverse(), p[2]);
-			}
 
 			m_vsConstants._update_if_dirty();
 			m_psConstants._update_if_dirty();
@@ -313,7 +322,7 @@ namespace s3d
 
 			// --- shaders: engine registry, or the command's captured custom shader ---
 			const VertexShader::IDType vsID = command.customVS ? *command.customVS
-				: ((command.program == Program::QuadWarp) ? quadWarpVS : shapeVS);
+				: ((command.program == Program::Pattern) ? patternVS : shapeVS);
 			shader->setVS(vsID);
 			shader->setPS(command.customPS.value_or(enginePSFor(command)));
 

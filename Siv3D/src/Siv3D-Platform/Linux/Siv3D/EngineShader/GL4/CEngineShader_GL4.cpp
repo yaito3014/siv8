@@ -50,14 +50,13 @@ namespace s3d
 		m_vertexShaders.clear();
 		m_vertexShaders << VertexShader::GLSL(std::string{ GLSL_VS_FullScreenTriangle }, U"main");
 		m_vertexShaders << VertexShader::GLSL(Cat({ GLSL_VSPrefix, GLSL_VS_Shape }), U"main");
-		m_vertexShaders << VertexShader::GLSL(Cat({ GLSL_VSPrefix, GLSL_VS_QuadWarp }), U"main");
+		m_vertexShaders << VertexShader::GLSL(Cat({ GLSL_VSPrefix, GLSL_VS_Pattern }), U"main");
 
 		// Order MUST match the EnginePS enum.
 		m_pixelShaders.clear();
 		m_pixelShaders << PixelShader::GLSL(std::string{ GLSL_PS_FullScreenTriangle }, U"main");
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PS_Shape }), U"main");
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PS_Texture }), U"main");
-		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PS_QuadWarp }), U"main");
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PS_LineDot }), U"main");
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PS_LineDash }), U"main");
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PS_LineLongDash }), U"main");
@@ -75,6 +74,12 @@ namespace s3d
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PSMSDFPrefix, GLSL_PS_FontMSDF_OutlineShadow }), U"main");
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PSMSDFPrefix, GLSL_PS_FontMSDF_Glow }), U"main");
 		m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PSMSDFPrefix, GLSL_PS_FontPrint }), U"main");
+		// TODO(linux): port PS_PatternHalftone/Wave/Ripple/Weave/Truchet from
+		// 2d.hlsl; until then these patterns draw with the solid shape shader.
+		for (int32 i = 0; i < 5; ++i)
+		{
+			m_pixelShaders << PixelShader::GLSL(Cat({ GLSL_PSPrefix, GLSL_PS_Shape }), U"main");
+		}
 
 		// Surface any compile failures (createV/PSFromSource also logs the GL log).
 		for (size_t i = 0; i < m_vertexShaders.size(); ++i)

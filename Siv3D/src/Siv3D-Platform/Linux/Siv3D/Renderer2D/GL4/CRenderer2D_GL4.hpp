@@ -20,6 +20,7 @@
 # include <Siv3D/FloatQuad.hpp>
 # include <Siv3D/Array.hpp>
 # include <Siv3D/Mat3x2.hpp>
+# include <Siv3D/Mat3x3.hpp>
 # include <Siv3D/ConstantBuffer.hpp>
 # include <Siv3D/VertexShader.hpp>
 # include <Siv3D/PixelShader.hpp>
@@ -39,7 +40,9 @@ namespace s3d
 	// text (incl. SDF outline/shadow/glow), all six fill patterns (every shape),
 	// shadows, dashed/dotted lines, quad-warp, custom user shaders, and the full 2D
 	// render state (blend/rasterizer/sampler/scissor/viewport). No-op TODO(linux):
-	// render-to-texture / scene-letterbox (no scene FBO yet; MSAA lives on the window).
+	// render-to-texture / scene-letterbox (no scene FBO yet; MSAA lives on the window),
+	// custom shader constant buffers, and the Halftone/Wave/Ripple/Weave/Truchet
+	// pattern shaders (drawn with the solid shape shader until ported to GLSL).
 	class CRenderer2D_GL4 final : public ISiv3DRenderer2D
 	{
 	public:
@@ -56,13 +59,13 @@ namespace s3d
 
 		void addLine(LineCap startCap, LineCap endCap, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override
 		{
-			discard(Vertex2DBuilder::BuildLine(bufferCreator(), startCap, endCap, start, end, thickness, colors, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildLine(bufferCreator(), startCap, endCap, start, end, thickness, colors, getRMSScaling()));
 		}
 		void addLine(const LineStyle& style, const Float2& start, const Float2& end, float thickness, const Float4(&colors)[2]) override
 		{
-			const Vertex2D::IndexType indexCount = Vertex2DBuilder::BuildLine(bufferCreator(), style, start, end, thickness, colors, getMaxScaling());
+			const auto indexCount = Vertex2DBuilder::BuildLine(bufferCreator(), style, start, end, thickness, colors, getRMSScaling());
 
-			if (style.type == LineType::Solid)
+			if (style.type == LinePattern::Solid)
 			{
 				pushCommand(indexCount, Program::Shape, 0);
 			}
@@ -73,7 +76,7 @@ namespace s3d
 		}
 		void addArrow(LineCap startCap, const Float2& start, const Float2& end, float thickness, const Float2& headSize, const Float4(&colors)[2]) override
 		{
-			discard(Vertex2DBuilder::BuildArrow(bufferCreator(), startCap, start, end, thickness, headSize, colors, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildArrow(bufferCreator(), startCap, start, end, thickness, headSize, colors, getRMSScaling()));
 		}
 		void addTriangle(const Float2(&points)[3], const Float4& color) override
 		{
@@ -95,41 +98,53 @@ namespace s3d
 		{
 			discard(Vertex2DBuilder::BuildRectFrame(bufferCreator(), innerRect, thickness, colorType, color0, color1));
 		}
+		void addRectDashedFrame(const FloatRect& innerRect, float offset, float thickness, float dashRatio, uint32 dashCount, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildRectDashedFrame(bufferCreator(), innerRect, offset, thickness, dashRatio, dashCount, color));
+		}
 		void addCircle(const Float2& center, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
 		{
-			discard(Vertex2DBuilder::BuildCircle(bufferCreator(), center, r, colorType, color0, color1, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildCircle(bufferCreator(), center, r, colorType, color0, color1, getRMSScaling()));
 		}
 		void addCircleFrame(const Float2& center, float rInner, float thickness, const Float4& innerColor, const Float4& outerColor) override
 		{
-			discard(Vertex2DBuilder::BuildCircleFrame(bufferCreator(), center, rInner, thickness, innerColor, outerColor, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildCircleFrame(bufferCreator(), center, rInner, thickness, innerColor, outerColor, getRMSScaling()));
+		}
+		void addCircleDashedFrame(const Float2& center, float rInner, float startAngle, float thickness, float dashRatio, uint32 dashCount, const Float4& innerColor, const Float4& outerColor) override
+		{
+			discard(Vertex2DBuilder::BuildCircleDashedFrame(bufferCreator(), center, rInner, startAngle, thickness, dashRatio, dashCount, innerColor, outerColor, getRMSScaling()));
 		}
 		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) override
 		{
-			discard(Vertex2DBuilder::BuildCirclePie(bufferCreator(), center, r, startAngle, angle, innerColor, outerColor, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildCirclePie(bufferCreator(), center, r, startAngle, angle, innerColor, outerColor, getRMSScaling()));
 		}
 		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
 		{
-			discard(Vertex2DBuilder::BuildCircleArc(bufferCreator(), lineCap, center, rInner, startAngle, angle, thickness, colorType, color0, color1, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildCircleArc(bufferCreator(), lineCap, center, rInner, startAngle, angle, thickness, colorType, color0, color1, getRMSScaling()));
 		}
 		void addCircleSegment(const Float2& center, float r, float startAngle, float angle, const Float4& color) override
 		{
-			discard(Vertex2DBuilder::BuildCircleSegment(bufferCreator(), center, r, startAngle, angle, color, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildCircleSegment(bufferCreator(), center, r, startAngle, angle, color, getRMSScaling()));
 		}
 		void addEllipse(const Float2& center, float a, float b, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
 		{
-			discard(Vertex2DBuilder::BuildEllipse(bufferCreator(), center, a, b, colorType, color0, color1, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildEllipse(bufferCreator(), center, a, b, colorType, color0, color1, getRMSScaling()));
 		}
 		void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const Float4& innerColor, const Float4& outerColor) override
 		{
-			discard(Vertex2DBuilder::BuildEllipseFrame(bufferCreator(), center, a, b, innerThickness, outerThickness, innerColor, outerColor, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildEllipseFrame(bufferCreator(), center, a, b, innerThickness, outerThickness, innerColor, outerColor, getRMSScaling()));
+		}
+		void addEllipseDashedFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, float offset, float dashRatio, uint32 dashCount, const Float4& innerColor, const Float4& outerColor) override
+		{
+			discard(Vertex2DBuilder::BuildEllipseDashedFrame(bufferCreator(), center, a, b, innerThickness, outerThickness, offset, dashRatio, dashCount, innerColor, outerColor, getRMSScaling()));
 		}
 		void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const Float4& innerColor, const Float4& outerColor) override
 		{
-			discard(Vertex2DBuilder::BuildEllipsePie(bufferCreator(), center, rx, ry, startAngle, angle, innerColor, outerColor, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildEllipsePie(bufferCreator(), center, rx, ry, startAngle, angle, innerColor, outerColor, getRMSScaling()));
 		}
 		void addSuperEllipse(const Float2& center, float a, float b, float n, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
 		{
-			discard(Vertex2DBuilder::BuildSuperEllipse(bufferCreator(), center, a, b, n, colorType, color0, color1, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildSuperEllipse(bufferCreator(), center, a, b, n, colorType, color0, color1, getRMSScaling()));
 		}
 		void addQuad(const FloatQuad& quad, const Float4& color) override
 		{
@@ -141,19 +156,23 @@ namespace s3d
 		}
 		void addRoundRect(const FloatRect& rect, float r, const Float4& color) override
 		{
-			discard(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, color, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, color, getRMSScaling()));
 		}
 		void addRoundRect(const FloatRect& rect, float r, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
 		{
-			discard(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, colorType, color0, color1, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, colorType, color0, color1, getRMSScaling()));
 		}
 		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const Float4& color) override
 		{
-			discard(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, color, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, color, getRMSScaling()));
 		}
 		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const Float4& color0, const Float4& color1, ColorFillDirection colorType) override
 		{
-			discard(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, colorType, color0, color1, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, colorType, color0, color1, getRMSScaling()));
+		}
+		void addRoundRectDashedFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, float offset, float dashRatio, uint32 dashCount, const Float4& color) override
+		{
+			discard(Vertex2DBuilder::BuildRoundRectDashedFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, offset, dashRatio, dashCount, color, getRMSScaling()));
 		}
 		void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const Float4& color) override
 		{
@@ -167,21 +186,21 @@ namespace s3d
 		{
 			discard(Vertex2DBuilder::BuildPolygonTransformed(bufferCreator(), vertices, triangleIndices, s, c, offset, color));
 		}
-		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const Float4& color) override
+		void addShape2DFrame(std::span<const Float2> vertices, const Optional<Float2>& offset, float thickness, const Float4& color) override
 		{
-			discard(Vertex2DBuilder::BuildShape2DFrame(bufferCreator(), vertices, thickness, color, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildShape2DFrame(bufferCreator(), vertices, offset, thickness, color, getRMSScaling()));
 		}
 		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const Float4& color) override
 		{
-			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, color, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, color, getRMSScaling()));
 		}
 		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, const Float4& colorStart, const Float4& colorEnd) override
 		{
-			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, colorStart, colorEnd, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, colorStart, colorEnd, getRMSScaling()));
 		}
 		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, std::span<const ColorF> colors) override
 		{
-			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, colors, getMaxScaling()));
+			discard(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, colors, getRMSScaling()));
 		}
 
 		////////////////////////////////////////////////////////////////
@@ -192,11 +211,13 @@ namespace s3d
 		void setColorMul(const Float4& color) override { m_colorMul = color; }
 		Float3 getColorAdd() const override { return m_colorAdd; }
 		void setColorAdd(const Float3& color) override { m_colorAdd = color; }
-		float getMaxScaling() const noexcept override { return 1.0f; }
+		float getRMSScaling() const noexcept override { return 1.0f; }
 		const Mat3x2& getLocalTransform() const override { return m_localTransform; }
 		void setLocalTransform(const Mat3x2& matrix) override { m_localTransform = matrix; }
 		const Mat3x2& getCameraTransform() const override { return m_cameraTransform; }
 		void setCameraTransform(const Mat3x2& matrix) override { m_cameraTransform = matrix; }
+		const Mat3x3& getQuadWarpTransform() const override { return m_quadWarpTransform; }
+		void setQuadWarpTransform(const Mat3x3& matrix) override { m_quadWarpTransform = matrix; }
 
 		////////////////////////////////////////////////////////////////
 		//	Pattern fills, textured shapes, shadows, quad-warp, SDF/custom shaders,
@@ -204,9 +225,9 @@ namespace s3d
 		//	(or custom) shaders via the program pipeline and feeds them through UBOs.
 		////////////////////////////////////////////////////////////////
 
-		// pattern fills: the pattern program shades purely from gl_FragCoord, so
-		// every shape just tessellates its geometry (filled with the primary color)
-		// and routes through pushPatternCommand, exactly like the solid versions.
+		// pattern fills: the pattern program shades from the drawing-space position
+		// (passed by the Pattern2D VS), so every shape just tessellates its geometry
+		// (filled with the primary color) and routes through pushPatternCommand.
 		void addTriangle(const Float2(&points)[3], const PatternParameters& pattern) override
 		{
 			pushPatternCommand(Vertex2DBuilder::BuildTriangle(bufferCreator(), points, pattern.primaryColor), pattern);
@@ -221,39 +242,39 @@ namespace s3d
 		}
 		void addCircle(const Float2& center, float r, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildCircle(bufferCreator(), center, r, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildCircle(bufferCreator(), center, r, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addCircleFrame(const Float2& center, float rInner, float thickness, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildCircleFrame(bufferCreator(), center, rInner, thickness, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildCircleFrame(bufferCreator(), center, rInner, thickness, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addCirclePie(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildCirclePie(bufferCreator(), center, r, startAngle, angle, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildCirclePie(bufferCreator(), center, r, startAngle, angle, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addCircleArc(LineCap lineCap, const Float2& center, float rInner, float startAngle, float angle, float thickness, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildCircleArc(bufferCreator(), lineCap, center, rInner, startAngle, angle, thickness, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildCircleArc(bufferCreator(), lineCap, center, rInner, startAngle, angle, thickness, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addCircleSegment(const Float2& center, float r, float startAngle, float angle, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildCircleSegment(bufferCreator(), center, r, startAngle, angle, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildCircleSegment(bufferCreator(), center, r, startAngle, angle, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addEllipse(const Float2& center, float a, float b, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildEllipse(bufferCreator(), center, a, b, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildEllipse(bufferCreator(), center, a, b, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addEllipseFrame(const Float2& center, float a, float b, float innerThickness, float outerThickness, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildEllipseFrame(bufferCreator(), center, a, b, innerThickness, outerThickness, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildEllipseFrame(bufferCreator(), center, a, b, innerThickness, outerThickness, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addEllipsePie(const Float2& center, float rx, float ry, float startAngle, float angle, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildEllipsePie(bufferCreator(), center, rx, ry, startAngle, angle, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildEllipsePie(bufferCreator(), center, rx, ry, startAngle, angle, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addSuperEllipse(const Float2& center, float a, float b, float n, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildSuperEllipse(bufferCreator(), center, a, b, n, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildSuperEllipse(bufferCreator(), center, a, b, n, ColorFillDirection::InOut, pattern.primaryColor, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addQuad(const FloatQuad& quad, const PatternParameters& pattern) override
 		{
@@ -261,11 +282,11 @@ namespace s3d
 		}
 		void addRoundRect(const FloatRect& rect, float r, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildRoundRect(bufferCreator(), rect, r, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addRoundRectFrame(const FloatRect& innerRect, const float innerR, const FloatRect& outerRect, const float outerR, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildRoundRectFrame(bufferCreator(), innerRect, innerR, outerRect, outerR, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addPolygon(std::span<const Float2> vertices, std::span<const TriangleIndex> triangleIndices, const Optional<Float2>& offset, const PatternParameters& pattern) override
 		{
@@ -279,13 +300,13 @@ namespace s3d
 		{
 			pushPatternCommand(Vertex2DBuilder::BuildPolygonTransformed(bufferCreator(), vertices, triangleIndices, s, c, offset, pattern.primaryColor), pattern);
 		}
-		void addShape2DFrame(std::span<const Float2> vertices, float thickness, const PatternParameters& pattern) override
+		void addShape2DFrame(std::span<const Float2> vertices, const Optional<Float2>& offset, float thickness, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildShape2DFrame(bufferCreator(), vertices, thickness, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildShape2DFrame(bufferCreator(), vertices, offset, thickness, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		void addLineString(LineCap startCap, LineCap endCap, std::span<const Vec2> points, const Optional<Float2>& offset, float thickness, bool inner, CloseRing closeRing, const PatternParameters& pattern) override
 		{
-			pushPatternCommand(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, pattern.primaryColor, getMaxScaling()), pattern);
+			pushPatternCommand(Vertex2DBuilder::BuildLineString(bufferCreator(), startCap, endCap, points, offset, thickness, inner, closeRing, pattern.primaryColor, getRMSScaling()), pattern);
 		}
 		// textured shapes: real (implemented in the .cpp via the texture program).
 		void addTexturedCircle(const Texture& texture, const Circle& circle, const FloatRect& uv, const Float4& color) override;
@@ -297,7 +318,7 @@ namespace s3d
 		// texture via the plain texture program (same as D3D11/Metal).
 		void addCircleShadow(const Circle& circle, float blur, const Float4& color, bool fill) override
 		{
-			pushCommand(Vertex2DBuilder::BuildCircleShadow(bufferCreator(), circle, blur, color, getMaxScaling(), fill), Program::Texture, glTextureOf(*m_shadowTexture));
+			pushCommand(Vertex2DBuilder::BuildCircleShadow(bufferCreator(), circle, blur, color, getRMSScaling(), fill), Program::Texture, glTextureOf(*m_shadowTexture));
 		}
 		void addRectShadow(const FloatRect& rect, float blur, const Float4& color, bool fill) override
 		{
@@ -305,21 +326,24 @@ namespace s3d
 		}
 		void addRoundRectShadow(const RoundRect& roundRect, float blur, const Float4& color, bool fill) override
 		{
-			pushCommand(Vertex2DBuilder::BuildRoundRectShadow(bufferCreator(), roundRect, blur, color, getMaxScaling(), fill), Program::Texture, glTextureOf(*m_shadowTexture));
+			pushCommand(Vertex2DBuilder::BuildRoundRectShadow(bufferCreator(), roundRect, blur, color, getRMSScaling(), fill), Program::Texture, glTextureOf(*m_shadowTexture));
 		}
 
-		// quad-warp: same textured-quad geometry as addTexturedQuad, but routed
-		// through the QuadWarp VS/PS — flush() builds the inverse homography from
-		// the destination quad corners (carried in patternParams) and feeds it via
-		// PSEffectConstants2D::setQuadWarp.
-		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4& color) override
+		// Mesh2D: caller-supplied vertices/indices, drawn with the shape or texture program.
+		void addMesh2D(std::span<const Vertex2D> vertices, std::span<const TriangleIndex> indices, const Optional<Float2>& offset) override
 		{
-			pushQuadWarpCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, color), glTextureOf(texture), QuadWarpParams(uv, quad));
+			discard(Vertex2DBuilder::BuildMesh2D(bufferCreator(), vertices, indices, offset));
 		}
-		void addQuadWarp(const Texture& texture, const FloatRect& uv, const FloatQuad& quad, const Float4(&colors)[4]) override
+		void addMesh2D(const Texture& texture, std::span<const Vertex2D> vertices, std::span<const TriangleIndex> indices, const Optional<Float2>& offset) override
 		{
-			pushQuadWarpCommand(Vertex2DBuilder::BuildTexturedQuad(bufferCreator(), quad, uv, colors), glTextureOf(texture), QuadWarpParams(uv, quad));
+			pushCommand(Vertex2DBuilder::BuildMesh2D(bufferCreator(), vertices, indices, offset), Program::Texture, glTextureOf(texture));
 		}
+
+		// TODO(linux): custom shader constant buffers are not forwarded to the GL
+		// pipeline yet; D3D11/Metal record them per draw command.
+		void setConstantBuffer(ShaderStage, uint32, const void*, size_t) override {}
+		uint32 beginConstantBufferScope(ShaderStage, uint32, const void*, size_t) override { return 0; }
+		void endConstantBufferScope(ShaderStage, uint32, uint32) override {}
 
 		// render state: tracked here and snapshotted into each DrawCommand, then
 		// applied per-command in flush(). VS sampler state is stored for fidelity
@@ -349,7 +373,7 @@ namespace s3d
 	private:
 
 		[[nodiscard]]
-		Vertex2DBufferPointer createBuffer(Vertex2D::IndexType vertexCount, Vertex2D::IndexType indexCount);
+		Vertex2DBufferPointer createBuffer(uint16 vertexCount, uint32 indexCount);
 
 		// Callable adaptor for Vertex2DBuilder's BufferCreatorFunc (FunctionRef);
 		// a temporary of this binds to the FunctionRef for the duration of a Build call.
@@ -357,7 +381,7 @@ namespace s3d
 		{
 			CRenderer2D_GL4* self;
 
-			Vertex2DBufferPointer operator()(Vertex2D::IndexType vertexCount, Vertex2D::IndexType indexCount) const
+			Vertex2DBufferPointer operator()(const uint16 vertexCount, const uint32 indexCount) const
 			{
 				return self->createBuffer(vertexCount, indexCount);
 			}
@@ -371,9 +395,8 @@ namespace s3d
 			Shape,		// solid/gradient shapes
 			Texture,	// sprites/emoji
 			MSDF,		// text glyphs (custom PS active)
-			Pattern,	// checker/grid/polka-dot fills
+			Pattern,	// pattern fills (PatternType in patternType)
 			Line,		// dashed/dotted line styles
-			QuadWarp,	// projective texture warp
 		};
 
 		// A run of indices drawn with one program + texture (+ pattern params) and a
@@ -383,8 +406,9 @@ namespace s3d
 			Program program = Program::Shape;
 			GLuint texture = 0;
 			uint32 indexCount = 0;
-			std::array<Float4, 3> patternParams{};	// (uvTransform packed, params, backgroundColor)
+			std::array<Float4, 4> patternParams{};	// PatternParameters::toFloat4Array()
 			uint8 patternType = 0;
+			Mat3x3 transform = Mat3x3::Identity();	// (local * camera) * quad-warp, before the screen mapping
 			BlendState blend{ BlendState::Default2D };
 			RasterizerState rasterizer{ RasterizerState::Default2D };
 			SamplerState sampler{};					// PS sampler, slot 0 (the only one applied)
@@ -402,7 +426,7 @@ namespace s3d
 			return (a.program == b.program) && (a.texture == b.texture) && (a.patternType == b.patternType)
 				&& (a.blend == b.blend) && (a.rasterizer.asValue() == b.rasterizer.asValue())
 				&& (a.sampler.asValue() == b.sampler.asValue())
-				&& (a.scissor == b.scissor) && (a.viewport == b.viewport)
+				&& (a.scissor == b.scissor) && (a.viewport == b.viewport) && (a.transform == b.transform)
 				&& (a.customVS == b.customVS) && (a.customPS == b.customPS);
 		}
 
@@ -414,13 +438,14 @@ namespace s3d
 			command.sampler		= m_psSamplerStates[0];
 			command.scissor		= m_currentScissorRect;
 			command.viewport	= m_currentViewport;
+			command.transform	= (Mat3x3{ m_localTransform * m_cameraTransform } * m_quadWarpTransform);
 			command.customVS	= (m_customVS ? Optional<VertexShader::IDType>{ m_customVS->id() } : none);
 			command.customPS	= (m_customPS ? Optional<PixelShader::IDType>{ m_customPS->id() } : none);
 		}
 
 		// Append `indexCount` indices, merging with the previous command when the
 		// program, texture, subtype and render state all match.
-		void pushCommand(Vertex2D::IndexType indexCount, Program program, GLuint texture, uint8 subType = 0)
+		void pushCommand(const uint32 indexCount, Program program, GLuint texture, uint8 subType = 0)
 		{
 			if (indexCount == 0)
 			{
@@ -444,10 +469,10 @@ namespace s3d
 			}
 		}
 
-		void discard(Vertex2D::IndexType indexCount) { pushCommand(indexCount, Program::Shape, 0); } // shape draw
+		void discard(const uint32 indexCount) { pushCommand(indexCount, Program::Shape, 0); } // shape draw
 
 		// Pattern fills carry per-draw params, so each is its own command (no merge).
-		void pushPatternCommand(Vertex2D::IndexType indexCount, const PatternParameters& pattern)
+		void pushPatternCommand(const uint32 indexCount, const PatternParameters& pattern)
 		{
 			if (indexCount == 0)
 			{
@@ -457,38 +482,8 @@ namespace s3d
 			DrawCommand command;
 			command.program			= Program::Pattern;
 			command.indexCount		= indexCount;
-			command.patternParams	= pattern.toFloat4Array(1.0f / getMaxScaling());
+			command.patternParams	= pattern.toFloat4Array();
 			command.patternType		= static_cast<uint8>(FromEnum(pattern.type));
-			captureState(command);
-			m_commands.push_back(command);
-		}
-
-		// Pack a quad-warp draw's destination corners + source-uv transform into the
-		// patternParams slots (matches the D3D11 backend); flush() turns the corners
-		// into the inverse homography.
-		[[nodiscard]]
-		static std::array<Float4, 3> QuadWarpParams(const FloatRect& uv, const FloatQuad& quad)
-		{
-			return {
-				Float4{ quad.p[0], quad.p[1] },
-				Float4{ quad.p[2], quad.p[3] },
-				Float4{ (uv.right - uv.left), (uv.bottom - uv.top), uv.left, uv.top },
-			};
-		}
-
-		// Quad-warp draws carry per-draw corners, so each is its own command.
-		void pushQuadWarpCommand(Vertex2D::IndexType indexCount, GLuint texture, const std::array<Float4, 3>& params)
-		{
-			if (indexCount == 0)
-			{
-				return;
-			}
-
-			DrawCommand command;
-			command.program			= Program::QuadWarp;
-			command.texture			= texture;
-			command.indexCount		= indexCount;
-			command.patternParams	= params;
 			captureState(command);
 			m_commands.push_back(command);
 		}
@@ -519,6 +514,8 @@ namespace s3d
 		Mat3x2 m_localTransform = Mat3x2::Identity();
 
 		Mat3x2 m_cameraTransform = Mat3x2::Identity();
+
+		Mat3x3 m_quadWarpTransform = Mat3x3::Identity();
 
 		// Current render state (snapshotted into each DrawCommand by captureState).
 		BlendState m_currentBlendState{ BlendState::Default2D };
