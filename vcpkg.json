@@ -117,6 +117,11 @@
       "version": "12.1.0"
     },
     {
+      "$comment": "rapidhash: Siv3D's public API (Hash.hpp: Secret = uint64[3], DefaultSeed, DefaultHashSecret) and its hash values follow the formerly-vendored v1.0; v3 uses an 8-word secret, so passing a Secret would read past it.",
+      "name": "rapidhash",
+      "version": "1.0"
+    },
+    {
       "$comment": "toml11 is in Siv3D's PUBLIC ABI (TOML.hpp); pin the formerly-vendored 4.4.0 so the parsed-value types stay ABI-identical for consumers.",
       "name": "toml11",
       "version": "4.4.0"
