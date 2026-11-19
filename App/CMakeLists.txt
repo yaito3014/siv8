@@ -81,6 +81,19 @@ target_link_libraries(Siv3D-App PRIVATE Siv3D::Siv3DCore)
 # Main.cpp pulls in the test harness only under this define.
 if(SIV3D_APP_BUILD_TESTS)
     target_compile_definitions(Siv3D-App PRIVATE SIV3D_APP_BUILD_TESTS)
+    # Some tests (D3D11 device/swap chain, monitor info, GLFW) include engine
+    # internals, so expose the engine's private header roots to the test build.
+    set(_siv3d_src "${SIV3D_ENGINE_DIR}/Siv3D/src")
+    target_include_directories(Siv3D-App PRIVATE "${_siv3d_src}")
+    if(WIN32)
+        target_include_directories(Siv3D-App PRIVATE "${_siv3d_src}/Siv3D-Platform/WindowsDesktop")
+    elseif(APPLE)
+        target_include_directories(Siv3D-App PRIVATE
+            "${_siv3d_src}/Siv3D-Platform/macOS" "${_siv3d_src}/Siv3D-Platform/macOS_Linux")
+    else()
+        target_include_directories(Siv3D-App PRIVATE
+            "${_siv3d_src}/Siv3D-Platform/Linux" "${_siv3d_src}/Siv3D-Platform/macOS_Linux")
+    endif()
 endif()
 
 # PCH (pch.h just includes <Siv3D.hpp>). MSVC only: GCC double-parses the

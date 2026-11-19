@@ -572,5 +572,9 @@ if(SIV3D_BUILD_TESTS)
     if(SIV3D_TEST_SOURCES AND NOT WIN32)
         add_executable(Siv3D-Test ${SIV3D_TEST_SOURCES})
         target_link_libraries(Siv3D-Test PRIVATE Siv3D::Siv3DCore nanobench::nanobench)
+        # Some tests include engine internals; same private roots as Siv3DCore.
+        target_include_directories(Siv3D-Test PRIVATE
+            "${SIV3D_SRC}"
+            $<TARGET_PROPERTY:Siv3DCore,INCLUDE_DIRECTORIES>)
     endif()
 endif()
