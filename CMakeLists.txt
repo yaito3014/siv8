@@ -564,7 +564,6 @@ export(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
 # Tests (vcpkg 'tests' feature)
 # ============================================================================
 if(SIV3D_BUILD_TESTS)
-    find_package(doctest CONFIG REQUIRED)
     find_package(nanobench CONFIG REQUIRED)
     file(GLOB_RECURSE SIV3D_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Test/*.cpp")
     # Linux/macOS test vehicle. On Windows, Siv3DCore drags in Siv3DMainHelper
@@ -572,6 +571,6 @@ if(SIV3D_BUILD_TESTS)
     # Windows runs the tests via RunTest() inside Siv3D-App instead.
     if(SIV3D_TEST_SOURCES AND NOT WIN32)
         add_executable(Siv3D-Test ${SIV3D_TEST_SOURCES})
-        target_link_libraries(Siv3D-Test PRIVATE Siv3D::Siv3DCore doctest::doctest nanobench::nanobench)
+        target_link_libraries(Siv3D-Test PRIVATE Siv3D::Siv3DCore nanobench::nanobench)
     endif()
 endif()

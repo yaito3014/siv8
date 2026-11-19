@@ -6,13 +6,15 @@
 
 void Main()
 {
-	// WindowsDesktop/run-tests.ps1 depends on this early-exit block.
+#ifdef SIV3D_APP_BUILD_TESTS
+	// `Siv3D-App --test-only` (run from App/app/) depends on this early-exit block.
 	const int32 exitCode = RunTest();
 	if (System::GetCommandLineArgs().contains(U"--test-only"))
 	{
 		System::Exit(exitCode);
 		return;
 	}
+#endif
 
 	Scene::SetBackground(ColorF{ 0.6, 0.8, 0.7 });
 	//Window::SetStyle(WindowStyle::Sizable);

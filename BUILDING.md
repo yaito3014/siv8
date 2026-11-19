@@ -16,8 +16,9 @@ there is no vendored-lib / MSBuild path anymore.
   `vcpkg-configuration.json`: bc7enc-rdo, pffft, serial-cpp, glfw3 (Siv3D fork),
   r8brain-free-src, easyexif, muparser, levenshtein-sse, rectpack2d, and the
   header-only set obfuscate / xoshiro-cpp / enumbitmask / libcpprime.
-- **`Test/`** — doctest/nanobench harness, compiled into the app when the
-  `tests` feature is on.
+- **`Test/`** — Catch2/nanobench harness, compiled into the app when the
+  `tests` feature is on. Catch2 is the upstream-vendored amalgamation in
+  `Test/ThirdParty/Catch2/`; nanobench comes from vcpkg.
 
 ## Prerequisites
 
@@ -59,8 +60,9 @@ Common behavior (both platforms):
   (`engine/…`) resolve regardless of the launch CWD. The `build/` output copy is
   **not** runnable in place.
 - **Tests**: `SIV3D_APP_BUILD_TESTS` is ON by default → the `tests` feature
-  (doctest + nanobench) is added and `Test/` is compiled into the app so
-  `RunTest()` is available.
+  (nanobench) is added and `Test/` is compiled into the app so `RunTest()` is
+  available. Run the suite with `Siv3D-App --test-only` from `App/app/`
+  (the harness refuses any other working directory).
 
 ### Windows (`x64-windows-static`; verified green)
 
@@ -198,9 +200,9 @@ App's non-recursive `../Test/*.cpp` glob does not — avoiding a clash with
 The Windows build is verified green; these are the subtle spots to check first if
 it ever breaks:
 
-1. **doctest / `tests` feature & stale cache** — `option()` does NOT override an
+1. **`tests` feature & stale cache** — `option()` does NOT override an
    already-cached value. A `build/` dir first configured with
-   `SIV3D_APP_BUILD_TESTS=OFF` won't have doctest installed and the test include
+   `SIV3D_APP_BUILD_TESTS=OFF` won't have nanobench installed and the test include
    fails. **Fix: fresh build dir** (delete `App/build/CMakeCache.txt`) or pass
    `-DSIV3D_APP_BUILD_TESTS=ON`.
 2. **bc7enc-rdo** — `<cstdint>` force-included via `/FIcstdint`.

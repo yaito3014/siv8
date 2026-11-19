@@ -72,9 +72,10 @@ int32 RunTest()
 	const FilePath currentDirectory = FileSystem::CurrentDirectory();
 	if ((not FileSystem::IsFile(U"../../Test/Siv3DTest.cpp"))
 		|| ((currentDirectory != FileSystem::FullPath(U"../../macOS/App/"))
-			&& (currentDirectory != FileSystem::FullPath(U"../../WindowsDesktop/App/"))))
+			&& (currentDirectory != FileSystem::FullPath(U"../../WindowsDesktop/App/"))
+			&& (currentDirectory != FileSystem::FullPath(U"../../App/app/"))))
 	{
-		Console << U"Tests must run from this repository's macOS/App or WindowsDesktop/App directory.";
+		Console << U"Tests must run from this repository's macOS/App, WindowsDesktop/App or App/app directory.";
 		return 1;
 	}
 

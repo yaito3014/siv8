@@ -96,7 +96,6 @@
     "tests": {
       "description": "Build the Siv3D test target.",
       "dependencies": [
-        "doctest",
         "nanobench"
       ]
     }

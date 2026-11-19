@@ -14,7 +14,7 @@
 # include <Siv3D/Mat3x2.hpp>
 # include <Siv3D/Mat4x4.hpp>
 # include <Siv3D/Quaternion.hpp>
-# include <ThirdParty/DirectXMath/DirectXCollision.h>
+# include <DirectXCollision.h>
 # include "Mesh3DCommon.hpp"
 # include "Mesh3DNormals.hpp"
 # include "Mesh3DMikkTSpace.hpp"

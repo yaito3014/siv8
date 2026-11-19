@@ -71,7 +71,8 @@ endif()
 set(SIV3D_APP_SOURCES Main.cpp)
 if(SIV3D_APP_BUILD_TESTS)
     file(GLOB SIV3D_APP_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../Test/*.cpp")
-    list(APPEND SIV3D_APP_SOURCES ${SIV3D_APP_TEST_SOURCES})
+    list(APPEND SIV3D_APP_SOURCES ${SIV3D_APP_TEST_SOURCES}
+        "${CMAKE_CURRENT_SOURCE_DIR}/../Test/ThirdParty/Catch2/catch_amalgamated.cpp")
 endif()
 
 add_executable(Siv3D-App ${SIV3D_APP_SOURCES})

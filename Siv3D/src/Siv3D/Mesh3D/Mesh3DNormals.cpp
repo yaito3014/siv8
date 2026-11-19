@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # include "Mesh3DNormals.hpp"
-# include <ThirdParty/DirectXMath/DirectXMath.h>
+# include <DirectXMath.h>
 # include <cstdlib>
 # include <memory>
 # include <cassert>

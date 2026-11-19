@@ -10,7 +10,7 @@
 //-----------------------------------------------
 
 # include "Siv3DTest.hpp"
-# include <ThirdParty/nanobench/nanobench.h>
+# include <nanobench.h>
 # include <sstream>
 # include <stdexcept>
 
