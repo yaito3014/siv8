@@ -56,8 +56,9 @@ namespace s3d
 			updateHighTemporalResolutionCursorPos(rawClientPos);
 
 			const double windowScaling = SIV3D_ENGINE(Window)->getState().scaling;
-			const Vec2 clientPos = (rawClientPos / windowScaling);
-			m_state.update(screenPos, rawClientPos, clientPos);
+			m_transform.setBaseWindow({ windowScaling, RectF{} });
+			m_state.advanceRaw(screenPos, rawClientPos);
+			m_state.refreshTransformed(m_transform);
 		}
 	}
 
@@ -84,8 +85,8 @@ namespace s3d
 			const Point screenPos = ToScreenPos(rawClientPos);
 			updateHighTemporalResolutionCursorPos(rawClientPos);
 
-			const Vec2 clientPos = m_transform.allInv.transformPoint(rawClientPos);
-			m_state.update(screenPos, rawClientPos, clientPos);
+			m_state.advanceRaw(screenPos, rawClientPos);
+			m_state.refreshTransformed(m_transform);
 		}
 
 		m_captured = false;
@@ -103,7 +104,7 @@ namespace s3d
 
 	void CCursor::setPos(const Point pos)
 	{
-		const Vec2 rawPos = m_transform.all.transformPoint(pos);
+		const Vec2 rawPos = m_transform.all.transformPoint(Vec2{ pos });
 
 		::glfwSetCursorPos(m_window, rawPos.x, rawPos.y);
 	}
@@ -125,38 +126,18 @@ namespace s3d
 
 	void CCursor::setCameraTransform(const Mat3x2& matrix)
 	{
-		if (m_transform.camera == matrix)
+		if (m_transform.setCamera(matrix))
 		{
-			return;
+			m_state.refreshTransformed(m_transform);
 		}
-
-		m_transform.setCamera(matrix);
-
-		m_state.vec2.previous	= m_transform.allInv.transformPoint(m_state.raw.previous);
-		m_state.vec2.current	= m_transform.allInv.transformPoint(m_state.raw.current);
-		m_state.vec2.delta		= (m_state.vec2.current - m_state.vec2.previous);
-
-		m_state.point.previous	= m_state.vec2.previous.asPoint();
-		m_state.point.current	= m_state.vec2.current.asPoint();
-		m_state.point.delta		= m_state.vec2.delta.asPoint();
 	}
 
 	void CCursor::setLocalTransform(const Mat3x2& matrix)
 	{
-		if (m_transform.local == matrix)
+		if (m_transform.setLocal(matrix))
 		{
-			return;
+			m_state.refreshTransformed(m_transform);
 		}
-
-		m_transform.setLocal(matrix);
-
-		m_state.vec2.previous	= m_transform.allInv.transformPoint(m_state.raw.previous);
-		m_state.vec2.current	= m_transform.allInv.transformPoint(m_state.raw.current);
-		m_state.vec2.delta		= (m_state.vec2.current - m_state.vec2.previous);
-
-		m_state.point.previous	= m_state.vec2.previous.asPoint();
-		m_state.point.current	= m_state.vec2.current.asPoint();
-		m_state.point.delta		= m_state.vec2.delta.asPoint();
 	}
 
 	bool CCursor::isClippedToWindow() const noexcept

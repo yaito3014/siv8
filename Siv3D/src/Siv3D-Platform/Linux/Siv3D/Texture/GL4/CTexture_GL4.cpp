@@ -60,7 +60,7 @@ namespace s3d
 			return Texture::IDType::Null();
 		}
 
-		return create(image.size(), std::as_bytes(std::span{ image.data(), image.num_pixels() }), TextureFormat::R8G8B8A8_Unorm, desc);
+		return create(image.size(), std::as_bytes(std::span{ image.data(), image.pixelCount() }), TextureFormat::R8G8B8A8_Unorm, desc);
 	}
 
 	Texture::IDType CTexture_GL4::create(const Size& size, const std::span<const Byte> data, const TextureFormat& format, const TextureDesc desc)
