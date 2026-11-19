@@ -211,11 +211,11 @@ namespace s3d
 		void setColorMul(const Float4& color) override { m_colorMul = color; }
 		Float3 getColorAdd() const override { return m_colorAdd; }
 		void setColorAdd(const Float3& color) override { m_colorAdd = color; }
-		float getRMSScaling() const noexcept override { return 1.0f; }
+		float getRMSScaling() const noexcept override { return m_rmsScaling; }
 		const Mat3x2& getLocalTransform() const override { return m_localTransform; }
-		void setLocalTransform(const Mat3x2& matrix) override { m_localTransform = matrix; }
+		void setLocalTransform(const Mat3x2& matrix) override { m_localTransform = matrix; updateRMSScaling(); }
 		const Mat3x2& getCameraTransform() const override { return m_cameraTransform; }
-		void setCameraTransform(const Mat3x2& matrix) override { m_cameraTransform = matrix; }
+		void setCameraTransform(const Mat3x2& matrix) override { m_cameraTransform = matrix; updateRMSScaling(); }
 		const Mat3x3& getQuadWarpTransform() const override { return m_quadWarpTransform; }
 		void setQuadWarpTransform(const Mat3x3& matrix) override { m_quadWarpTransform = matrix; }
 
@@ -488,6 +488,9 @@ namespace s3d
 			m_commands.push_back(command);
 		}
 
+		// Cached like the D3D11 backend: getRMSScaling() runs on every tessellated draw.
+		void updateRMSScaling() noexcept { m_rmsScaling = (m_localTransform * m_cameraTransform).rmsScaling(); }
+
 		// GL texture name for a Texture handle (via the Linux CTexture backend).
 		[[nodiscard]]
 		GLuint glTextureOf(const Texture& texture);
@@ -516,6 +519,8 @@ namespace s3d
 		Mat3x2 m_cameraTransform = Mat3x2::Identity();
 
 		Mat3x3 m_quadWarpTransform = Mat3x3::Identity();
+
+		float m_rmsScaling = 1.0f;
 
 		// Current render state (snapshotted into each DrawCommand by captureState).
 		BlendState m_currentBlendState{ BlendState::Default2D };
