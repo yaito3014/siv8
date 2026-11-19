@@ -80,7 +80,9 @@ target_link_libraries(Siv3D-App PRIVATE Siv3D::Siv3DCore)
 
 # Main.cpp pulls in the test harness only under this define.
 if(SIV3D_APP_BUILD_TESTS)
-    target_compile_definitions(Siv3D-App PRIVATE SIV3D_APP_BUILD_TESTS)
+    # RunTest() drives Catch2; keep the amalgamation's own main() out (as the
+    # upstream test projects do), or it replaces the engine's entry point on Linux.
+    target_compile_definitions(Siv3D-App PRIVATE SIV3D_APP_BUILD_TESTS CATCH_AMALGAMATED_CUSTOM_MAIN)
     # Some tests (D3D11 device/swap chain, monitor info, GLFW) include engine
     # internals, so expose the engine's private header roots to the test build.
     set(_siv3d_src "${SIV3D_ENGINE_DIR}/Siv3D/src")
