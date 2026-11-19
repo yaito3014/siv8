@@ -1,0 +1,3 @@
+# Byte-exact copy of the vcpkg registry port (some upstream files are CRLF);
+# do not normalize line endings.
+* -text
