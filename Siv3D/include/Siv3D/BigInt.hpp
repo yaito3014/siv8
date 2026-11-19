@@ -13,6 +13,7 @@
 # include <memory>
 # include <compare>
 # include <limits>
+# include <type_traits>
 # include "Common.hpp"
 # include "Concepts.hpp"
 # include "String.hpp"
@@ -595,8 +596,12 @@ namespace s3d
 			return (a.compare(b) == 0);
 		}
 
+		// In these two friends, the cast through a b-dependent type defers the
+		// lookup of compare() (declared further down) to instantiation: GCC
+		// parses a friend's noexcept-specifier eagerly instead of in the
+		// complete-class context ([class.mem.general]).
 		[[nodiscard]]
-		friend bool operator ==(const BigInt& a, const Concept::Arithmetic auto b) noexcept(noexcept(a.compare(b)))
+		friend bool operator ==(const BigInt& a, const Concept::Arithmetic auto b) noexcept(noexcept(static_cast<const std::conditional_t<true, BigInt, decltype(b)>&>(a).compare(b)))
 		{
 			return (a.compare(b) == 0);
 		}
@@ -614,7 +619,7 @@ namespace s3d
 		}
 
 		[[nodiscard]]
-		friend auto operator <=>(const BigInt& a, const Concept::Arithmetic auto b) noexcept(noexcept(a.compare(b)))
+		friend auto operator <=>(const BigInt& a, const Concept::Arithmetic auto b) noexcept(noexcept(static_cast<const std::conditional_t<true, BigInt, decltype(b)>&>(a).compare(b)))
 		{
 			if constexpr (Concept::FloatingPoint<decltype(b)>)
 			{

@@ -378,26 +378,15 @@ namespace s3d
 		{
 			const auto value = _convertToInt64(static_cast<int64>(std::numeric_limits<Int>::min()),
 				static_cast<int64>(std::numeric_limits<Int>::max()));
-			if constexpr (sizeof(Int) < sizeof(int64))
-			{
-				return value ? Optional<Int>{ static_cast<Int>(*value) } : none;
-			}
-			else
-			{
-				return value;
-			}
+			// Always rebuild the Optional from the value: converting
+			// Optional<int64> to Optional<volatile T> does not compile with
+			// libstdc++, which constructs the payload via std::construct_at.
+			return value ? Optional<Int>{ static_cast<Int>(*value) } : none;
 		}
 		else
 		{
 			const auto value = _convertToUint64(static_cast<uint64>(std::numeric_limits<Int>::max()));
-			if constexpr (sizeof(Int) < sizeof(uint64))
-			{
-				return value ? Optional<Int>{ static_cast<Int>(*value) } : none;
-			}
-			else
-			{
-				return value;
-			}
+			return value ? Optional<Int>{ static_cast<Int>(*value) } : none;
 		}
 	}
 
