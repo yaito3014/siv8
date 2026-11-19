@@ -122,7 +122,10 @@ TEST_CASE("Step2D.reusable_range")
 
 TEST_CASE("Step2D.iterator")
 {
-	auto it = step(Point{ 3, 4 }, Size{ 2, 2 }, Size{ 10, 20 }).begin();
+	// Keep the range alive: its iterator may refer back to it (e.g. the
+	// std::views::transform-based step() keeps a pointer to the view).
+	const auto range = step(Point{ 3, 4 }, Size{ 2, 2 }, Size{ 10, 20 });
+	auto it = range.begin();
 	CHECK((*it) == (Point{ 3, 4 }));
 
 	const auto old = it++;
