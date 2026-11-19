@@ -1,5 +1,5 @@
 {
-  "$comment": "Siv3D overlay: registry skia at the builtin-baseline, built with skia_use_wuffs=false (see portfile.cmake).",
+  "$comment": "Siv3D overlay: registry skia at the builtin-baseline, trimmed to what Siv3D uses (see portfile.cmake); expat dropped since skia_use_expat=false.",
   "name": "skia",
   "version": "148",
   "description": [
@@ -12,7 +12,6 @@
   "supports": "!(windows & arm32) & !mingw",
   "dependencies": [
     "abseil",
-    "expat",
     {
       "name": "opengl",
       "default-features": false,

@@ -1,8 +1,8 @@
 # Siv3D overlay of the vcpkg registry skia port at builtin-baseline
 # f3e10653cc27d62a37a3763cd84b38bca07c6075 (port tree
-# 136e42f764191956949c8e6598b0185ff0b3647e), unchanged except for building
-# without Wuffs (see the "Siv3D:" comment below). Re-sync from the registry
-# when the baseline moves.
+# 136e42f764191956949c8e6598b0185ff0b3647e), unchanged except for the
+# "Siv3D:" block below (and dropping expat from vcpkg.json). Re-sync from the
+# registry when the baseline moves.
 include("${CMAKE_CURRENT_LIST_DIR}/skia-functions.cmake")
 
 vcpkg_from_github(
@@ -149,15 +149,18 @@ else()
     string(APPEND OPTIONS " skia_vcpkg_has_lib_dl=true")
 endif()
 
-# Siv3D: build without Wuffs. The engine vendors its own Wuffs (v0.4, for GIF /
-# APNG decoding), and skia's copy (v0.3, only for SkCodec's GIF decoder, which
-# Siv3D never uses) exports the same C symbols, so linking both fails.
+# Siv3D: build only what the engine uses. Siv3D draws glyphs and emoji
+# (incl. COLRv1) on the CPU through the core raster canvas and the FreeType
+# backend with the empty custom font manager; it uses no GPU backend, codec,
+# module, XML parser, or other font manager. Wuffs in particular must be off:
+# the engine vendors Wuffs v0.4 (GIF/APNG decoding) and skia's v0.3 copy (for
+# SkCodec's GIF decoder) exports the same C symbols, so linking both fails.
 set(required_externals
-    expat
-    piex
-    zlib
 )
 string(APPEND OPTIONS " skia_use_wuffs=false")
+string(APPEND OPTIONS " skia_enable_ganesh=false skia_enable_skottie=false skia_enable_svg=false skia_enable_skparagraph=false skia_enable_skshaper=false skia_enable_skunicode=false skia_enable_bentleyottmann=false")
+string(APPEND OPTIONS " skia_use_expat=false skia_use_zlib=false skia_use_piex=false skia_use_perfetto=false skia_use_xps=false")
+string(APPEND OPTIONS " skia_enable_fontmgr_win=false skia_enable_fontmgr_win_gdi=false skia_enable_fontmgr_custom_directory=false skia_enable_fontmgr_custom_embedded=false skia_enable_fontmgr_android=false")
 
 if("dng" IN_LIST FEATURES)
     list(APPEND required_externals dng_sdk)
