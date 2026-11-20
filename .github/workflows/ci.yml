@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 tools/check_docs.py
+
+  windows:
+    name: Windows (x64, Release)
+    # The projects use the v145 (Visual Studio 2026) toolset.
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and test
+        shell: pwsh
+        # Hosted runners have no GPU; the engine falls back to WARP, which is
+        # much slower than the 600-second default allows for.
+        run: ./WindowsDesktop/run-tests.ps1 -Jobs 4 -TimeoutSeconds 3600
+      - name: Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-test-reports
+          path: WindowsDesktop/Intermediate/TestReports/
+          if-no-files-found: ignore
+
+  macos:
+    name: macOS (arm64, Debug)
+    runs-on: macos-26
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - run: xcodebuild -version
+      - name: Validate projects
+        run: ./macOS/validate-projects.sh
+      - name: Build and test
+        run: ./macOS/run-tests.sh
