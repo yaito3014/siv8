@@ -1,0 +1,34 @@
+name: Set up vcpkg
+description: >
+  Clone vcpkg at the manifest's builtin-baseline, bootstrap it, and restore the
+  most recent binary cache for this OS. Pair with ./.github/actions/vcpkg-save.
+
+runs:
+  using: composite
+  steps:
+    # Checking out the baseline keeps vcpkg's scripts, which feed the package
+    # ABI hashes, unchanged until the baseline itself changes.
+    - name: Clone and bootstrap vcpkg
+      shell: bash
+      run: |
+        baseline=$(sed -n 's/.*"builtin-baseline": *"\([0-9a-f]*\)".*/\1/p' vcpkg.json)
+        root="$RUNNER_TEMP/vcpkg"
+        git clone -q https://github.com/microsoft/vcpkg.git "$root"
+        git -C "$root" checkout -q "$baseline"
+        if [ "$RUNNER_OS" = Windows ]; then
+          "$root/bootstrap-vcpkg.bat" -disableMetrics
+        else
+          "$root/bootstrap-vcpkg.sh" -disableMetrics
+        fi
+        echo "VCPKG_ROOT=$root" >> "$GITHUB_ENV"
+        echo "VCPKG_BINARY_SOURCES=clear;files,$GITHUB_WORKSPACE/.vcpkg-cache,readwrite" >> "$GITHUB_ENV"
+    # Each run that builds something saves a new entry, so the newest entry
+    # always matches the current runner image and compiler.
+    - uses: actions/cache/restore@v6
+      with:
+        path: .vcpkg-cache
+        key: vcpkg-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: vcpkg-${{ runner.os }}-
+    - name: Mark the restored cache
+      shell: bash
+      run: mkdir -p .vcpkg-cache && touch "$RUNNER_TEMP/vcpkg-cache-restored"

@@ -248,6 +248,24 @@ App's non-recursive `../Test/*.cpp` glob does not — avoiding a clash with
 `App/Main.cpp`). On Windows, `App/CMakeLists.txt` defines `Siv3D-Test` instead,
 because it needs the App's embedded resources and its `App/app/` run directory.
 
+## CI
+
+`.github/workflows/ci.yml` builds and tests on pushes to `main` and
+`vcpkg-cmake` and on pull requests:
+
+- **Windows** (`windows-2025-vs2026`, `x64-windows-static`) and **Linux**
+  (`ubuntu:26.04` container for gcc 15, tests under Xvfb + llvmpipe) must pass.
+  Linux skips the cases in `.github/linux-known-failures.txt`, which the GL4
+  backend cannot pass yet (see `TODO.md`); delete a line when its gap is fixed.
+- **macOS** (`macos-26`, `arm64-osx`) runs but is allowed to fail: the CMake
+  build has not been verified there.
+- vcpkg is checked out at the manifest's `builtin-baseline`, and built packages
+  go to a `files` binary cache saved through `actions/cache`
+  (`.github/actions/vcpkg-setup` and `vcpkg-save`). Each run that builds a
+  package saves a new cache entry, pruned to the packages that run installed.
+  The first run, and the first run after a runner-image compiler update,
+  rebuild the dependencies from source, which takes hours.
+
 ## Windows build notes (non-obvious bits)
 
 The Windows build is verified green; these are the subtle spots to check first if

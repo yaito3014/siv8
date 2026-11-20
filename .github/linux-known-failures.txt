@@ -1,0 +1,36 @@
+# Test cases excluded from the Linux CI run because the GLFW/OpenGL 4.1
+# backend does not implement what they check yet (see TODO.md).
+# One Catch2 test case name per line; lines starting with '#' are comments.
+# Remove a line once the backend passes that case.
+
+# ConstantBuffer_GL4 is a stub: user constant buffers are not uploaded.
+ConstantBuffer.independent_slots_and_integer_payload
+ConstantBuffer.persists_across_flush_and_frames
+ConstantBuffer.repeated_scopes_render_snapshots
+ConstantBuffer.sample_shaders_snapshot_and_PMA
+ConstantBuffer.scope_spans_frames_and_restores_snapshot
+ConstantBuffer.scopes_restore_and_move
+ConstantBuffer.size_boundaries_and_flush
+QuadWarp.custom_stages_and_vertex_colors
+QuadWarp.draw_state_and_batching
+QuadWarp.pattern_curves_and_text
+Renderer2D.pipeline_texture_constants
+
+# CRenderer2D_GL4 does not report triangle counts to the Profiler.
+LineString.cap_combinations
+LineString.index_count_with_caps
+LineString.rejected_body_has_no_caps
+Renderer2D.circle_dashed_frame_short_arcs
+Renderer2D.circle_dashed_frame_styles
+Renderer2D.index_count_boundaries
+Renderer2D.indexed_grid_draw
+Renderer2D.polygon_index_count
+
+# CTexture_GL4 does not implement dynamic texture fill or mipmap generation.
+DynamicTexture.fill.NonSquare
+DynamicTexture.fillRegion
+DynamicTexture.generateMips
+
+# The Linux FileSystem has no resource-path support.
+FileSystem::CreateParentDirectories
+FileSystem::IsResourcePath
