@@ -1,7 +1,8 @@
 name: Set up vcpkg
 description: >
   Clone vcpkg at the manifest's builtin-baseline, bootstrap it, and restore the
-  most recent binary cache for this OS. Pair with ./.github/actions/vcpkg-save.
+  most recent cache of built packages and downloaded sources for this OS. Pair
+  with ./.github/actions/vcpkg-save.
 
 runs:
   using: composite
@@ -21,7 +22,10 @@ runs:
           "$root/bootstrap-vcpkg.sh" -disableMetrics
         fi
         echo "VCPKG_ROOT=$root" >> "$GITHUB_ENV"
-        echo "VCPKG_BINARY_SOURCES=clear;files,$GITHUB_WORKSPACE/.vcpkg-cache,readwrite" >> "$GITHUB_ENV"
+        echo "VCPKG_BINARY_SOURCES=clear;files,$GITHUB_WORKSPACE/.vcpkg-cache/archives,readwrite" >> "$GITHUB_ENV"
+        # Keeping sources and patches avoids refetching them, which fails when
+        # github.com answers commit .patch requests with HTTP 503.
+        echo "VCPKG_DOWNLOADS=$GITHUB_WORKSPACE/.vcpkg-cache/downloads" >> "$GITHUB_ENV"
     # Each run that builds something saves a new entry, so the newest entry
     # always matches the current runner image and compiler.
     - uses: actions/cache/restore@v6
@@ -31,4 +35,6 @@ runs:
         restore-keys: vcpkg-${{ runner.os }}-
     - name: Mark the restored cache
       shell: bash
-      run: mkdir -p .vcpkg-cache && touch "$RUNNER_TEMP/vcpkg-cache-restored"
+      run: |
+        mkdir -p .vcpkg-cache/archives .vcpkg-cache/downloads
+        touch "$RUNNER_TEMP/vcpkg-cache-restored"
