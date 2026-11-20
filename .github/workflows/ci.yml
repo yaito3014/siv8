@@ -13,6 +13,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Both projects include ../Dependencies/boost_1_88_0, which the repository
+# keeps empty. The hash is the one archives.boost.io publishes.
+env:
+  BOOST_VERSION: 1.88.0
+  BOOST_SHA256: 3621533e820dcab1e8012afd583c0c73cf0f77694952b81352bf38c1488f9cb4
+
 jobs:
   docs:
     name: Docs
@@ -29,6 +35,14 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
+      - id: boost
+        uses: actions/cache@v6
+        with:
+          path: Dependencies/boost_1_88_0/boost
+          key: boost-${{ env.BOOST_VERSION }}-headers
+      - if: steps.boost.outputs.cache-hit != 'true'
+        shell: bash
+        run: .github/scripts/fetch-boost-headers.sh "$BOOST_VERSION" "$BOOST_SHA256"
       - name: Build and test
         shell: pwsh
         # Hosted runners have no GPU; the engine falls back to WARP, which is
@@ -49,6 +63,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: xcodebuild -version
+      - id: boost
+        uses: actions/cache@v6
+        with:
+          path: Dependencies/boost_1_88_0/boost
+          key: boost-${{ env.BOOST_VERSION }}-headers
+      - if: steps.boost.outputs.cache-hit != 'true'
+        run: .github/scripts/fetch-boost-headers.sh "$BOOST_VERSION" "$BOOST_SHA256"
       - name: Validate projects
         run: ./macOS/validate-projects.sh
       - name: Build and test
