@@ -1,0 +1,48 @@
+name: Save the vcpkg binary cache
+description: >
+  Save the binary cache restored by ./.github/actions/vcpkg-setup if this run
+  added packages to it. Run it even when the build failed, so that finished
+  packages are kept.
+
+inputs:
+  installed-dir:
+    description: The vcpkg_installed directory of the build.
+    required: true
+  prune:
+    description: >
+      'true' when the install completed: drop archives the build did not use,
+      so the cache does not keep every superseded package.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      env:
+        INSTALLED_DIR: ${{ inputs.installed-dir }}
+        PRUNE: ${{ inputs.prune }}
+      run: |
+        changed=false
+        if [ -n "$(find .vcpkg-cache -type f -newer "$RUNNER_TEMP/vcpkg-cache-restored" | head -n 1)" ]; then
+          changed=true
+        fi
+        # The installed database is 'status' plus not-yet-merged 'updates/*'.
+        cat "$INSTALLED_DIR/vcpkg/status" "$INSTALLED_DIR"/vcpkg/updates/* 2>/dev/null \
+          | sed -n 's/^Abi: *//p' | sort -u > "$RUNNER_TEMP/vcpkg-used-abis" || true
+        if [ "$PRUNE" = true ] && [ -s "$RUNNER_TEMP/vcpkg-used-abis" ]; then
+          for archive in $(find .vcpkg-cache -type f -name '*.zip'); do
+            abi=$(basename "$archive" .zip)
+            if ! grep -qx "$abi" "$RUNNER_TEMP/vcpkg-used-abis"; then
+              rm -f "$archive"
+              changed=true
+            fi
+          done
+        fi
+        du -sh .vcpkg-cache
+        echo "changed=$changed" >> "$GITHUB_OUTPUT"
+    - if: steps.check.outputs.changed == 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: .vcpkg-cache
+        key: vcpkg-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
