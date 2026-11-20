@@ -160,7 +160,7 @@ The [engine tests](../../Test/Test_BinaryFileReader.cpp) cover buffer boundaries
 partial final buffers, mixed read/seek/lookahead operations, lifetime and reopen
 behavior. Windows cases additionally exercise real byte-range locks and recovery,
 file/resource transitions, and sparse-file positions across 4 GiB. Run them
-through the [Windows test runner](../../WindowsDesktop/run-tests.ps1):
+through the Windows test runner (`WindowsDesktop/run-tests.ps1`):
 
 ```powershell
 ./WindowsDesktop/run-tests.ps1 -TestArguments '--test-case=*BinaryFileReader*'

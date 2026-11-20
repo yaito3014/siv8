@@ -131,8 +131,8 @@ not a measured GPU-time result.
 
 ## Backend shader maintenance
 
-[2d.metal](../../macOS/App/engine/shader/metal/2d.metal) and
-[2d.hlsl](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl) must agree with
+[2d.metal](../../App/app/engine/shader/metal/2d.metal) and
+[2d.hlsl](../../App/app/engine/shader/d3d11/2d.hlsl) must agree with
 the shared effect layout. Both backends use `VS_Pattern` and select dedicated
 pixel shaders from `PatternType`. Loader order must match
 [EnginePS](../../Siv3D/src/Siv3D/EngineShader/IEngineShader.hpp): Halftone follows

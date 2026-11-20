@@ -52,7 +52,7 @@ width correction are specific to Wave.
 
 ## D3D11 integration
 
-[2d.hlsl](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl) preserves the
+[2d.hlsl](../../App/app/engine/shader/d3d11/2d.hlsl) preserves the
 Metal shader's order of filtering and wrapping, using `frac`, `fwidth`, and the
 existing UV and premultiplied color helpers. The loader appends
 `2d_pattern_wave.ps` after Halftone, and the renderer selects it for

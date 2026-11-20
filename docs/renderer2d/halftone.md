@@ -106,8 +106,8 @@ it does not add exceptional-input guards to the drawing path.
 ## Fragment evaluation
 
 `PS_PatternHalftone` in
-[Metal](../../macOS/App/engine/shader/metal/2d.metal) and
-[HLSL](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl) computes the cell
+[Metal](../../App/app/engine/shader/metal/2d.metal) and
+[HLSL](../../App/app/engine/shader/d3d11/2d.hlsl) computes the cell
 center, saturates its field value, applies smoothstep, and interpolates the two
 packed radii. It uses the same foreground/background color
 and premultiplied-alpha operations as the other patterns.

@@ -48,7 +48,7 @@ No command, buffer, vertex, or QuadWarp changes are required.
 ## D3D11 integration
 
 `PS_PatternRipple` in
-[2d.hlsl](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl) uses continuous
+[2d.hlsl](../../App/app/engine/shader/d3d11/2d.hlsl) uses continuous
 UV derivatives and the existing premultiplied color helpers. The loader appends
 `2d_pattern_ripple.ps` after Wave, and the renderer selects it for
 `PatternType::Ripple`. See the [shader maintenance notes](pattern-payload.md#backend-shader-maintenance)

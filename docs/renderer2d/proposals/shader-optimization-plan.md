@@ -60,8 +60,8 @@ GPU 計測は温度・クロック変動や他の負荷の影響を受けるた�
 
 ## Metal 側の照合
 
-対象は [2d.metal](../../../macOS/App/engine/shader/metal/2d.metal)、
-[fullscreen_triangle.metal](../../../macOS/App/engine/shader/metal/fullscreen_triangle.metal)、
+対象は [2d.metal](../../../App/app/engine/shader/metal/2d.metal)、
+[fullscreen_triangle.metal](../../../App/app/engine/shader/metal/fullscreen_triangle.metal)、
 それらの描画・定数バインド・パイプライン生成経路。
 `metal -O3 -S -emit-llvm` による AIR 比較と、一時的なオフスクリーン描画で候補を照合した。
 この予備比較と、後述の Xcode ビルド・エンジン回帰検証は分けて扱う。
@@ -96,7 +96,7 @@ GPU 時間の予備比較はばらつきが大きく、速度改善の根拠に�
 
 ### macOS のビルドとエンジン回帰検証
 
-[`macOS/run-tests.sh`](../../../macOS/run-tests.sh) の Debug ビルドで
+`macOS/run-tests.sh` の Debug ビルドで
 Pattern / MSDF / Renderer2D の関連テストと全自動テストが通過した。
 全自動テストの XML レポートが完結し、失敗・スキップがないことを確認した。
 Xcode が生成した default library の全 30 エントリーポイントをエンジンがロードし、
@@ -156,8 +156,8 @@ GPU の実行時間、消費電力、実レジスタ数、occupancy の改善を
 
 ## D3D11 側の調査範囲と根拠
 
-- 主対象は [2d.hlsl](../../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl)
-  と [fullscreen_triangle.hlsl](../../../WindowsDesktop/App/engine/shader/d3d11/fullscreen_triangle.hlsl)。
+- 主対象は [2d.hlsl](../../../App/app/engine/shader/d3d11/2d.hlsl)
+  と [fullscreen_triangle.hlsl](../../../App/app/engine/shader/d3d11/fullscreen_triangle.hlsl)。
   example の grayscale は組み込み描画経路の対象から除外。
 - [登録・コンパイル処理](../../../Siv3D/src/Siv3D-Platform/WindowsDesktop/Siv3D/EngineShader/D3D11/CEngineShader_D3D11.cpp)
   の 30 エントリーポイント（4 VS、26 PS）を調査。

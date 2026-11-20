@@ -1,6 +1,6 @@
 # Vendored GLFW
 
-[GLFW sources](../../Siv3D/src/ThirdParty/GLFW) are based on the official
+[GLFW sources](../../overlay-ports/glfw3) are based on the official
 [3.5.1 release](https://github.com/glfw/glfw/releases/tag/3.5.1), under GLFW's
 zlib/libpng license. Upstream released 3.5.1 with the same contents as 3.5 to
 avoid an incorrectly published 3.5.0 tag; see the

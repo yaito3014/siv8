@@ -130,8 +130,8 @@ the ordinary texture path. `TextEffect::QuadWarp` constructs its glyph transform
 in coordinates after Local/Camera, then draws with the ordinary texture path
 inside a nested scope. A collapsed or invalid glyph mapping is skipped.
 
-[HLSL](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl),
-[MSL](../../macOS/App/engine/shader/metal/2d.metal), CPU constants, and custom VS
+[HLSL](../../App/app/engine/shader/d3d11/2d.hlsl),
+[MSL](../../App/app/engine/shader/metal/2d.metal), CPU constants, and custom VS
 examples must be kept together when changing the layout. Regenerate the tracked
 D3D11 bytecode using the startup compilation block on Windows after HLSL changes.
 Outstanding backend verification belongs in [TODO](../../TODO.md).

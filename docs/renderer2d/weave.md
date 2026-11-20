@@ -59,7 +59,7 @@ additional work.
 ## D3D11 integration
 
 `PS_PatternWeave` in
-[2d.hlsl](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl) preserves the
+[2d.hlsl](../../App/app/engine/shader/d3d11/2d.hlsl) preserves the
 filtered parity, both band masks, and the premultiplied color path. The loader
 appends `2d_pattern_weave.ps` after Ripple, and the renderer selects it for
 `PatternType::Weave`. See the [shader maintenance notes](pattern-payload.md#backend-shader-maintenance)

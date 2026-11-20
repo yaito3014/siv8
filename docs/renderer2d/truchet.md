@@ -90,7 +90,7 @@ No vertex, command, effect-buffer, or QuadWarp changes are required.
 ## D3D11 integration
 
 `PS_PatternTruchet` and `Pattern_TruchetHash` in
-[2d.hlsl](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl) use
+[2d.hlsl](../../App/app/engine/shader/d3d11/2d.hlsl) use
 `asuint(cell + 0.5f)` for coordinate keys and numeric `uint` conversions for
 seed halves. Unsigned arithmetic, constants, and layout IDs match Metal.
 The loader appends `2d_pattern_truchet.ps` after Weave, and the renderer selects

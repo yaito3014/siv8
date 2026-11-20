@@ -20,12 +20,12 @@ Each shader is self-contained. Load the HLSL or MSL file at runtime using
 
 | Example | HLSL | MSL | Entry points |
 | --- | --- | --- | --- |
-| Standard template | [default2d.hlsl](../../WindowsDesktop/App/example/shader/hlsl/default2d.hlsl) | [default2d.metal](../../macOS/App/example/shader/msl/default2d.metal) | `VS_Shape`, `PS_Shape`, `PS_Texture` |
-| Grayscale | [grayscale.hlsl](../../WindowsDesktop/App/example/shader/hlsl/grayscale.hlsl) | [grayscale.metal](../../macOS/App/example/shader/msl/grayscale.metal) | `PS_Grayscale` |
-| Red/blue exchange | [rgb_to_bgr.hlsl](../../WindowsDesktop/App/example/shader/hlsl/rgb_to_bgr.hlsl) | [rgb_to_bgr.metal](../../macOS/App/example/shader/msl/rgb_to_bgr.metal) | `PS_RGBToBGR` |
-| Posterization | [posterize.hlsl](../../WindowsDesktop/App/example/shader/hlsl/posterize.hlsl) | [posterize.metal](../../macOS/App/example/shader/msl/posterize.metal) | `PS_Posterize` |
-| Custom constants | [constant_buffer.hlsl](../../WindowsDesktop/App/example/shader/hlsl/constant_buffer.hlsl) | [constant_buffer.metal](../../macOS/App/example/shader/msl/constant_buffer.metal) | `VS_Offset`, `PS_TintShape`, `PS_TintTexture` |
-| Horizontal UV flip | [uv_flip.hlsl](../../WindowsDesktop/App/example/shader/hlsl/uv_flip.hlsl) | [uv_flip.metal](../../macOS/App/example/shader/msl/uv_flip.metal) | `VS_UVFlip` |
+| Standard template | [default2d.hlsl](../../App/app/example/shader/hlsl/default2d.hlsl) | [default2d.metal](../../App/app/example/shader/msl/default2d.metal) | `VS_Shape`, `PS_Shape`, `PS_Texture` |
+| Grayscale | [grayscale.hlsl](../../App/app/example/shader/hlsl/grayscale.hlsl) | [grayscale.metal](../../App/app/example/shader/msl/grayscale.metal) | `PS_Grayscale` |
+| Red/blue exchange | [rgb_to_bgr.hlsl](../../App/app/example/shader/hlsl/rgb_to_bgr.hlsl) | [rgb_to_bgr.metal](../../App/app/example/shader/msl/rgb_to_bgr.metal) | `PS_RGBToBGR` |
+| Posterization | [posterize.hlsl](../../App/app/example/shader/hlsl/posterize.hlsl) | [posterize.metal](../../App/app/example/shader/msl/posterize.metal) | `PS_Posterize` |
+| Custom constants | [constant_buffer.hlsl](../../App/app/example/shader/hlsl/constant_buffer.hlsl) | [constant_buffer.metal](../../App/app/example/shader/msl/constant_buffer.metal) | `VS_Offset`, `PS_TintShape`, `PS_TintTexture` |
+| Horizontal UV flip | [uv_flip.hlsl](../../App/app/example/shader/hlsl/uv_flip.hlsl) | [uv_flip.metal](../../App/app/example/shader/msl/uv_flip.metal) | `VS_UVFlip` |
 
 The standard VS applies the drawing transform and color multiplication, then
 premultiplies vertex RGB by alpha. The texture PS multiplies the premultiplied

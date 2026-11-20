@@ -2,8 +2,8 @@
 
 The [glyph generator](../../Siv3D/src/Siv3D/Font/GlyphRenderer/MSDFGlyphRenderer.cpp)
 encodes a distance range of 16 texels. The built-in
-[Metal](../../macOS/App/engine/shader/metal/2d.metal) and
-[HLSL](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl) shaders use the same
+[Metal](../../App/app/engine/shader/metal/2d.metal) and
+[HLSL](../../App/app/engine/shader/d3d11/2d.hlsl) shaders use the same
 `MSDF_PixelRange` when converting sampled distance into coverage.
 
 ## Atlas dimensions and derivatives

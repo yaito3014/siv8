@@ -18,7 +18,7 @@ repository root:
 python tools/check_test_projects.py --windows-only
 ```
 
-The [Windows runner](../../WindowsDesktop/run-tests.ps1) can be invoked from any
+The Windows runner (`WindowsDesktop/run-tests.ps1`) can be invoked from any
 working directory. It checks Visual Studio test registration, builds the x64
 solution (default `Release`), and launches the test application with `--test-only`.
 Success requires exit code zero, a complete Catch2 XML report with no failures,

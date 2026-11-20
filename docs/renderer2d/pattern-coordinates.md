@@ -26,8 +26,8 @@ rendered scene as a whole.
 
 ## Carry coordinates forward
 
-The [D3D11 pattern shaders](../../WindowsDesktop/App/engine/shader/d3d11/2d.hlsl)
-and [Metal pattern shaders](../../macOS/App/engine/shader/metal/2d.metal) use
+The [D3D11 pattern shaders](../../App/app/engine/shader/d3d11/2d.hlsl)
+and [Metal pattern shaders](../../App/app/engine/shader/metal/2d.metal) use
 interpolated drawing positions. The renderer packs their UV transform without
 RMS scaling through
 [PatternParameters](../../Siv3D/include/Siv3D/Pattern/PatternParameters.ipp).
