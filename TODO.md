@@ -7,6 +7,15 @@
 - 実装とテストが完了したトピックは、このファイルから削除します。
 - 完了項目の履歴は残さず、未完了項目だけを維持します。
 
+## Linux (GLFW + OpenGL 4.1) バックエンド
+
+CI は `.github/linux-known-failures.txt` に挙げたテストを除外して Linux のテストを実行している。実装したら該当する行を削除する。
+
+- `ConstantBuffer_GL4` がスタブで、ユーザー定数バッファを GPU へ送らない (`ConstantBuffer.*`、`QuadWarp.*`、`Renderer2D.pipeline_texture_constants`)。
+- `CRenderer2D_GL4` が Profiler に三角形数を報告しない (`LineString.*`、`Renderer2D` のインデックス数と破線枠のテスト)。
+- `CTexture_GL4` が `DynamicTexture` の `fill` / `fillRegion` / `generateMips` を実装していない。
+- Linux の FileSystem がリソースパスに対応していない (`FileSystem::IsResourcePath`、`FileSystem::CreateParentDirectories`)。
+
 ## `Siv3D/include/Siv3D/JSON.hpp`
 
 ### 数値変換と入力検証
