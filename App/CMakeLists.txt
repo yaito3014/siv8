@@ -14,12 +14,11 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
         CACHE STRING "vcpkg toolchain")
 endif()
 
-# Static triplet + static CRT (/MT, /MTd).
+# Static libraries with the static CRT by default, like the upstream Visual
+# Studio project. <arch>-windows-static-md selects the DLL CRT instead; the
+# runtime itself follows the triplet (see cmake/Siv3DMSVCRuntime.cmake).
 if(WIN32 AND NOT DEFINED VCPKG_TARGET_TRIPLET)
     set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "vcpkg triplet")
-endif()
-if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 # macOS: floating-point std::to_chars needs 13.3+ in Apple's libc++. Match the
@@ -31,7 +30,7 @@ endif()
 if(SIV3D_APP_USE_FIND_PACKAGE)
     # Reuse the engine build's installed dependency tree (incl. overlay forks).
     if(WIN32)
-        set(_siv3d_app_dep_triplet "x64-windows-static")
+        set(_siv3d_app_dep_triplet "${VCPKG_TARGET_TRIPLET}")
     elseif(APPLE)
         set(_siv3d_app_dep_triplet "x64-osx")
     else()
@@ -62,9 +61,17 @@ endif()
 # Stop a user-wide `vcpkg integrate install` from shadowing the engine's headers.
 set(CMAKE_VS_GLOBALS "VcpkgEnabled=false")
 
+if(MSVC)
+    include("${SIV3D_ENGINE_DIR}/cmake/Siv3DMSVCRuntime.cmake")
+    siv3d_select_msvc_runtime()
+endif()
+
 # ---- pull in the engine: Siv3D::Siv3DCore ----
 if(SIV3D_APP_USE_FIND_PACKAGE)
     find_package(Siv3D 0.8 CONFIG REQUIRED)
+    if(MSVC AND Siv3D_MSVC_RUNTIME_LIBRARY)
+        siv3d_check_msvc_runtime("${Siv3D_MSVC_RUNTIME_LIBRARY}" "the Siv3D package")
+    endif()
 else()
     # Keep the engine's Siv3D-Test target / 'tests' feature consistent with ours.
     set(SIV3D_BUILD_TESTS ${SIV3D_APP_BUILD_TESTS} CACHE BOOL "Build the Siv3D-Test target" FORCE)

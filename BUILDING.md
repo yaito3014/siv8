@@ -32,8 +32,8 @@ there is no vendored-lib / MSBuild path anymore.
 - Toolchain: **Windows** — VS 2022 or later (2026 tested) + MSVC, CMake ≥ 3.25.
   **Linux** — gcc 15+ / CMake ≥ 3.25 + the system dev packages (see *Build →
   Linux*).
-- Triplet: **`x64-windows-static`** (static CRT) on Windows, **`x64-linux`** on
-  Linux. The first run builds all vcpkg deps from source (skia/opencv/boost/… —
+- Triplet: **`x64-windows-static`** (static CRT) or **`x64-windows-static-md`**
+  (DLL CRT) on Windows, **`x64-linux`** on Linux. The first run builds all vcpkg deps from source (skia/opencv/boost/… —
   slow); subsequent builds reuse the cache.
 
 ## Build
@@ -72,8 +72,22 @@ cmake -B build
 cmake --build build --config Release
 ```
 
-- The triplet **`x64-windows-static`** (static CRT `/MT`) and
-  `CMAKE_MSVC_RUNTIME_LIBRARY` are set automatically.
+- The App defaults to the triplet **`x64-windows-static`** (static CRT `/MT`),
+  like the upstream Visual Studio project. For the DLL CRT (`/MD`), use the
+  `windows-md` preset or `-DVCPKG_TARGET_TRIPLET=x64-windows-static-md`.
+- The C runtime follows the triplet: MSVC cannot link objects built against
+  different C runtimes (LNK2038), and the triplet decides the one every vcpkg
+  dependency uses. Unless `CMAKE_MSVC_RUNTIME_LIBRARY` is set, the App and the
+  engine derive it from `<arch>-windows-static[-md]`. If it is set, it must agree
+  with the triplet; with a custom triplet name, it must be set
+  (`cmake/Siv3DMSVCRuntime.cmake`).
+- The engine sets no triplet, C runtime or `CMAKE_VS_GLOBALS` of its own; those
+  belong to the top-level project. The App disables a user-wide
+  `vcpkg integrate install` (`VcpkgEnabled=false`), whose include paths would
+  shadow the engine's headers; other projects that `add_subdirectory` the
+  engine should do the same.
+- An installed package exports `Siv3D_MSVC_RUNTIME_LIBRARY`; set it as the
+  `MSVC_RUNTIME_LIBRARY` of targets that link Siv3D.
 - Output: a GUI-subsystem `Siv3D-App.exe` (~38 MB, self-contained). `Resource.rc`
   embeds assets by paths relative to the staged tree, so `App/CMakeLists.txt`
   adds `App/app/` to the RC `/I` include path.

@@ -13,14 +13,6 @@ if(SIV3D_BUILD_TESTS)
     list(APPEND VCPKG_MANIFEST_FEATURES "tests")
 endif()
 
-# Static deps + static CRT: the SDK is one self-contained static library.
-if(WIN32 AND NOT DEFINED VCPKG_TARGET_TRIPLET)
-    set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "vcpkg triplet (static)")
-endif()
-if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-endif()
-
 # C is required: the vendored ThirdParty miniaudio implementation TU is C.
 project(Siv3D LANGUAGES C CXX VERSION 0.8.0)
 
@@ -30,8 +22,12 @@ endif()
 
 include(GNUInstallDirs)
 
-# Disable any user-wide `vcpkg integrate install` (its /I shadows our headers).
-set(CMAKE_VS_GLOBALS "VcpkgEnabled=false")
+# MSVC: take the C runtime from the vcpkg triplet unless the including project
+# chose one, which must then agree with the triplet.
+if(MSVC)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DMSVCRuntime.cmake")
+    siv3d_select_msvc_runtime()
+endif()
 
 set(SIV3D_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/Siv3D")
 set(SIV3D_SRC     "${SIV3D_DIR}/src")
@@ -84,11 +80,12 @@ endif()
 find_path(OSCPACK_INCLUDE_DIR "osc/OscOutboundPacketStream.h" REQUIRED)
 find_library(OSCPACK_LIBRARY oscpack REQUIRED)
 
-# Fail early if a dynamic triplet was used (the static targets are absent).
+# Fail early on a triplet with dynamic libraries (the static targets are absent).
 if(NOT TARGET mimalloc-static OR NOT TARGET zstd::libzstd_static)
     message(FATAL_ERROR
-        "Siv3D requires a STATIC vcpkg triplet (got '${VCPKG_TARGET_TRIPLET}'). "
-        "Use x64-windows-static / x64-linux / x64-osx (or the arm64 equivalents).")
+        "Siv3D requires a vcpkg triplet with static libraries (got '${VCPKG_TARGET_TRIPLET}'): "
+        "<arch>-windows-static (/MT) or <arch>-windows-static-md (/MD) on Windows, "
+        "x64-linux, x64-osx or arm64-osx elsewhere.")
 endif()
 
 set(SIV3D_VCPKG_LIBS
@@ -501,6 +498,8 @@ else()
     set(SIV3D_FAT_SYSTEM_LIBS "Threads::Threads;${CMAKE_DL_LIBS};m;GL;X11;uuid")
 endif()
 
+# Exported so consumers can build with the same C runtime (empty outside MSVC).
+set(SIV3D_MSVC_RUNTIME_LIBRARY "${CMAKE_MSVC_RUNTIME_LIBRARY}")
 configure_package_config_file("cmake/Siv3DConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfig.cmake"
     INSTALL_DESTINATION "${SIV3D_INSTALL_CMAKEDIR}")

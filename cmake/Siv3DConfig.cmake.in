@@ -1,5 +1,10 @@
 @PACKAGE_INIT@
 
+# The MSVC C runtime Siv3D and its bundled dependencies were built with (empty
+# outside MSVC). Consumer targets must use the same kind (static or DLL), e.g.
+#   set_property(TARGET app PROPERTY MSVC_RUNTIME_LIBRARY "${Siv3D_MSVC_RUNTIME_LIBRARY}")
+set(Siv3D_MSVC_RUNTIME_LIBRARY "@SIV3D_MSVC_RUNTIME_LIBRARY@")
+
 # ----------------------------------------------------------------------------
 # Siv3D::Siv3D — the fat all-dependencies lib (default install). A raw archive,
 # so its usage requirements (C++23, flags, system libs) are attached here.

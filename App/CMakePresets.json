@@ -15,17 +15,27 @@
     },
     {
       "name": "windows",
-      "displayName": "Windows (x64-windows-static)",
+      "displayName": "Windows (x64-windows-static, static CRT)",
       "binaryDir": "${sourceDir}/build",
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "x64-windows-static"
       },
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
+      "name": "windows-md",
+      "displayName": "Windows (x64-windows-static-md, DLL CRT)",
+      "inherits": "windows",
+      "binaryDir": "${sourceDir}/build-md",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md"
+      }
     }
   ],
   "buildPresets": [
     { "name": "linux", "configurePreset": "linux" },
-    { "name": "windows", "configurePreset": "windows", "configuration": "Release" }
+    { "name": "windows", "configurePreset": "windows", "configuration": "Release" },
+    { "name": "windows-md", "configurePreset": "windows-md", "configuration": "Release" }
   ]
 }
