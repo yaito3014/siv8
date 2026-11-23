@@ -50,12 +50,24 @@ jobs:
         shell: pwsh
         # Siv3D-App is a GUI-subsystem program: wait for it explicitly, and
         # read the results from report files because it has no usable stdout.
+        # Hosted runners render with WARP; cases it renders differently are
+        # listed in .github/windows-warp-known-failures.txt.
         run: |
           New-Item -ItemType Directory -Force -Path ../../test-reports | Out-Null
-          $process = Start-Process -FilePath ./Siv3D-App.exe -Wait -PassThru -ArgumentList @(
-            '--test-only', '--colour-mode', 'none',
+          $exclusions = Get-Content ../../.github/windows-warp-known-failures.txt |
+            Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { "~`"$_`"" }
+          $info = [Diagnostics.ProcessStartInfo]::new((Resolve-Path ./Siv3D-App.exe).Path)
+          $info.WorkingDirectory = (Get-Location).Path
+          $info.UseShellExecute = $false
+          # ArgumentList quotes each element, so the filter stays one argument.
+          foreach ($argument in @('--test-only', '--colour-mode', 'none',
             '--reporter', 'console::out=../../test-reports/windows.txt',
-            '--reporter', 'xml::out=../../test-reports/windows.xml')
+            '--reporter', 'xml::out=../../test-reports/windows.xml')) {
+            $info.ArgumentList.Add($argument)
+          }
+          if ($exclusions) { $info.ArgumentList.Add($exclusions -join ' ') }
+          $process = [Diagnostics.Process]::Start($info)
+          $process.WaitForExit()
           if (Test-Path ../../test-reports/windows.txt) { Get-Content ../../test-reports/windows.txt }
           if ($process.ExitCode -ne 0) { throw "Tests failed (exit $($process.ExitCode))." }
       - name: Upload test reports

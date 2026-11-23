@@ -1,0 +1,9 @@
+# Test cases excluded from the Windows CI run. Hosted runners have no GPU, so
+# Direct3D 11 runs on WARP, which differs from hardware where D3D11 leaves
+# precision to the implementation. These cases pass on hardware GPUs.
+# One Catch2 test case name per line; lines starting with '#' are comments.
+
+# Only the 768x256 atlas fails: texel/768 UVs are inexact, WARP's texture
+# coordinate quantization lands on the other side of a filtering step, and the
+# MSDF distance-to-alpha step amplifies that beyond the test's 1-unit tolerance.
+MSDFFont.atlas_dimensions
