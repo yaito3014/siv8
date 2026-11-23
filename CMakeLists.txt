@@ -298,13 +298,10 @@ target_link_libraries(Siv3DCore
         serial_cpp::serial_cpp
 )
 
-# oscpack: no exported target, so wire the located headers/lib by hand. The static
-# library pulls in Winsock on Windows, so the consumer must link ws2_32 + winmm.
+# oscpack: no exported target, so wire the located headers/lib by hand. On
+# Windows it needs Winsock (ws2_32) and winmm, both in SIV3D_WINDOWS_SYSTEM_LIBS.
 target_include_directories(Siv3DCore PRIVATE ${OSCPACK_INCLUDE_DIR})
 target_link_libraries(Siv3DCore PRIVATE ${OSCPACK_LIBRARY})
-if(WIN32)
-    target_link_libraries(Siv3DCore PRIVATE ws2_32 winmm)
-endif()
 
 # Platform system libraries.
 if(WIN32)
