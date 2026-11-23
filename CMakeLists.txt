@@ -137,25 +137,34 @@ if(UNIX AND NOT APPLE)
     endforeach()
 endif()
 
-set(SIV3D_PLATFORM_SOURCES "")
-if(WIN32)
-    file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS
-        "${SIV3D_SRC}/Siv3D-Platform/WindowsDesktop/*.cpp"
-    )
-elseif(APPLE)
-    file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS
-        "${SIV3D_SRC}/Siv3D-Platform/macOS/*.cpp"
-        "${SIV3D_SRC}/Siv3D-Platform/macOS/*.mm"
-        "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
-    )
-elseif(UNIX)
-    # Linux (GLFW + OpenGL 4.1): Linux/ is Linux-only; macOS_Linux/ is shared
-    # with the macOS port (incl. the GLFW input classes).
-    file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS
-        "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux/*.cpp"
-        "${SIV3D_SRC}/Siv3D-Platform/Linux/*.cpp"
-    )
-endif()
+# macOS_Linux/ is shared by the macOS and Linux (GLFW) ports, including the
+# GLFW input classes.
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DPlatform.cmake")
+siv3d_platform_dirs(SIV3D_PLATFORM_DIRS "${SIV3D_SRC}")
+set(_siv3d_platform_patterns "")
+foreach(_siv3d_dir IN LISTS SIV3D_PLATFORM_DIRS)
+    list(APPEND _siv3d_platform_patterns "${_siv3d_dir}/*.cpp")
+    if(APPLE)
+        list(APPEND _siv3d_platform_patterns "${_siv3d_dir}/*.mm")
+    endif()
+endforeach()
+file(GLOB_RECURSE SIV3D_PLATFORM_SOURCES CONFIGURE_DEPENDS ${_siv3d_platform_patterns})
+
+# Headers, listed so that IDE generators show them under Siv3DCore.
+function(_siv3d_glob_headers out_var)
+    set(_patterns "")
+    foreach(_dir IN LISTS ARGN)
+        list(APPEND _patterns "${_dir}/*.h" "${_dir}/*.H" "${_dir}/*.hpp" "${_dir}/*.ipp")
+    endforeach()
+    file(GLOB_RECURSE _headers CONFIGURE_DEPENDS ${_patterns})
+    # *.h and *.H match the same files on case-insensitive file systems.
+    list(REMOVE_DUPLICATES _headers)
+    set(${out_var} "${_headers}" PARENT_SCOPE)
+endfunction()
+_siv3d_glob_headers(SIV3D_PUBLIC_HEADERS "${SIV3D_INCLUDE}")
+_siv3d_glob_headers(SIV3D_COMMON_HEADERS "${SIV3D_SRC}/Siv3D")
+_siv3d_glob_headers(SIV3D_TP_HEADERS "${SIV3D_SRC}/ThirdParty")
+_siv3d_glob_headers(SIV3D_PLATFORM_HEADERS ${SIV3D_PLATFORM_DIRS})
 
 # ============================================================================
 # Engine library: Siv3DCore (-> libSiv3DCore.a)
@@ -186,32 +195,30 @@ if(APPLE)
     )
 endif()
 
-target_include_directories(Siv3DCore
+# Each file set's base directories become include roots, in the order of these
+# calls. The public set also installs to include/Siv3D (see install(TARGETS)).
+target_sources(Siv3DCore
     PUBLIC
-        "$<BUILD_INTERFACE:${SIV3D_INCLUDE}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D>"
-        # Bundled third-party headers install to include/Siv3D-thirdparty (matches
-        # the fat-lib target + the install(FILES ...) rules below), NOT
-        # include/Siv3D/ThirdParty — referencing the latter is a non-existent path
-        # that makes find_package(Siv3D) (Siv3DCore path) fail at generate time.
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D-thirdparty>"
+        FILE_SET HEADERS
+        BASE_DIRS "${SIV3D_INCLUDE}"
+        FILES ${SIV3D_PUBLIC_HEADERS}
     PRIVATE
-        "${SIV3D_SRC}"
-        "${SIV3D_SRC}/ThirdParty"
+        FILE_SET siv3d_headers TYPE HEADERS
+        BASE_DIRS "${SIV3D_SRC}"
+        FILES ${SIV3D_COMMON_HEADERS}
+    PRIVATE
+        FILE_SET thirdparty_headers TYPE HEADERS
+        BASE_DIRS "${SIV3D_SRC}/ThirdParty"
+        FILES ${SIV3D_TP_HEADERS}
+    PRIVATE
+        FILE_SET platform_headers TYPE HEADERS
+        BASE_DIRS ${SIV3D_PLATFORM_DIRS}
+        FILES ${SIV3D_PLATFORM_HEADERS}
 )
-if(WIN32)
-    target_include_directories(Siv3DCore PRIVATE "${SIV3D_SRC}/Siv3D-Platform/WindowsDesktop")
-elseif(APPLE)
-    target_include_directories(Siv3DCore PRIVATE
-        "${SIV3D_SRC}/Siv3D-Platform/macOS"
-        "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux"
-    )
-elseif(UNIX)
-    target_include_directories(Siv3DCore PRIVATE
-        "${SIV3D_SRC}/Siv3D-Platform/Linux"
-        "${SIV3D_SRC}/Siv3D-Platform/macOS_Linux"
-    )
-endif()
+# Bundled third-party headers install to include/Siv3D-thirdparty (matches
+# the fat-lib target + the install(FILES ...) rules below).
+target_include_directories(Siv3DCore PUBLIC
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D-thirdparty>")
 
 target_compile_definitions(Siv3DCore PRIVATE
     SIV3D_LIBRARY_BUILD
@@ -442,9 +449,6 @@ if(SIV3D_FAT_LIB)
     install(FILES "${_siv3d_fat}" DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
-# Public headers, nested under include/Siv3D to avoid polluting a shared prefix.
-install(DIRECTORY "${SIV3D_INCLUDE}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
-
 # Third-party headers the public Siv3D headers include go to a sibling
 # include/Siv3D-thirdparty (the Siv3D- prefix avoids colliding with system copies
 # in a shared prefix), added as a 2nd interface include by Siv3DConfig.cmake.in.
@@ -526,8 +530,11 @@ install(FILES
 # 'Develop' component (EXCLUDE_FROM_ALL): core archive + bundle + shim.
 #   cmake --install <build> --component Develop
 set(_siv3d_cmpt Develop)
+# The public headers install by default (the fat lib needs them too), nested
+# under include/Siv3D to avoid polluting a shared prefix.
 install(TARGETS Siv3DCore EXPORT Siv3DCoreTargets
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
+    FILE_SET HEADERS DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
 install(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
 install(DIRECTORY "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/"

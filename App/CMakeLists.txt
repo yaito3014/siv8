@@ -96,17 +96,12 @@ if(SIV3D_APP_BUILD_TESTS)
     # Some tests (D3D11 device/swap chain, monitor info, GLFW) include engine
     # internals, so expose the engine's private header roots to the test build.
     set(_siv3d_src "${SIV3D_ENGINE_DIR}/Siv3D/src")
-    target_include_directories(Siv3D-App PRIVATE "${_siv3d_src}")
-    if(WIN32)
-        target_include_directories(Siv3D-App PRIVATE "${_siv3d_src}/Siv3D-Platform/WindowsDesktop")
-    elseif(APPLE)
-        target_include_directories(Siv3D-App PRIVATE
-            "${_siv3d_src}/Siv3D-Platform/macOS" "${_siv3d_src}/Siv3D-Platform/macOS_Linux")
+    include("${SIV3D_ENGINE_DIR}/cmake/Siv3DPlatform.cmake")
+    siv3d_platform_dirs(_siv3d_platform_dirs "${_siv3d_src}")
+    target_include_directories(Siv3D-App PRIVATE "${_siv3d_src}" ${_siv3d_platform_dirs})
+    if(APPLE)
         include("${SIV3D_ENGINE_DIR}/cmake/Siv3DMacOSTestSources.cmake")
         siv3d_configure_macos_test_sources(Siv3D-App "${_siv3d_src}" "${CMAKE_CURRENT_SOURCE_DIR}/../Test")
-    else()
-        target_include_directories(Siv3D-App PRIVATE
-            "${_siv3d_src}/Siv3D-Platform/Linux" "${_siv3d_src}/Siv3D-Platform/macOS_Linux")
     endif()
 endif()
 
