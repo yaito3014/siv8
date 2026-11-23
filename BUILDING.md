@@ -99,6 +99,22 @@ cmake --build build --config Release
   instead chooses with `SIV3D_MSVC_CRT` (`static` or `DLL`). The loaded build
   exports `Siv3D_MSVC_RUNTIME_LIBRARY`; set it as the `MSVC_RUNTIME_LIBRARY` of
   targets that link Siv3D.
+- Each configuration installs its own libraries: the fat lib is `Siv3D` for
+  Release (also used by RelWithDebInfo and MinSizeRel) and `Siv3Dd` for Debug,
+  which bundles the debug builds of the dependencies and so the debug C runtime.
+  Installing the Debug configuration also adds the bundled vcpkg tree's debug
+  half (`--component Develop`). To serve Debug consumers, install both, e.g.
+  with a multi-config generator:
+
+  ```bat
+  cmake --install build --config Release --prefix <prefix>
+  cmake --install build --config Debug --prefix <prefix>
+  cmake --install build --config Release --prefix <prefix> --component Develop
+  cmake --install build --config Debug --prefix <prefix> --component Develop
+  ```
+
+  A consumer configuration without a matching installed build falls back to
+  the other one, which MSVC cannot link across debug and release C runtimes.
 - Output: a GUI-subsystem `Siv3D-App.exe` (~38 MB, self-contained). `Resource.rc`
   embeds assets by paths relative to the staged tree, so `App/CMakeLists.txt`
   adds `App/app/` to the RC `/I` include path.

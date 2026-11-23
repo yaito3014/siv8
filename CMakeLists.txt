@@ -360,20 +360,41 @@ if(NOT WIN32)
     target_link_libraries(Siv3DCore PUBLIC Threads::Threads)
 endif()
 
-# Walk a target's transitive link closure and collect the static/unknown imported
-# library FILES (so the fat lib bundles only what the engine actually links, not
-# every archive vcpkg happened to build — e.g. skottie/svg/sksg are never linked).
-function(_siv3d_fat_closure _root _outvar)
+# Collects the static library files the fat lib bundles for one build
+# configuration (DEBUG or RELEASE) by walking the engine's transitive link
+# closure, so it holds only what the engine links, not every archive vcpkg built
+# (e.g. skottie/svg/sksg are never linked). Imported targets give their location
+# for the configuration. Raw library paths (oscpack, or brotli/bz2/zstd/libpng
+# from dependencies' link interfaces) come in debug/release pairs, inside config
+# generator expressions or after optimized/debug keywords; instead of evaluating
+# those, each vcpkg path is assigned by its directory (<triplet>/debug/lib is
+# DEBUG, <triplet>/lib is RELEASE). Other paths are used for both.
+function(_siv3d_fat_closure _root _config _outvar)
+    string(TOLOWER "${SIV3D_VCPKG_TRIPLET_DIR}" _vcpkg)
+    if(_config STREQUAL "DEBUG")
+        set(_locations DEBUG)
+        set(_excluded "${_vcpkg}/lib/")
+    else()
+        set(_locations RELEASE RELWITHDEBINFO MINSIZEREL)
+        set(_excluded "${_vcpkg}/debug/lib/")
+    endif()
     set(_seen "")
     set(_libs "")
     set(_stack "${_root}")
     while(_stack)
         list(POP_BACK _stack _raw)
-        set(_item "${_raw}")
-        if(_item MATCHES "^\\$<LINK_ONLY:(.+)>$")          # absl & friends
+        if(_raw MATCHES "^\\$<LINK_ONLY:([^$<>]+)>$")
             set(_item "${CMAKE_MATCH_1}")
-        elseif(_item MATCHES "\\$<.*:([^:<>]+)>$")          # other config genexes
-            set(_item "${CMAKE_MATCH_1}")
+        elseif(_raw MATCHES "\\$<")
+            # A config generator expression, possibly cut at a ';' of its list:
+            # keep the library path in it, if any.
+            if(_raw MATCHES "(([A-Za-z]:)?/[^$<>;]*\\.(a|lib))")
+                set(_item "${CMAKE_MATCH_1}")
+            else()
+                continue()
+            endif()
+        else()
+            set(_item "${_raw}")
         endif()
         string(STRIP "${_item}" _item)
         if(_item STREQUAL "" OR _item IN_LIST _seen)
@@ -381,34 +402,33 @@ function(_siv3d_fat_closure _root _outvar)
         endif()
         list(APPEND _seen "${_item}")
         if(NOT TARGET "${_item}")
-            # raw library path (e.g. oscpack via find_library, brotli/expat from
-            # a dependency's interface) rather than an imported target.
             if(_item MATCHES "\\.(a|lib)$" AND EXISTS "${_item}")
-                list(APPEND _libs "${_item}")
+                file(TO_CMAKE_PATH "${_item}" _path)
+                string(TOLOWER "${_path}" _lower)
+                string(FIND "${_lower}" "${_excluded}" _at)
+                if(NOT _at EQUAL 0)
+                    list(APPEND _libs "${_path}")
+                endif()
             endif()
             continue()
         endif()
         get_target_property(_type "${_item}" TYPE)
-        if(_type STREQUAL "STATIC_LIBRARY" OR _type STREQUAL "UNKNOWN_LIBRARY")
-            get_target_property(_imp "${_item}" IMPORTED)
-            if(_imp)
-                set(_loc "")
-                foreach(_c RELEASE RELWITHDEBINFO MINSIZEREL DEBUG)
-                    get_target_property(_try "${_item}" IMPORTED_LOCATION_${_c})
-                    if(_try)
-                        set(_loc "${_try}")
-                        break()
-                    endif()
-                endforeach()
-                if(NOT _loc)
-                    get_target_property(_try "${_item}" IMPORTED_LOCATION)
-                    if(_try)
-                        set(_loc "${_try}")
-                    endif()
+        get_target_property(_imp "${_item}" IMPORTED)
+        if(_imp AND (_type STREQUAL "STATIC_LIBRARY" OR _type STREQUAL "UNKNOWN_LIBRARY"))
+            set(_loc "")
+            foreach(_c IN LISTS _locations)
+                get_target_property(_try "${_item}" IMPORTED_LOCATION_${_c})
+                if(_try)
+                    set(_loc "${_try}")
+                    break()
                 endif()
-                if(_loc AND _loc MATCHES "\\.(a|lib)$")
-                    list(APPEND _libs "${_loc}")
-                endif()
+            endforeach()
+            if(NOT _loc)
+                get_target_property(_loc "${_item}" IMPORTED_LOCATION)
+            endif()
+            if(_loc AND _loc MATCHES "\\.(a|lib)$")
+                file(TO_CMAKE_PATH "${_loc}" _loc)
+                list(APPEND _libs "${_loc}")
             endif()
         endif()
         foreach(_prop INTERFACE_LINK_LIBRARIES LINK_LIBRARIES)
@@ -419,9 +439,6 @@ function(_siv3d_fat_closure _root _outvar)
         endforeach()
     endwhile()
     list(REMOVE_DUPLICATES _libs)
-    # vcpkg ships debug variants under <triplet>/debug/lib; a config genex can
-    # drag them into the closure. Keep the release tree only.
-    list(FILTER _libs EXCLUDE REGEX "/debug/lib/")
     set(${_outvar} "${_libs}" PARENT_SCOPE)
 endfunction()
 
@@ -431,35 +448,60 @@ endfunction()
 # ============================================================================
 option(SIV3D_FAT_LIB "Build the fat libSiv3D.a bundling all deps" ${PROJECT_IS_TOP_LEVEL})
 if(SIV3D_FAT_LIB)
-    _siv3d_fat_closure(Siv3DCore _siv3d_fatdeps)
-    list(LENGTH _siv3d_fatdeps _siv3d_fatdeps_n)
-    message(STATUS "Siv3D fat lib: bundling ${_siv3d_fatdeps_n} dependency archives (engine link closure)")
-    set(_siv3d_fat "${CMAKE_BINARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    # One fat lib per configuration: Debug bundles the debug builds of the
+    # dependencies (with MSVC, those of the debug C runtime), the others the
+    # release ones. Both lists are fixed at configure time, whatever the
+    # generator's configurations, and must pair up one to one.
+    _siv3d_fat_closure(Siv3DCore RELEASE _siv3d_fatdeps_release)
+    if(IS_DIRECTORY "${SIV3D_VCPKG_TRIPLET_DIR}/debug/lib")
+        _siv3d_fat_closure(Siv3DCore DEBUG _siv3d_fatdeps_debug)
+    else()
+        # A release-only triplet has no debug builds to bundle.
+        set(_siv3d_fatdeps_debug "${_siv3d_fatdeps_release}")
+    endif()
+    list(LENGTH _siv3d_fatdeps_release _siv3d_fatdeps_n)
+    list(LENGTH _siv3d_fatdeps_debug _siv3d_fatdeps_debug_n)
+    if(NOT _siv3d_fatdeps_n EQUAL _siv3d_fatdeps_debug_n)
+        string(REPLACE ";" "\n  " _siv3d_r "${_siv3d_fatdeps_release}")
+        string(REPLACE ";" "\n  " _siv3d_d "${_siv3d_fatdeps_debug}")
+        message(FATAL_ERROR "Siv3D fat lib: ${_siv3d_fatdeps_n} release but "
+            "${_siv3d_fatdeps_debug_n} debug dependency archives; a dependency "
+            "lacks one of its builds.\nRelease:\n  ${_siv3d_r}\nDebug:\n  ${_siv3d_d}")
+    endif()
+    message(STATUS "Siv3D fat lib: bundling ${_siv3d_fatdeps_n} dependency archives per configuration (engine link closure)")
+
+    # A directory per configuration: Release, RelWithDebInfo and MinSizeRel share
+    # the file name, and a multi-config generator needs distinct outputs.
+    set(_siv3d_fat "${CMAKE_BINARY_DIR}/fatlib/$<CONFIG>/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D$<$<CONFIG:Debug>:d>${CMAKE_STATIC_LIBRARY_SUFFIX}")
     if(MSVC)
         # lib.exe merges (deduping by symbol, not content) from a response file of
         # the closure archives — quoted, one per line, to dodge cmd length limits.
-        set(_siv3d_rsp "")
-        foreach(_l IN LISTS _siv3d_fatdeps)
-            string(APPEND _siv3d_rsp "\"${_l}\"\n")
+        foreach(_siv3d_cfg release debug)
+            set(_siv3d_rsp "")
+            foreach(_l IN LISTS _siv3d_fatdeps_${_siv3d_cfg})
+                string(APPEND _siv3d_rsp "\"${_l}\"\n")
+            endforeach()
+            file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/_fatlib_inputs-${_siv3d_cfg}.rsp" CONTENT "${_siv3d_rsp}")
         endforeach()
-        file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/_fatlib_inputs.rsp" CONTENT "${_siv3d_rsp}")
+        set(_siv3d_inputs "${CMAKE_BINARY_DIR}/_fatlib_inputs-$<IF:$<CONFIG:Debug>,debug,release>.rsp")
         add_custom_command(OUTPUT "${_siv3d_fat}"
-            COMMAND lib.exe /NOLOGO "/OUT:${_siv3d_fat}" "$<TARGET_FILE:Siv3DCore>"
-                    "@${CMAKE_BINARY_DIR}/_fatlib_inputs.rsp"
-            DEPENDS Siv3DCore "${CMAKE_BINARY_DIR}/_fatlib_inputs.rsp" VERBATIM)
+            COMMAND lib.exe /NOLOGO "/OUT:${_siv3d_fat}" "$<TARGET_FILE:Siv3DCore>" "@${_siv3d_inputs}"
+            DEPENDS Siv3DCore "${_siv3d_inputs}" VERBATIM)
     else()
-        string(REPLACE ";" "\n" _siv3d_fatdeps_nl "${_siv3d_fatdeps}")
-        file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/_fatlib_inputs.txt" CONTENT "${_siv3d_fatdeps_nl}\n")
+        foreach(_siv3d_cfg release debug)
+            string(REPLACE ";" "\n" _siv3d_fatdeps_nl "${_siv3d_fatdeps_${_siv3d_cfg}}")
+            file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/_fatlib_inputs-${_siv3d_cfg}.txt" CONTENT "${_siv3d_fatdeps_nl}\n")
+        endforeach()
+        set(_siv3d_inputs "${CMAKE_BINARY_DIR}/_fatlib_inputs-$<IF:$<CONFIG:Debug>,debug,release>.txt")
         add_custom_command(OUTPUT "${_siv3d_fat}"
             COMMAND "${CMAKE_COMMAND}"
                 "-DSIV3D_MAIN_LIB=$<TARGET_FILE:Siv3DCore>"
-                "-DSIV3D_INPUTS_FILE=${CMAKE_BINARY_DIR}/_fatlib_inputs.txt"
+                "-DSIV3D_INPUTS_FILE=${_siv3d_inputs}"
                 "-DSIV3D_FATLIB_OUT=${_siv3d_fat}"
                 "-DSIV3D_AR=${CMAKE_AR}" "-DSIV3D_RANLIB=${CMAKE_RANLIB}"
-                "-DSIV3D_WORK=${CMAKE_BINARY_DIR}/_fatlib"
+                "-DSIV3D_WORK=${CMAKE_BINARY_DIR}/_fatlib/$<CONFIG>"
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DFatLib.cmake"
-            DEPENDS Siv3DCore "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DFatLib.cmake"
-                    "${CMAKE_BINARY_DIR}/_fatlib_inputs.txt"
+            DEPENDS Siv3DCore "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DFatLib.cmake" "${_siv3d_inputs}"
             COMMENT "Building deduped fat static lib: ${_siv3d_fat}" VERBATIM)
     endif()
     add_custom_target(Siv3D-fat ALL DEPENDS "${_siv3d_fat}")
@@ -582,16 +624,29 @@ install(TARGETS Siv3DCore EXPORT Siv3DCoreTargets
     FILE_SET HEADERS DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
 install(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
     DESTINATION "${SIV3D_INSTALL_VARIANT_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
-install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/"
-    DESTINATION "${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}"
+# The debug builds of the dependencies (~1.7 GB on Linux) ship only when the
+# Debug configuration is installed: the debug/ subtree together with the
+# *-debug.cmake imported-config files, which set IMPORTED_LOCATION_DEBUG to those
+# libs and would make find_package fail ("not all the files it references")
+# without them.
+set(_siv3d_bundle "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+set(_siv3d_bundle_dest "${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}")
+install(DIRECTORY "${_siv3d_bundle}/"
+    DESTINATION "${_siv3d_bundle_dest}"
     COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
-    # The SDK is a Release artifact; the debug build of every dep (~1.7 GB on
-    # Linux) is dead weight for a release consumer. Drop the debug/ subtree AND
-    # the matching *-debug.cmake imported-config files — those set
-    # IMPORTED_LOCATION_DEBUG to the now-absent debug libs and would make
-    # find_package fail with "not all the files it references".
     PATTERN "debug" EXCLUDE
     PATTERN "*-debug.cmake" EXCLUDE)
+if(IS_DIRECTORY "${_siv3d_bundle}/debug")
+    install(DIRECTORY "${_siv3d_bundle}/debug/"
+        DESTINATION "${_siv3d_bundle_dest}/debug"
+        CONFIGURATIONS Debug
+        COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
+    install(DIRECTORY "${_siv3d_bundle}/share/"
+        DESTINATION "${_siv3d_bundle_dest}/share"
+        CONFIGURATIONS Debug
+        COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
+        FILES_MATCHING PATTERN "*-debug.cmake")
+endif()
 
 # Strip implementation-only dep headers from the installed bundle — a consumer
 # never #includes them (boost alone is ~126 MB; the public Siv3D API only pulls
@@ -608,10 +663,11 @@ install(CODE "
     endforeach()
     file(REMOVE \"\${_siv3d_inc}/miniaudio.h\")
     # Unused Skia module libs — the engine links skia core only; skottie/svg/sksg
-    # are ~440 MB of dead weight in the release lib/ on Windows. Exact basenames
-    # so 'svg' doesn't clip lunasvg.
+    # are ~440 MB of dead weight in the release lib/ on Windows (and again in
+    # debug/lib). Exact basenames so 'svg' doesn't clip lunasvg.
     foreach(_siv3d_l skottie svg sksg)
-        file(REMOVE \"\${_siv3d_tp}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}\${_siv3d_l}${CMAKE_STATIC_LIBRARY_SUFFIX}\")
+        file(REMOVE \"\${_siv3d_tp}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}\${_siv3d_l}${CMAKE_STATIC_LIBRARY_SUFFIX}\"
+            \"\${_siv3d_tp}/debug/lib/${CMAKE_STATIC_LIBRARY_PREFIX}\${_siv3d_l}${CMAKE_STATIC_LIBRARY_SUFFIX}\")
     endforeach()
 " COMPONENT ${_siv3d_cmpt})
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DVcpkgShim.cmake"

@@ -10,17 +10,33 @@ set(Siv3D_MSVC_RUNTIME_LIBRARY "@SIV3D_MSVC_RUNTIME_LIBRARY@")
 # ----------------------------------------------------------------------------
 # Siv3D::Siv3D — the fat all-dependencies lib (default install). A raw archive,
 # so its usage requirements (C++23, flags, system libs) are attached here.
-# Defined only where the fat lib exists (an install prefix, not the build tree).
+# Defined only where a fat lib exists (an install prefix, not the build tree):
+# Siv3D for Release (also used by RelWithDebInfo and MinSizeRel) and Siv3Dd
+# for Debug, each installed with its configuration. A consumer configuration
+# with no matching build gets the other one.
 # ----------------------------------------------------------------------------
-set(_siv3d_fat "${PACKAGE_PREFIX_DIR}/@SIV3D_INSTALL_VARIANT_LIBDIR@/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
-if(EXISTS "${_siv3d_fat}" AND NOT TARGET Siv3D::Siv3D)
+set(_siv3d_fat_dir "${PACKAGE_PREFIX_DIR}/@SIV3D_INSTALL_VARIANT_LIBDIR@")
+set(_siv3d_fat_release "${_siv3d_fat_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set(_siv3d_fat_debug "${_siv3d_fat_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3Dd${CMAKE_STATIC_LIBRARY_SUFFIX}")
+if((EXISTS "${_siv3d_fat_release}" OR EXISTS "${_siv3d_fat_debug}") AND NOT TARGET Siv3D::Siv3D)
     if(NOT WIN32)
         include(CMakeFindDependencyMacro)
         find_dependency(Threads)
     endif()
     add_library(Siv3D::Siv3D STATIC IMPORTED)
+    if(EXISTS "${_siv3d_fat_release}")
+        set_property(TARGET Siv3D::Siv3D APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+        set_target_properties(Siv3D::Siv3D PROPERTIES
+            IMPORTED_LOCATION_RELEASE "${_siv3d_fat_release}"
+            MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE
+            MAP_IMPORTED_CONFIG_MINSIZEREL RELEASE)
+    endif()
+    if(EXISTS "${_siv3d_fat_debug}")
+        set_property(TARGET Siv3D::Siv3D APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
+        set_target_properties(Siv3D::Siv3D PROPERTIES
+            IMPORTED_LOCATION_DEBUG "${_siv3d_fat_debug}")
+    endif()
     set_target_properties(Siv3D::Siv3D PROPERTIES
-        IMPORTED_LOCATION "${_siv3d_fat}"
         # Siv3D headers + the bundled third-party headers (sibling dir).
         INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/Siv3D;${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/Siv3D-thirdparty"
         INTERFACE_COMPILE_FEATURES "cxx_std_23"
@@ -29,7 +45,9 @@ if(EXISTS "${_siv3d_fat}" AND NOT TARGET Siv3D::Siv3D)
         INTERFACE_LINK_LIBRARIES "@SIV3D_FAT_SYSTEM_LIBS@"
     )
 endif()
-unset(_siv3d_fat)
+unset(_siv3d_fat_dir)
+unset(_siv3d_fat_release)
+unset(_siv3d_fat_debug)
 
 # ----------------------------------------------------------------------------
 # Siv3D::Siv3DCore — engine archive + deps from the bundled vcpkg tree. Present
