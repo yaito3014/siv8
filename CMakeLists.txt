@@ -462,7 +462,7 @@ endif()
 # include/Siv3D-thirdparty (the Siv3D- prefix avoids colliding with system copies
 # in a shared prefix), added as a 2nd interface include by Siv3DConfig.cmake.in.
 set(SIV3D_THIRDPARTY_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D-thirdparty")
-set(_siv3d_depinc "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/include")
+set(_siv3d_depinc "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
 install(DIRECTORY
         "${_siv3d_depinc}/nlohmann"
         "${_siv3d_depinc}/absl"
@@ -545,7 +545,7 @@ install(TARGETS Siv3DCore EXPORT Siv3DCoreTargets
     FILE_SET HEADERS DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
 install(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
-install(DIRECTORY "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/"
+install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/"
     DESTINATION "${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}"
     COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
     # The SDK is a Release artifact; the debug build of every dep (~1.7 GB on
