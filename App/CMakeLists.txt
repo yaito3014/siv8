@@ -22,10 +22,10 @@ if(NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# macOS: UniformTypeIdentifiers (Clipboard/Dialog) needs 11+, and the metal-cpp
-# APIs target a recent SDK. Set a sane floor unless the caller overrode it.
+# macOS: floating-point std::to_chars needs 13.3+ in Apple's libc++. Match the
+# upstream Xcode project's MACOSX_DEPLOYMENT_TARGET unless the caller overrode it.
 if(APPLE AND NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "13.4" CACHE STRING "Minimum macOS version")
 endif()
 
 if(SIV3D_APP_USE_FIND_PACKAGE)
