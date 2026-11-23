@@ -96,10 +96,21 @@ foreach(_siv3d_dep IN LISTS SIV3D_DEPENDENCIES)
 endforeach()
 list(JOIN _siv3d_find_dependency_calls "\n" SIV3D_FIND_DEPENDENCY_CALLS)
 
+# The vcpkg tree in use, with forward slashes, to tell its debug libraries
+# (debug/lib) from its release ones (lib).
+file(TO_CMAKE_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}" SIV3D_VCPKG_TRIPLET_DIR)
+
 # oscpack (OSC networking) comes from vcpkg (formerly vendored in ThirdParty/).
-# The port exports no CMake config, so locate the headers + static lib directly.
+# The port exports no CMake config, so locate the headers and both builds of the
+# static lib directly; a release-only triplet has no debug one.
 find_path(OSCPACK_INCLUDE_DIR "osc/OscOutboundPacketStream.h" REQUIRED)
-find_library(OSCPACK_LIBRARY oscpack REQUIRED)
+find_library(OSCPACK_LIBRARY_RELEASE oscpack
+    PATHS "${SIV3D_VCPKG_TRIPLET_DIR}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(OSCPACK_LIBRARY_DEBUG oscpack
+    PATHS "${SIV3D_VCPKG_TRIPLET_DIR}/debug/lib" NO_DEFAULT_PATH)
+if(NOT OSCPACK_LIBRARY_DEBUG)
+    set(OSCPACK_LIBRARY_DEBUG "${OSCPACK_LIBRARY_RELEASE}")
+endif()
 
 # Fail early on a triplet with dynamic libraries (the static targets are absent).
 if(NOT TARGET mimalloc-static OR NOT TARGET zstd::libzstd_static)
@@ -302,7 +313,9 @@ target_link_libraries(Siv3DCore
 # oscpack: no exported target, so wire the located headers/lib by hand. On
 # Windows it needs Winsock (ws2_32) and winmm, both in SIV3D_WINDOWS_SYSTEM_LIBS.
 target_include_directories(Siv3DCore PRIVATE ${OSCPACK_INCLUDE_DIR})
-target_link_libraries(Siv3DCore PRIVATE ${OSCPACK_LIBRARY})
+target_link_libraries(Siv3DCore PRIVATE
+    "$<$<CONFIG:Debug>:${OSCPACK_LIBRARY_DEBUG}>"
+    "$<$<NOT:$<CONFIG:Debug>>:${OSCPACK_LIBRARY_RELEASE}>")
 
 # Platform system libraries.
 if(WIN32)
