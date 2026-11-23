@@ -130,7 +130,8 @@ jobs:
           prune: ${{ steps.configure.outcome == 'success' }}
       - name: Build
         working-directory: App
-        run: cmake --build build --parallel
+        # Makefiles take a bare --parallel as an unlimited "make -j".
+        run: cmake --build build --parallel "$(sysctl -n hw.ncpu)"
       - name: Test
         working-directory: App/app
         run: ./Siv3D-App.app/Contents/MacOS/Siv3D-App --test-only
