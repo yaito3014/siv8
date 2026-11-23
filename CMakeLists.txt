@@ -768,9 +768,8 @@ endif()
 if(SIV3D_BUILD_TESTS)
     find_package(nanobench CONFIG REQUIRED)
     file(GLOB_RECURSE SIV3D_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Test/*.cpp")
-    # Linux/macOS test vehicle. On Windows, Siv3DCore drags in Siv3DMainHelper
-    # (GUI entry expecting a user Main()), so a console test exe can't link —
-    # Windows runs the tests via RunTest() inside Siv3D-App instead.
+    # Linux/macOS test executable. On Windows it needs the App's embedded engine
+    # resources and app/ run directory, so App/CMakeLists.txt defines it there.
     if(SIV3D_TEST_SOURCES AND NOT WIN32)
         add_executable(Siv3D-Test ${SIV3D_TEST_SOURCES})
         target_link_libraries(Siv3D-Test PRIVATE Siv3D::Siv3DCore nanobench::nanobench)

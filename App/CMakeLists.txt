@@ -78,7 +78,7 @@ else()
     add_subdirectory("${SIV3D_ENGINE_DIR}" siv3d-engine)
 endif()
 
-# Windows packaging of an executable: a GUI-subsystem exe (the
+# Windows packaging shared by Siv3D-App and Siv3D-Test: a GUI-subsystem exe (the
 # engine provides WinMain(), which calls the program's Main()), the engine's
 # resources embedded through Resource.rc, the UTF-8 code-page manifest, and a
 # copy staged into app/ next to the engine/ + example/ assets, where it runs.
@@ -202,4 +202,36 @@ if(UNIX AND NOT APPLE)
             $<TARGET_FILE:Siv3D-App> "${CMAKE_CURRENT_SOURCE_DIR}/app/"
         COMMENT "Staging Siv3D-App into app/"
     )
+endif()
+
+# The standalone test executable on Windows (the engine defines Siv3D-Test on
+# Linux and macOS, where it needs neither embedded resources nor app/): the
+# suite, with Test/TestMain/TestMain.cpp providing a Main() that runs it.
+if(WIN32 AND SIV3D_APP_BUILD_TESTS)
+    add_executable(Siv3D-Test ${SIV3D_APP_TEST_SOURCES}
+        "${CMAKE_CURRENT_SOURCE_DIR}/../Test/ThirdParty/Catch2/catch_amalgamated.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../Test/TestMain/TestMain.cpp")
+    target_link_libraries(Siv3D-Test PRIVATE Siv3D::Siv3DCore)
+    target_compile_definitions(Siv3D-Test PRIVATE CATCH_AMALGAMATED_CUSTOM_MAIN)
+    target_include_directories(Siv3D-Test PRIVATE "${_siv3d_src}" ${_siv3d_platform_dirs})
+    if(MSVC)
+        target_precompile_headers(Siv3D-Test PRIVATE pch.h)
+    endif()
+    siv3d_app_windows_executable(Siv3D-Test)
+    set_target_properties(Siv3D-Test PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/app"
+        VS_DEBUGGER_ENVIRONMENT "SIV3D_APP_LAUNCHED_FROM_IDE=1")
+
+    # `ctest --test-dir <build>` runs the suite. RunTest() runs only from app/,
+    # and the engine switches to its executable's directory at startup, so run
+    # the copy staged there (see cmake/RunSiv3DTest.cmake for the report).
+    enable_testing()
+    add_test(NAME Siv3D-Test
+        COMMAND "${CMAKE_COMMAND}"
+            "-DEXE=${CMAKE_CURRENT_SOURCE_DIR}/app/$<TARGET_FILE_NAME:Siv3D-Test>"
+            "-DREPORT=${CMAKE_CURRENT_BINARY_DIR}/Siv3D-Test-report.txt"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunSiv3DTest.cmake")
+    # A Debug CRT assertion opens a modal dialog and would hang an unattended
+    # run (see TOML.Load.invalid in TODO.md), so bound it.
+    set_tests_properties(Siv3D-Test PROPERTIES TIMEOUT 900)
 endif()

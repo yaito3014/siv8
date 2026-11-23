@@ -9,51 +9,29 @@ For the vendored window library and its local integration changes, see
 
 ## Build and test
 
-On Windows, use PowerShell 7, Python, and Visual Studio C++ tools. Run from the
-repository root:
+On Windows, build `App/` with its tests (the default) using the Visual Studio C++
+tools and the vcpkg toolchain described in [BUILDING.md](../../BUILDING.md), then
+run the suite through CTest. From `App/`:
 
 ```powershell
-./WindowsDesktop/run-tests.ps1 -TestArguments '--test-case=*Mesh3D*', '--durations', 'yes'
-./WindowsDesktop/run-tests.ps1
-python tools/check_test_projects.py --windows-only
+cmake --preset windows
+cmake --build --preset windows
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-The Windows runner (`WindowsDesktop/run-tests.ps1`) can be invoked from any
-working directory. It checks Visual Studio test registration, builds the x64
-solution (default `Release`), and launches the test application with `--test-only`.
-Success requires exit code zero, a complete Catch2 XML report with no failures,
-and at least one executed, non-skipped test. A filter that matches nothing is an error.
+The build stages `Siv3D-Test.exe` into `App/app/`, the only directory `RunTest()`
+runs from, and CTest runs it through `App/cmake/RunSiv3DTest.cmake`. The script
+has Catch2 write its report to a file and prints it, because the engine's
+`Console` reattaches standard output to a console the first time a test writes
+to it, which cuts off a report read from the pipe. CTest's result follows the
+test executable's exit code. To pass Catch2 arguments, run the script directly:
 
-`-Configuration Debug` selects Debug; `-Jobs 4` controls build parallelism.
-`-SkipBuild` uses the existing application, which must already match the current
-sources and selected configuration. Pass each Catch2 execution argument as a
-separate element of `-TestArguments`. Report output, reporter selection, color,
-verbosity, query-only options and `--allow-running-no-tests` are reserved by the
-runner. Pass short options separately from their values (for example, `-d`,
-`yes`); combined short options and `--` are rejected. Use
-`Get-Help ./WindowsDesktop/run-tests.ps1 -Detailed` for script help.
+```powershell
+cmake "-DEXE=app/Siv3D-Test.exe" "-DREPORT=build/Siv3D-Test-report.txt" "-DTEST_ARGS=*Mesh3D*;--durations;yes" -P cmake/RunSiv3DTest.cmake
+```
 
-`-TimeoutSeconds 600` limits the test application's runtime, excluding the build;
-raise it for intentionally long tests. Timeout or interruption terminates the
-launched application and its child processes. The runner holds a file lock
-throughout the build and test run, so a second runner in the same checkout fails
-immediately. This lock does not coordinate manually launched tests or IDE builds.
-
-Console (`.txt`) and XML reports are retained in
-`WindowsDesktop/Intermediate/TestReports/` and can be
-removed when no longer needed. After reading a complete XML report from a
-zero-exit run, the runner appends captured test stdout/stderr to the console
-report and prints it, including benchmark tables. The empty `runner.lock` file may remain after a
-run; its existence does not indicate a held lock. The early-exit block in
-`WindowsDesktop/Main.cpp` is required by this workflow. Windows registration
-validation checks the Visual Studio project and its filters; it does not
-validate the Xcode project.
-
-After changing the runner, use `python tools/test_windows_runner.py` to check its
-success/failure handling, argument forwarding, lock release and timeout cleanup
-in a disposable checkout. This requires Windows' .NET Framework C# compiler and
-PowerShell 7; it uses a small fake application and does not build or launch Siv3D.
-Also run the real suite to verify the build and application integration.
+`Siv3D-App --test-only`, run from `App/app/`, runs the same suite inside the
+application.
 
 On macOS, run from the repository root, outside the sandbox:
 

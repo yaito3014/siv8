@@ -123,8 +123,10 @@ cmake --build build --config Release
 - Output: a GUI-subsystem `Siv3D-App.exe` (~38 MB, self-contained). `Resource.rc`
   embeds assets by paths relative to the staged tree, so `App/CMakeLists.txt`
   adds `App/app/` to the RC `/I` include path.
-- The standalone `Siv3D-Test` exe is **not** built (it can't link the GUI entry
-  point in `Siv3DMainHelper`); Windows runs tests in-app via `RunTest()`.
+- With tests enabled, `App/CMakeLists.txt` also builds a standalone
+  GUI-subsystem `Siv3D-Test.exe` with the same embedded resources, staged into
+  `App/app/`, and registers it with CTest: `ctest --test-dir build -C Release
+  --output-on-failure` runs the suite (drop `-C` for single-config generators).
 
 ### Linux (GLFW + OpenGL 4.1 — renders the full 2D scene)
 
@@ -239,7 +241,8 @@ lands), and the device-service stubs (clipboard / drag-drop / notifications / �
 The standalone `Siv3D-Test` exe gets its `Main()` from `Test/TestMain/TestMain.cpp`
 (a subdirectory so the engine's recursive `Test/*.cpp` glob includes it but the
 App's non-recursive `../Test/*.cpp` glob does not — avoiding a clash with
-`App/Main.cpp`). `Siv3D-Test` stays gated off on Windows.
+`App/Main.cpp`). On Windows, `App/CMakeLists.txt` defines `Siv3D-Test` instead,
+because it needs the App's embedded resources and its `App/app/` run directory.
 
 ## Windows build notes (non-obvious bits)
 
