@@ -1,5 +1,7 @@
 @PACKAGE_INIT@
 
+# One build of Siv3D, loaded by Siv3DConfig.cmake.
+
 # The MSVC C runtime Siv3D and its bundled dependencies were built with (empty
 # outside MSVC). Consumer targets must use the same kind (static or DLL), e.g.
 #   set_property(TARGET app PROPERTY MSVC_RUNTIME_LIBRARY "${Siv3D_MSVC_RUNTIME_LIBRARY}")
@@ -10,7 +12,7 @@ set(Siv3D_MSVC_RUNTIME_LIBRARY "@SIV3D_MSVC_RUNTIME_LIBRARY@")
 # so its usage requirements (C++23, flags, system libs) are attached here.
 # Defined only where the fat lib exists (an install prefix, not the build tree).
 # ----------------------------------------------------------------------------
-set(_siv3d_fat "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
+set(_siv3d_fat "${PACKAGE_PREFIX_DIR}/@SIV3D_INSTALL_VARIANT_LIBDIR@/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
 if(EXISTS "${_siv3d_fat}" AND NOT TARGET Siv3D::Siv3D)
     if(NOT WIN32)
         include(CMakeFindDependencyMacro)

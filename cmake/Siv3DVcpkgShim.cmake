@@ -1,7 +1,8 @@
 # Route find_package through the bundled share/<port>/vcpkg-cmake-wrapper.cmake
 # so bundled port configs (e.g. freetype) resolve their own deps without a vcpkg
-# toolchain. Siv3DConfig includes this only when the bundle is present; it backs
-# off under the real toolchain or if find_package is already overridden.
+# toolchain. Siv3DVariantConfig includes this only when the bundle is present;
+# it backs off under the real toolchain or if find_package is already
+# overridden.
 if(NOT VCPKG_TOOLCHAIN AND NOT COMMAND _find_package)
     set(z_siv3d_shim_depth 0)
     macro(find_package z_siv3d_shim_name)

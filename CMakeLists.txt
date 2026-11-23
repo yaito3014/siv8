@@ -37,9 +37,10 @@ set(SIV3D_INCLUDE "${SIV3D_DIR}/include")
 # Binary dependencies (vcpkg manifest, static)
 # ============================================================================
 # Each element holds one package's find_package arguments, space-separated.
-# The same list generates the find_dependency calls in Siv3DConfig.cmake: the
-# exported link interface of a static library keeps its PRIVATE dependencies
-# (as $<LINK_ONLY:...>), so consumers need every package found here.
+# The same list generates the find_dependency calls in
+# Siv3DVariantConfig.cmake: the exported link interface of a static library
+# keeps its PRIVATE dependencies (as $<LINK_ONLY:...>), so consumers need every
+# package found here.
 set(SIV3D_DEPENDENCIES
     # Freetype via CONFIG so harfbuzz reuses the same target.
     "Freetype CONFIG"
@@ -183,7 +184,7 @@ target_compile_features(Siv3DCore PUBLIC cxx_std_23)
 set_target_properties(Siv3DCore PROPERTIES CXX_EXTENSIONS OFF DEBUG_POSTFIX d EXPORT_NO_SYSTEM TRUE)
 
 # Usage requirements for consumers of the headers. The fat-lib target in
-# Siv3DConfig.cmake gets the same lists, so keep one option per genex: each
+# Siv3DVariantConfig.cmake gets the same lists, so keep one option per genex: each
 # element must survive substitution into the config as a list item.
 set(SIV3D_PUBLIC_COMPILE_OPTIONS
     "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>"
@@ -454,13 +455,38 @@ endif()
 # ============================================================================
 # Install: fat libSiv3D.a + headers (usable from any build system, or CMake).
 # ============================================================================
+# The C runtime of this build, exported so consumers can match it (empty
+# outside MSVC). A subproject may leave CMAKE_MSVC_RUNTIME_LIBRARY unset, i.e.
+# CMake's default.
+set(SIV3D_MSVC_RUNTIME_LIBRARY "${CMAKE_MSVC_RUNTIME_LIBRARY}")
+if(MSVC AND NOT SIV3D_MSVC_RUNTIME_LIBRARY)
+    set(SIV3D_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
+
+# With MSVC, the libraries and the CMake files of a build go to a subdirectory
+# named after its C runtime kind (mt: static, md: DLL), so builds for both can
+# be installed into one prefix; cmake/Siv3DConfig.cmake picks between them.
+# Headers are the same for both and stay shared.
+set(_siv3d_variant_subdir "")
+if(MSVC)
+    siv3d_msvc_runtime_kind("${SIV3D_MSVC_RUNTIME_LIBRARY}" _siv3d_crt_kind)
+    if(_siv3d_crt_kind STREQUAL "static")
+        set(_siv3d_variant_subdir "/mt")
+    else()
+        set(_siv3d_variant_subdir "/md")
+    endif()
+endif()
+set(SIV3D_INSTALL_VARIANT_LIBDIR "${CMAKE_INSTALL_LIBDIR}${_siv3d_variant_subdir}")
+set(SIV3D_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/Siv3D")
+set(SIV3D_INSTALL_VARIANT_CMAKEDIR "${SIV3D_INSTALL_CMAKEDIR}${_siv3d_variant_subdir}")
+
 if(SIV3D_FAT_LIB)
-    install(FILES "${_siv3d_fat}" DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+    install(FILES "${_siv3d_fat}" DESTINATION "${SIV3D_INSTALL_VARIANT_LIBDIR}")
 endif()
 
 # Third-party headers the public Siv3D headers include go to a sibling
 # include/Siv3D-thirdparty (the Siv3D- prefix avoids colliding with system copies
-# in a shared prefix), added as a 2nd interface include by Siv3DConfig.cmake.in.
+# in a shared prefix), added as a 2nd interface include by Siv3DVariantConfig.cmake.in.
 set(SIV3D_THIRDPARTY_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D-thirdparty")
 set(_siv3d_depinc "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
 install(DIRECTORY
@@ -495,7 +521,6 @@ install(FILES ${_siv3d_dxmath} DESTINATION "${SIV3D_THIRDPARTY_INCLUDEDIR}")
 #   Siv3D::Siv3DCore  engine + deps from the bundle ('Develop' component)
 # ============================================================================
 include(CMakePackageConfigHelpers)
-set(SIV3D_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/Siv3D")
 set(SIV3D_VCPKG_BUNDLE_RELDIR "${CMAKE_INSTALL_DATAROOTDIR}/Siv3D/vcpkg")
 
 # System libraries for the fat target (the raw .a has none of its own usage
@@ -516,15 +541,12 @@ else()
     set(SIV3D_FAT_SYSTEM_LIBS "Threads::Threads;${CMAKE_DL_LIBS};m;GL;X11;uuid")
 endif()
 
-# Exported so consumers can build with the same C runtime (empty outside MSVC).
-# A subproject may leave CMAKE_MSVC_RUNTIME_LIBRARY unset, i.e. CMake's default.
-set(SIV3D_MSVC_RUNTIME_LIBRARY "${CMAKE_MSVC_RUNTIME_LIBRARY}")
-if(MSVC AND NOT SIV3D_MSVC_RUNTIME_LIBRARY)
-    set(SIV3D_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-endif()
-configure_package_config_file("cmake/Siv3DConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfig.cmake"
-    INSTALL_DESTINATION "${SIV3D_INSTALL_CMAKEDIR}")
+# The build tree mirrors the installed cmake/Siv3D layout, so -DSiv3D_DIR=<build>
+# goes through the same dispatcher.
+configure_package_config_file("cmake/Siv3DVariantConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}${_siv3d_variant_subdir}/Siv3DVariantConfig.cmake"
+    INSTALL_DESTINATION "${SIV3D_INSTALL_VARIANT_CMAKEDIR}")
+configure_file("cmake/Siv3DConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfig.cmake" COPYONLY)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfigVersion.cmake"
     COMPATIBILITY SameMinorVersion)
@@ -534,6 +556,8 @@ install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfigVersion.cmake"
     DESTINATION "${SIV3D_INSTALL_CMAKEDIR}")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}${_siv3d_variant_subdir}/Siv3DVariantConfig.cmake"
+    DESTINATION "${SIV3D_INSTALL_VARIANT_CMAKEDIR}")
 
 # 'Develop' component (EXCLUDE_FROM_ALL): core archive + bundle + shim.
 #   cmake --install <build> --component Develop
@@ -541,10 +565,10 @@ set(_siv3d_cmpt Develop)
 # The public headers install by default (the fat lib needs them too), nested
 # under include/Siv3D to avoid polluting a shared prefix.
 install(TARGETS Siv3DCore EXPORT Siv3DCoreTargets
-    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
+    ARCHIVE DESTINATION "${SIV3D_INSTALL_VARIANT_LIBDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
     FILE_SET HEADERS DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/Siv3D")
 install(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
-    DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
+    DESTINATION "${SIV3D_INSTALL_VARIANT_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
 install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/"
     DESTINATION "${SIV3D_VCPKG_BUNDLE_RELDIR}/${VCPKG_TARGET_TRIPLET}"
     COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL
@@ -578,11 +602,11 @@ install(CODE "
     endforeach()
 " COMPONENT ${_siv3d_cmpt})
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DVcpkgShim.cmake"
-    DESTINATION "${SIV3D_INSTALL_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
+    DESTINATION "${SIV3D_INSTALL_VARIANT_CMAKEDIR}" COMPONENT ${_siv3d_cmpt} EXCLUDE_FROM_ALL)
 
 # Build-tree export for -DSiv3D_DIR=<build>.
 export(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/Siv3DCoreTargets.cmake")
+    FILE "${CMAKE_CURRENT_BINARY_DIR}${_siv3d_variant_subdir}/Siv3DCoreTargets.cmake")
 
 # ============================================================================
 # Tests (vcpkg 'tests' feature)

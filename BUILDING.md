@@ -90,8 +90,15 @@ cmake --build build --config Release
   `vcpkg integrate install` (`VcpkgEnabled=false`), whose include paths would
   shadow the engine's headers; other projects that `add_subdirectory` the
   engine should do the same.
-- An installed package exports `Siv3D_MSVC_RUNTIME_LIBRARY`; set it as the
-  `MSVC_RUNTIME_LIBRARY` of targets that link Siv3D.
+- An install keeps each C runtime's build apart (`lib/mt`, `lib/md` and the
+  matching `lib/cmake/Siv3D/mt`, `md`), so the `windows` and `windows-md`
+  builds of the root project can be installed into one prefix; the headers
+  are shared. `find_package(Siv3D)` loads the build matching the consumer's
+  `CMAKE_MSVC_RUNTIME_LIBRARY` (unset means the DLL CRT) and fails if that
+  build is not installed. A project that sets `MSVC_RUNTIME_LIBRARY` per target
+  instead chooses with `SIV3D_MSVC_CRT` (`static` or `DLL`). The loaded build
+  exports `Siv3D_MSVC_RUNTIME_LIBRARY`; set it as the `MSVC_RUNTIME_LIBRARY` of
+  targets that link Siv3D.
 - Output: a GUI-subsystem `Siv3D-App.exe` (~38 MB, self-contained). `Resource.rc`
   embeds assets by paths relative to the staged tree, so `App/CMakeLists.txt`
   adds `App/app/` to the RC `/I` include path.
