@@ -46,8 +46,12 @@ jobs:
       - name: Build and test
         shell: pwsh
         # Hosted runners have no GPU; the engine falls back to WARP, which is
-        # much slower than the 600-second default allows for.
-        run: ./WindowsDesktop/run-tests.ps1 -Jobs 4 -TimeoutSeconds 3600
+        # much slower than the 600-second default allows for. Cases WARP
+        # renders differently are listed in .github/windows-warp-known-failures.txt.
+        run: |
+          $exclusions = Get-Content .github/windows-warp-known-failures.txt |
+            Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { "~`"$_`"" }
+          ./WindowsDesktop/run-tests.ps1 -Jobs 4 -TimeoutSeconds 3600 -TestArguments ($exclusions -join ' ')
       - name: Upload test reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
