@@ -78,6 +78,32 @@ else()
     add_subdirectory("${SIV3D_ENGINE_DIR}" siv3d-engine)
 endif()
 
+# Windows packaging of an executable: a GUI-subsystem exe (the
+# engine provides WinMain(), which calls the program's Main()), the engine's
+# resources embedded through Resource.rc, the UTF-8 code-page manifest, and a
+# copy staged into app/ next to the engine/ + example/ assets, where it runs.
+function(siv3d_app_windows_executable target)
+    set_target_properties(${target} PROPERTIES WIN32_EXECUTABLE ON)
+    # Resource.rc references icon.ico by bare name, so they live together.
+    target_sources(${target} PRIVATE
+        platform/WindowsDesktop/Resource.rc
+        platform/WindowsDesktop/codepage.manifest)
+    # Resource.rc embeds engine/... assets relative to app/; put app/ on the RC
+    # include path so rc.exe resolves them.
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/app")
+    if(MSVC)
+        target_compile_definitions(${target} PRIVATE _WINDOWS)
+    endif()
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -DEXE=$<TARGET_FILE:${target}>
+            -DSRC_DIR=$<TARGET_FILE_DIR:${target}>
+            -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/app
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyAppBinaries.cmake"
+        COMMENT "Staging ${target} into app/"
+    )
+endfunction()
+
 set(SIV3D_APP_SOURCES Main.cpp)
 if(SIV3D_APP_BUILD_TESTS)
     file(GLOB SIV3D_APP_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../Test/*.cpp")
@@ -112,16 +138,7 @@ if(MSVC)
 endif()
 
 if(WIN32)
-    # WinMain() is provided by the Siv3D library; the app is a GUI-subsystem exe.
-    set_target_properties(Siv3D-App PROPERTIES WIN32_EXECUTABLE ON)
-    # Icon/embedded-asset resources + UTF-8 code-page manifest. (Resource.rc
-    # references icon.ico by bare name, so they live together.)
-    target_sources(Siv3D-App PRIVATE
-        platform/WindowsDesktop/Resource.rc
-        platform/WindowsDesktop/codepage.manifest)
-    # Resource.rc embeds engine/... assets relative to app/; put app/ on the RC
-    # include path so rc.exe resolves them.
-    target_include_directories(Siv3D-App PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/app")
+    siv3d_app_windows_executable(Siv3D-App)
 elseif(APPLE)
     # .app bundle (Info.plist + icon). NOTE: everything below is UNVERIFIED —
     # wired by reference (no macOS to build/run on). pdfium (app/dll/dll/
@@ -170,10 +187,6 @@ elseif(APPLE)
     )
 endif()
 
-if(MSVC)
-    target_compile_definitions(Siv3D-App PRIVATE _WINDOWS)
-endif()
-
 # F5 in Visual Studio runs from app/ (the engine/ + example/ assets).
 set_target_properties(Siv3D-App PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/app"
@@ -181,17 +194,9 @@ set_target_properties(Siv3D-App PROPERTIES
 )
 
 # Stage the exe into app/ (next to the engine/ + example/ assets) so it runs in
-# place: App/app/Siv3D-App. (macOS ships a .app bundle instead.)
-if(WIN32)
-    add_custom_command(TARGET Siv3D-App POST_BUILD
-        COMMAND ${CMAKE_COMMAND}
-            -DEXE=$<TARGET_FILE:Siv3D-App>
-            -DSRC_DIR=$<TARGET_FILE_DIR:Siv3D-App>
-            -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/app
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyAppBinaries.cmake"
-        COMMENT "Staging Siv3D-App into app/"
-    )
-elseif(UNIX AND NOT APPLE)
+# place: App/app/Siv3D-App. (Windows stages it in siv3d_app_windows_executable();
+# macOS ships a .app bundle instead.)
+if(UNIX AND NOT APPLE)
     add_custom_command(TARGET Siv3D-App POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:Siv3D-App> "${CMAKE_CURRENT_SOURCE_DIR}/app/"
