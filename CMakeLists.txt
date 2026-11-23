@@ -241,6 +241,10 @@ target_link_libraries(Siv3DCore
         nanoflann::nanoflann
         fmt::fmt
         toml11::toml11
+        absl::int128
+        absl::function_ref
+        absl::random_distributions
+        mimalloc-static
         unofficial::obfuscate::obfuscate
         unofficial::xoshiro-cpp::xoshiro-cpp
         unofficial::enumbitmask::enumbitmask
@@ -253,10 +257,7 @@ target_link_libraries(Siv3DCore
         PNG::PNG
         ZLIB::ZLIB
         ${OpenCV_LIBS}
-        absl::int128
-        absl::function_ref
         absl::random_random
-        absl::random_distributions
         oniguruma::onig
         Boost::headers
         Boost::filesystem
@@ -266,7 +267,6 @@ target_link_libraries(Siv3DCore
         simdutf::simdutf
         lunasvg::lunasvg
         zstd::libzstd_static
-        mimalloc-static
         libjpeg-turbo::jpeg-static
         libjpeg-turbo::turbojpeg-static
         unofficial::bc7enc-rdo::bc7enc_rdo
