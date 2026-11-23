@@ -10,7 +10,10 @@ there is no vendored-lib / MSBuild path anymore.
 - **Root `CMakeLists.txt`** — the engine library only (`Siv3D::Siv3DCore`, fat
   `libSiv3D.a`). A pure library project; it has no app awareness. To configure
   it on its own (e.g. to install the SDK), use the root `CMakePresets.json`
-  (`windows`, `windows-md`, `linux`).
+  (`windows`, `windows-md`, `linux`). Such a build also registers CTest tests
+  for the fat lib: after building a configuration,
+  `ctest --test-dir <build> -C <config>` links every member of it, installed
+  to a prefix in the build tree, into `cmake/FatLibLinkTest`.
 - **`App/`** — the **top-level** project you build. It drives the engine via
   `add_subdirectory` (default) or `find_package` (opt-in). Configure/build from
   here, not from the repo root.

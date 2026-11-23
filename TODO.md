@@ -47,6 +47,20 @@
 - `SaveCurrentFrame(U"/private/tmp/shot0.png")` が、macOS で `~/Pictures/Screenshot//private/tmp/shot0.png` に保存される。現在の `CScreenCapture.cpp` の保存処理は設定済みディレクトリと引数を単純連結し、公開ヘッダは引数を「ファイル名」としている。絶対パスをそのまま使うか、保存先からの相対指定に限定して絶対パスを拒否するか、既存利用との互換性を含めて決める。
 - ファイル名・相対サブディレクトリ・絶対パス・末尾区切りのない保存先・空の引数の扱いを整理し、Doxygen と専用の保存先テストを揃える。空の引数は現在、ファイル保存を伴わないキャプチャ要求として使われるため、その用途を維持する。Windows のドライブ文字・UNC パスは Windows 上で確認する。
 
+## `Siv3D/include/Siv3D/MessageBox.hpp`
+
+### タイトル付きオーバーロードの定義
+
+- `System::MessageBoxOK` / `MessageBoxOKCancel` / `MessageBoxYesNo` のタイトルを受け取るオーバーロードは macOS (`SivMessageBox_macOS.mm`) にしか定義がない。共通実装 (`SivMessageBox.cpp`) のタイトルなしのオーバーロードもこれを呼ぶため、Windows と Linux ではどちらを呼んでもリンクに失敗する。両プラットフォームの実装を追加したら、`cmake/FatLibLinkTest/Main.cpp` の対応するスタブを削除する。
+
+## `Siv3D/include/Siv3D/Dialog.hpp` / `Siv3D/include/Siv3D/MonitorInfo.hpp` (Linux)
+
+- Linux には `Dialog::OpenFile` / `Dialog::SaveFile` と `System::EnumerateMonitors` / `System::GetCurrentMonitorIndex` の定義がない。直接の呼び出しに加え、`Dialog::OpenImage` などの共通実装や、`Window::SetFullscreen` の既定引数を使う呼び出しもリンクに失敗する。実装を追加したら、`cmake/FatLibLinkTest/Main.cpp` の対応するスタブを削除する。
+
+## vcpkg overlay port `bc7enc-rdo`
+
+- `overlay-ports/bc7enc-rdo/build-CMakeLists.txt` は `lodepng.cpp` と `bc7decomp_ref.cpp` をビルドしないが、ビルド対象の `utils.cpp` が `lodepng::decode` / `encode` を、`rdo_bc_encoder.cpp` が `bc7decomp_ref::unpack_bc7` を参照する。エンジンは参照元の関数を使わないため通常のリンクは通るが、ライブラリは未解決の参照を含む。必要な TU を追加するか参照元を除くかを決め、`cmake/FatLibLinkTest/Main.cpp` の対応するスタブを削除する。
+
 ## Renderer2D / 組み込みシェーダ最適化
 
 - [D3D11 / Metal 統合計画](docs/renderer2d/proposals/shader-optimization-plan.md)の初期 3 段階（A2 Truchet、A1 Pattern 色加算、A4 MSDF 除算）は、D3D11 の変更前後の描画 A/B、両バックエンドの GPU 時間評価を残している。中間命令の削減を実行時間の改善率とみなさず、描画比較と安定した反復計測を踏まえて最終判断する。新たな最適化の着手前には方針・変更箇所・期待結果を説明して承認を得る。

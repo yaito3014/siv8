@@ -677,6 +677,46 @@ export(EXPORT Siv3DCoreTargets NAMESPACE Siv3D::
     FILE "${CMAKE_CURRENT_BINARY_DIR}${_siv3d_variant_subdir}/Siv3DCoreTargets.cmake")
 
 # ============================================================================
+# Fat-lib tests (ctest -C <config>, after building that configuration). The
+# link test installs the configuration's default component to a prefix in the
+# build tree, then builds cmake/FatLibLinkTest against it with the same
+# toolchain.
+# ============================================================================
+if(SIV3D_FAT_LIB AND PROJECT_IS_TOP_LEVEL)
+    enable_testing()
+    set(_siv3d_flt "${CMAKE_CURRENT_BINARY_DIR}/FatLibLinkTest/$<CONFIG>")
+    add_test(NAME FatLib.install
+        COMMAND "${CMAKE_COMMAND}" --install "${CMAKE_CURRENT_BINARY_DIR}"
+            --config $<CONFIG> --prefix "${_siv3d_flt}/prefix")
+    set_tests_properties(FatLib.install PROPERTIES FIXTURES_SETUP Siv3DFatLibInstalled)
+
+    set(_siv3d_flt_generator --build-generator "${CMAKE_GENERATOR}")
+    if(CMAKE_GENERATOR_PLATFORM)
+        list(APPEND _siv3d_flt_generator --build-generator-platform "${CMAKE_GENERATOR_PLATFORM}")
+    endif()
+    if(CMAKE_GENERATOR_TOOLSET)
+        list(APPEND _siv3d_flt_generator --build-generator-toolset "${CMAKE_GENERATOR_TOOLSET}")
+    endif()
+    if(CMAKE_MAKE_PROGRAM)
+        list(APPEND _siv3d_flt_generator --build-makeprogram "${CMAKE_MAKE_PROGRAM}")
+    endif()
+    set(_siv3d_flt_options
+        "-DCMAKE_BUILD_TYPE=$<CONFIG>"
+        "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        "-DCMAKE_PREFIX_PATH=${_siv3d_flt}/prefix")
+    if(MSVC)
+        list(APPEND _siv3d_flt_options "-DSIV3D_MSVC_CRT=${_siv3d_crt_kind}")
+    endif()
+    add_test(NAME FatLib.wholeArchiveLink
+        COMMAND "${CMAKE_CTEST_COMMAND}" --build-and-test
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/FatLibLinkTest" "${_siv3d_flt}/build"
+            ${_siv3d_flt_generator}
+            --build-config $<CONFIG>
+            --build-options ${_siv3d_flt_options})
+    set_tests_properties(FatLib.wholeArchiveLink PROPERTIES FIXTURES_REQUIRED Siv3DFatLibInstalled)
+endif()
+
+# ============================================================================
 # Tests (vcpkg 'tests' feature)
 # ============================================================================
 if(SIV3D_BUILD_TESTS)
