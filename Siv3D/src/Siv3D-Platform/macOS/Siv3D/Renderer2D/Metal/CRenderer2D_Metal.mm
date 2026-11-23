@@ -39,6 +39,14 @@ namespace s3d
 {
 	namespace
 	{
+		// A vertex range is bound at an aligned vertex and only the remainder of its
+		// base is passed as baseVertex: the paravirtual GPU of macOS virtual machines
+		// draws nothing for baseVertex >= 65536. macOS requires 256-byte aligned
+		// offsets for vertex buffers in the constant address space.
+		inline constexpr uint32 VertexBufferOffsetAlignment = (256 / sizeof(Vertex2D));
+
+		static_assert((256 % sizeof(Vertex2D)) == 0);
+
 		[[nodiscard]]
 		static constexpr MTL::ScissorRect MakeScissorRect(const Rect& rect) noexcept
 		{
@@ -1684,6 +1692,7 @@ namespace s3d
 			commandState.startIndexLocation = m_indexReadPos;
 			
 			renderCommandEncoder->setVertexBuffer(m_vertexBufferManager.getVertexBuffer(), 0, 0);
+			uint32 boundBaseVertex = 0;
 			
 			for (const auto& command : m_commandManager.getCommands())
 			{
@@ -1727,9 +1736,16 @@ namespace s3d
 						
 						LOG_COMMAND(fmt::format("Draw[{}] indexCount = {}, startIndexLocation = {}, baseVertex = {}", command.index, indexCount, commandState.startIndexLocation, draw.baseVertex));
 						
+						const uint32 alignedBaseVertex = (draw.baseVertex - (draw.baseVertex % VertexBufferOffsetAlignment));
+						if (alignedBaseVertex != boundBaseVertex)
+						{
+							renderCommandEncoder->setVertexBufferOffset((sizeof(Vertex2D) * alignedBaseVertex), 0);
+							boundBaseVertex = alignedBaseVertex;
+						}
+
 						// インデックスバッファ内のバイト位置と、頂点区間の基準位置を別々に指定する
 						renderCommandEncoder->drawIndexedPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle, indexCount, MTL::IndexTypeUInt16, m_vertexBufferManager.getIndexBuffer(),
-							(sizeof(Vertex2D::IndexType) * commandState.startIndexLocation), 1, draw.baseVertex, 0);
+							(sizeof(Vertex2D::IndexType) * commandState.startIndexLocation), 1, (draw.baseVertex - alignedBaseVertex), 0);
 						commandState.startIndexLocation += indexCount;
 						
 						++stat.drawCalls;
