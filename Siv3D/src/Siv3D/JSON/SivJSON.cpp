@@ -17,6 +17,7 @@
 # include <Siv3D/Error.hpp>
 # include <Siv3D/TextFileWriter.hpp>
 # include <Siv3D/BinaryFileReader.hpp>
+# include <type_traits>
 
 namespace s3d
 {
@@ -1126,20 +1127,14 @@ namespace s3d
 		}
 	}
 
-	const JSON::json_base& JSON::getConstRef() const
+	const JSON::json_base& JSON::getConstRef() const noexcept
 	{
-		if (std::holds_alternative<json_base>(m_json))
-		{
-			return std::get<json_base>(m_json);
-		}
-		else if (std::holds_alternative<std::reference_wrapper<json_base>>(m_json))
-		{
-			return std::get<std::reference_wrapper<json_base>>(m_json).get();
-		}
-		else
-		{
-			return std::get<std::reference_wrapper<const json_base>>(m_json).get();
-		}
+		// m_json is never valueless, so std::visit cannot throw: it is replaced
+		// only by assignment from a json_base rvalue or by swap, neither of which
+		// can throw while every alternative is nothrow move constructible.
+		static_assert(std::is_nothrow_move_constructible_v<decltype(m_json)>);
+
+		return std::visit([](const auto& json) -> const json_base& { return json; }, m_json);
 	}
 
 	inline namespace Literals

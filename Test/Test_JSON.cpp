@@ -302,6 +302,23 @@ TEST_CASE("JSON.mutationAndReferences")
 	CHECK(json["values"].size() == 0);
 }
 
+TEST_CASE("JSON.observersOnOwnedAndBorrowedValues")
+{
+	JSON root = JSON::Parse(R"({"values":[1,2,3]})");
+	const JSON& constRoot = root;
+	const JSON owned = root["values"].clone();
+	const JSON borrowed = root["values"];
+	const JSON constBorrowed = constRoot["values"];
+	for (const JSON* json : { &owned, &borrowed, &constBorrowed })
+	{
+		static_assert(noexcept(json->isArray()));
+		static_assert(noexcept(json->size()));
+		CHECK(json->isArray());
+		CHECK(json->size() == 3);
+		CHECK((*json)[1].get<int32>() == 2);
+	}
+}
+
 TEST_CASE("JSON.iteration")
 {
 	JSON object = JSON::Parse(R"({"z":1,"a":2,"日本語":3})");

@@ -951,7 +951,7 @@ namespace s3d
 		json_base& getRef();
 
 		[[nodiscard]]
-		const json_base& getConstRef() const;
+		const json_base& getConstRef() const noexcept;
 	};
 
 	////////////////////////////////////////////////////////////////
