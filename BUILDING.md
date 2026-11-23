@@ -8,7 +8,9 @@ there is no vendored-lib / MSBuild path anymore.
 ## Layout
 
 - **Root `CMakeLists.txt`** — the engine library only (`Siv3D::Siv3DCore`, fat
-  `libSiv3D.a`). A pure library project; it has no app awareness.
+  `libSiv3D.a`). A pure library project; it has no app awareness. To configure
+  it on its own (e.g. to install the SDK), use the root `CMakePresets.json`
+  (`windows`, `windows-md`, `linux`).
 - **`App/`** — the **top-level** project you build. It drives the engine via
   `add_subdirectory` (default) or `find_package` (opt-in). Configure/build from
   here, not from the repo root.
@@ -77,12 +79,14 @@ cmake --build build --config Release
   `windows-md` preset or `-DVCPKG_TARGET_TRIPLET=x64-windows-static-md`.
 - The C runtime follows the triplet: MSVC cannot link objects built against
   different C runtimes (LNK2038), and the triplet decides the one every vcpkg
-  dependency uses. Unless `CMAKE_MSVC_RUNTIME_LIBRARY` is set, the App and the
-  engine derive it from `<arch>-windows-static[-md]`. If it is set, it must agree
-  with the triplet; with a custom triplet name, it must be set
-  (`cmake/Siv3DMSVCRuntime.cmake`).
-- The engine sets no triplet, C runtime or `CMAKE_VS_GLOBALS` of its own; those
-  belong to the top-level project. The App disables a user-wide
+  dependency uses. The top-level project (the App, or the engine configured on
+  its own) derives `CMAKE_MSVC_RUNTIME_LIBRARY` from `<arch>-windows-static[-md]`
+  unless it is set. As a subproject, the engine keeps the including project's
+  value (unset means CMake's default, the DLL CRT) and fails at configure if it
+  disagrees with the triplet. A set value must always agree with the triplet;
+  with a custom triplet name, it must be set (`cmake/Siv3DMSVCRuntime.cmake`).
+- The engine sets no triplet or `CMAKE_VS_GLOBALS` of its own; those belong to
+  the top-level project. The App disables a user-wide
   `vcpkg integrate install` (`VcpkgEnabled=false`), whose include paths would
   shadow the engine's headers; other projects that `add_subdirectory` the
   engine should do the same.

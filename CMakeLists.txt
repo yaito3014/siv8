@@ -517,7 +517,11 @@ else()
 endif()
 
 # Exported so consumers can build with the same C runtime (empty outside MSVC).
+# A subproject may leave CMAKE_MSVC_RUNTIME_LIBRARY unset, i.e. CMake's default.
 set(SIV3D_MSVC_RUNTIME_LIBRARY "${CMAKE_MSVC_RUNTIME_LIBRARY}")
+if(MSVC AND NOT SIV3D_MSVC_RUNTIME_LIBRARY)
+    set(SIV3D_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
 configure_package_config_file("cmake/Siv3DConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/Siv3DConfig.cmake"
     INSTALL_DESTINATION "${SIV3D_INSTALL_CMAKEDIR}")

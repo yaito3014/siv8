@@ -6,8 +6,10 @@
 #   <arch>-windows-static-md[-release]  DLL CRT    (/MD, /MDd)
 
 # Sets <out_var> to "DLL" or "static" for a CMAKE_MSVC_RUNTIME_LIBRARY value.
+# An empty value stands for an unset variable, which selects CMake's default,
+# the DLL CRT.
 function(siv3d_msvc_runtime_kind runtime out_var)
-    if(runtime MATCHES "DLL")
+    if(runtime STREQUAL "" OR runtime MATCHES "DLL")
         set(${out_var} "DLL" PARENT_SCOPE)
     else()
         set(${out_var} "static" PARENT_SCOPE)
@@ -32,19 +34,29 @@ function(siv3d_check_msvc_runtime runtime source)
     siv3d_msvc_runtime_kind("${CMAKE_MSVC_RUNTIME_LIBRARY}" _selected)
     siv3d_msvc_runtime_kind("${runtime}" _required)
     if(NOT _selected STREQUAL _required)
+        if(CMAKE_MSVC_RUNTIME_LIBRARY)
+            set(_value "'${CMAKE_MSVC_RUNTIME_LIBRARY}'")
+        else()
+            set(_value "unset")
+        endif()
         message(FATAL_ERROR
-            "CMAKE_MSVC_RUNTIME_LIBRARY is '${CMAKE_MSVC_RUNTIME_LIBRARY}' (${_selected} C runtime), "
-            "but ${source} uses the ${_required} C runtime. MSVC cannot link the two.")
+            "CMAKE_MSVC_RUNTIME_LIBRARY is ${_value} (${_selected} C runtime), "
+            "but ${source} uses the ${_required} C runtime. MSVC cannot link the two; "
+            "set CMAKE_MSVC_RUNTIME_LIBRARY in the top-level project to match.")
     endif()
 endfunction()
 
-# Sets CMAKE_MSVC_RUNTIME_LIBRARY in the caller's scope from VCPKG_TARGET_TRIPLET
-# unless it is already set, in which case it must agree with the triplet. A
-# triplet whose name does not tell requires CMAKE_MSVC_RUNTIME_LIBRARY to be set
-# to match the triplet's VCPKG_CRT_LINKAGE.
+# Selects the C runtime for the calling project. The top-level project owns the
+# choice: unless CMAKE_MSVC_RUNTIME_LIBRARY is set, this derives it from
+# VCPKG_TARGET_TRIPLET in the caller's scope; a triplet whose name does not
+# tell then requires it to be set to match the triplet's VCPKG_CRT_LINKAGE. A
+# subproject (one add_subdirectory()'d by another project) leaves the variable
+# as the top level set it, unset meaning the DLL CRT, because a value set here
+# would not reach the including project's own targets. Either way the result
+# must agree with the triplet.
 function(siv3d_select_msvc_runtime)
     siv3d_msvc_runtime_for_triplet("${VCPKG_TARGET_TRIPLET}" _triplet_runtime)
-    if(NOT CMAKE_MSVC_RUNTIME_LIBRARY)
+    if(NOT CMAKE_MSVC_RUNTIME_LIBRARY AND PROJECT_IS_TOP_LEVEL)
         if(_triplet_runtime STREQUAL "")
             message(FATAL_ERROR
                 "Cannot tell the C runtime of vcpkg triplet '${VCPKG_TARGET_TRIPLET}'. "
