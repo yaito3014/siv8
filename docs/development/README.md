@@ -55,6 +55,34 @@ in a disposable checkout. This requires Windows' .NET Framework C# compiler and
 PowerShell 7; it uses a small fake application and does not build or launch Siv3D.
 Also run the real suite to verify the build and application integration.
 
+### CMake build on Windows
+
+The root [CMakeLists.txt](../../CMakeLists.txt) builds the same two targets as the
+Visual Studio solution, for x64 `Debug` and `Release` with MSVC. Its source lists
+are in [Siv3DSources.cmake](../../cmake/Siv3DSources.cmake) and its per-file
+settings in `CMakeLists.txt`; when adding, removing or reconfiguring a source in
+`WindowsDesktop/Siv3D.vcxproj` or `WindowsDesktop/Siv3D-Test.vcxproj`, make the
+same change there. The `Siv3D.vcxproj` and `Siv3D-Test.vcxproj` tests compare the
+two ([checker](../../cmake/Siv3DCheckVcxproj.cmake)) and print every difference;
+the checker fails on per-file project settings it does not recognize. Project-wide
+settings are not compared. The Boost 1.88.0 headers must be unpacked into
+`Dependencies/boost_1_88_0/boost`, as for the Visual Studio build. From a
+Developer PowerShell for VS:
+
+```powershell
+cmake -S . -B build -G "Ninja Multi-Config"
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+```
+
+Like the Visual Studio build, the build copies `Siv3D-Test.exe` (Debug:
+`Siv3D-Test(debug).exe`) to `WindowsDesktop/App/`, where it runs; the two builds
+replace each other's copy. The engine library goes to `build/lib/siv3d/`, where
+`Siv3D.hpp` finds it by name. Besides the project comparisons, which need only a
+configured build directory (`ctest -R vcxproj`), `ctest` runs the full suite with
+`--test-only` and prints the Catch2 console report; pass a filter by running
+[RunSiv3DTest.cmake](../../cmake/RunSiv3DTest.cmake) with `-DTEST_ARGS=<arguments>`.
+
 On macOS, run from the repository root, outside the sandbox:
 
 ```sh

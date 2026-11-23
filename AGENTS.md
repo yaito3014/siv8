@@ -32,7 +32,7 @@ Siv3D is used for games and other real-time applications, so treat runtime perfo
 
 # Project files
 
-- When adding, removing, or renaming shared source files, public headers, or tests, update the macOS Xcode project and the Windows Visual Studio project and its `.filters` file. Add new public headers to `Siv3D/include/Siv3D.hpp` when appropriate.
+- When adding, removing, or renaming shared source files, public headers, or tests, update the macOS Xcode project, the Windows Visual Studio project and its `.filters` file, and the CMake source lists in `cmake/Siv3DSources.cmake` (compiled sources only; `ctest -R vcxproj` compares them with the Visual Studio projects). Add new public headers to `Siv3D/include/Siv3D.hpp` when appropriate.
 - Validate changed project files with `./macOS/validate-projects.sh`. If the current host cannot validate a changed platform project, report that limitation explicitly.
 
 # Build and test

@@ -443,6 +443,9 @@ gmon.out
 **/App/AS_DEBUG/
 **/App/Screenshot/
 
+## Ignore the CMake build directory (docs/development/README.md)
+/build/
+
 ## Ignore test output
 /Test/output/
 /WindowsDesktop/Intermediate/TestReports/
