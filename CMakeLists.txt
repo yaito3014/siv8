@@ -577,5 +577,9 @@ if(SIV3D_BUILD_TESTS)
         target_include_directories(Siv3D-Test PRIVATE
             "${SIV3D_SRC}"
             $<TARGET_PROPERTY:Siv3DCore,INCLUDE_DIRECTORIES>)
+        if(APPLE)
+            include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DMacOSTestSources.cmake")
+            siv3d_configure_macos_test_sources(Siv3D-Test "${SIV3D_SRC}" "${CMAKE_CURRENT_SOURCE_DIR}/Test")
+        endif()
     endif()
 endif()

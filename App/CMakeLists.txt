@@ -54,6 +54,9 @@ project(Siv3D-App LANGUAGES CXX)
 
 if(WIN32)
     enable_language(RC)
+elseif(APPLE)
+    # Some macOS-internal tests compile as Objective-C++.
+    enable_language(OBJCXX)
 endif()
 
 # Stop a user-wide `vcpkg integrate install` from shadowing the engine's headers.
@@ -92,6 +95,8 @@ if(SIV3D_APP_BUILD_TESTS)
     elseif(APPLE)
         target_include_directories(Siv3D-App PRIVATE
             "${_siv3d_src}/Siv3D-Platform/macOS" "${_siv3d_src}/Siv3D-Platform/macOS_Linux")
+        include("${SIV3D_ENGINE_DIR}/cmake/Siv3DMacOSTestSources.cmake")
+        siv3d_configure_macos_test_sources(Siv3D-App "${_siv3d_src}" "${CMAKE_CURRENT_SOURCE_DIR}/../Test")
     else()
         target_include_directories(Siv3D-App PRIVATE
             "${_siv3d_src}/Siv3D-Platform/Linux" "${_siv3d_src}/Siv3D-Platform/macOS_Linux")
