@@ -36,44 +36,64 @@ set(SIV3D_INCLUDE "${SIV3D_DIR}/include")
 # ============================================================================
 # Binary dependencies (vcpkg manifest, static)
 # ============================================================================
-# Freetype via CONFIG so harfbuzz reuses the same target.
-find_package(Freetype CONFIG REQUIRED)
-find_package(harfbuzz CONFIG REQUIRED)
-find_package(PNG REQUIRED)
-find_package(libjpeg-turbo CONFIG REQUIRED)
-find_package(ZLIB REQUIRED)
-find_package(absl CONFIG REQUIRED)
-find_package(directxmath CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
-find_package(nanoflann CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
-find_package(toml11 CONFIG REQUIRED)
-find_package(OpenCV REQUIRED COMPONENTS core imgproc)
-find_package(mimalloc CONFIG REQUIRED)
-find_package(oniguruma CONFIG REQUIRED)
-find_package(double-conversion CONFIG REQUIRED)
-find_package(muparser CONFIG REQUIRED)
-find_package(simdutf CONFIG REQUIRED)
-find_package(zstd CONFIG REQUIRED)
-find_package(lunasvg CONFIG REQUIRED)
-find_package(CpuFeatures CONFIG REQUIRED)
-find_package(Boost CONFIG REQUIRED COMPONENTS filesystem)
-find_package(unofficial-skia CONFIG REQUIRED)
-find_package(msdfgen CONFIG REQUIRED)
-find_package(unofficial-easyexif CONFIG REQUIRED)
-find_package(serial_cpp CONFIG REQUIRED)
-find_package(pffft CONFIG REQUIRED)
-find_package(unofficial-r8brain-free-src CONFIG REQUIRED)
-find_package(unofficial-bc7enc-rdo CONFIG REQUIRED)
-find_package(unofficial-levenshtein-sse CONFIG REQUIRED)
-find_package(unofficial-rectpack2d CONFIG REQUIRED)
-find_package(unofficial-obfuscate CONFIG REQUIRED)
-find_package(unofficial-xoshiro-cpp CONFIG REQUIRED)
-find_package(unofficial-enumbitmask CONFIG REQUIRED)
-find_package(unofficial-libcpprime CONFIG REQUIRED)
-if(NOT WIN32)
-    find_package(glfw3 CONFIG REQUIRED)
+# Each element holds one package's find_package arguments, space-separated.
+# The same list generates the find_dependency calls in Siv3DConfig.cmake: the
+# exported link interface of a static library keeps its PRIVATE dependencies
+# (as $<LINK_ONLY:...>), so consumers need every package found here.
+set(SIV3D_DEPENDENCIES
+    # Freetype via CONFIG so harfbuzz reuses the same target.
+    "Freetype CONFIG"
+    "harfbuzz CONFIG"
+    "PNG"
+    "libjpeg-turbo CONFIG"
+    "ZLIB"
+    "absl CONFIG"
+    "directxmath CONFIG"
+    "nlohmann_json CONFIG"
+    "nanoflann CONFIG"
+    "fmt CONFIG"
+    "toml11 CONFIG"
+    "OpenCV COMPONENTS core imgproc"
+    "mimalloc CONFIG"
+    "oniguruma CONFIG"
+    "double-conversion CONFIG"
+    "muparser CONFIG"
+    "simdutf CONFIG"
+    "zstd CONFIG"
+    "lunasvg CONFIG"
+    "CpuFeatures CONFIG"
+    "Boost 1.88 CONFIG COMPONENTS filesystem"
+    "unofficial-skia CONFIG"
+    "msdfgen CONFIG"
+    "unofficial-easyexif CONFIG"
+    "serial_cpp CONFIG"
+    "pffft CONFIG"
+    "unofficial-r8brain-free-src CONFIG"
+    "unofficial-bc7enc-rdo CONFIG"
+    "unofficial-levenshtein-sse CONFIG"
+    "unofficial-rectpack2d CONFIG"
+    "unofficial-obfuscate CONFIG"
+    "unofficial-xoshiro-cpp CONFIG"
+    "unofficial-enumbitmask CONFIG"
+    "unofficial-libcpprime CONFIG"
+)
+if(WIN32)
+    list(APPEND SIV3D_DEPENDENCIES "unofficial-wintoast CONFIG")
+else()
+    list(APPEND SIV3D_DEPENDENCIES "glfw3 CONFIG" "Threads")
+    if(NOT APPLE)
+        # OpenGL 4.1 backend: glad (GL loader) + system GL.
+        list(APPEND SIV3D_DEPENDENCIES "glad CONFIG" "OpenGL")
+    endif()
 endif()
+
+set(_siv3d_find_dependency_calls "")
+foreach(_siv3d_dep IN LISTS SIV3D_DEPENDENCIES)
+    separate_arguments(_siv3d_dep_args UNIX_COMMAND "${_siv3d_dep}")
+    find_package(${_siv3d_dep_args} REQUIRED)
+    list(APPEND _siv3d_find_dependency_calls "    find_dependency(${_siv3d_dep})")
+endforeach()
+list(JOIN _siv3d_find_dependency_calls "\n" SIV3D_FIND_DEPENDENCY_CALLS)
 
 # oscpack (OSC networking) comes from vcpkg (formerly vendored in ThirdParty/).
 # The port exports no CMake config, so locate the headers + static lib directly.
@@ -87,36 +107,6 @@ if(NOT TARGET mimalloc-static OR NOT TARGET zstd::libzstd_static)
         "<arch>-windows-static (/MT) or <arch>-windows-static-md (/MD) on Windows, "
         "x64-linux, x64-osx or arm64-osx elsewhere.")
 endif()
-
-set(SIV3D_VCPKG_LIBS
-    Freetype::Freetype
-    harfbuzz::harfbuzz
-    PNG::PNG
-    ZLIB::ZLIB
-    ${OpenCV_LIBS}
-    absl::int128
-    absl::function_ref
-    absl::random_random
-    absl::random_distributions
-    oniguruma::onig
-    Boost::headers
-    Boost::filesystem
-    CpuFeatures::cpu_features
-    double-conversion::double-conversion
-    muparser::muparser
-    simdutf::simdutf
-    lunasvg::lunasvg
-    zstd::libzstd_static
-    mimalloc-static
-    libjpeg-turbo::jpeg-static
-    libjpeg-turbo::turbojpeg-static
-    unofficial::bc7enc-rdo::bc7enc_rdo
-    unofficial::levenshtein-sse::levenshtein-sse
-    unofficial::rectpack2d::rectpack2d
-    unofficial::easyexif::easyexif
-    unofficial::r8brain-free-src::r8brain-free-src
-    serial_cpp::serial_cpp
-)
 
 # TODO(pdfium): not on vcpkg; stays prebuilt, wire as an IMPORTED target later.
 
@@ -211,7 +201,6 @@ target_include_directories(Siv3DCore
         "${SIV3D_SRC}"
         "${SIV3D_SRC}/ThirdParty"
 )
-target_link_libraries(Siv3DCore PRIVATE unofficial::skia::skia msdfgen::msdfgen-ext)
 if(WIN32)
     target_include_directories(Siv3DCore PRIVATE "${SIV3D_SRC}/Siv3D-Platform/WindowsDesktop")
 elseif(APPLE)
@@ -243,7 +232,50 @@ if(MSVC)
     )
 endif()
 
-target_link_libraries(Siv3DCore PRIVATE ${SIV3D_VCPKG_LIBS})
+# PUBLIC: these appear in public Siv3D headers, so consumers need their includes
+# (and the shared include root also covers config-less pcg / parallel-hashmap).
+target_link_libraries(Siv3DCore
+    PUBLIC
+        Microsoft::DirectXMath
+        nlohmann_json::nlohmann_json
+        nanoflann::nanoflann
+        fmt::fmt
+        toml11::toml11
+        unofficial::obfuscate::obfuscate
+        unofficial::xoshiro-cpp::xoshiro-cpp
+        unofficial::enumbitmask::enumbitmask
+        unofficial::libcpprime::libcpprime
+    PRIVATE
+        unofficial::skia::skia
+        msdfgen::msdfgen-ext
+        Freetype::Freetype
+        harfbuzz::harfbuzz
+        PNG::PNG
+        ZLIB::ZLIB
+        ${OpenCV_LIBS}
+        absl::int128
+        absl::function_ref
+        absl::random_random
+        absl::random_distributions
+        oniguruma::onig
+        Boost::headers
+        Boost::filesystem
+        CpuFeatures::cpu_features
+        double-conversion::double-conversion
+        muparser::muparser
+        simdutf::simdutf
+        lunasvg::lunasvg
+        zstd::libzstd_static
+        mimalloc-static
+        libjpeg-turbo::jpeg-static
+        libjpeg-turbo::turbojpeg-static
+        unofficial::bc7enc-rdo::bc7enc_rdo
+        unofficial::levenshtein-sse::levenshtein-sse
+        unofficial::rectpack2d::rectpack2d
+        unofficial::easyexif::easyexif
+        unofficial::r8brain-free-src::r8brain-free-src
+        serial_cpp::serial_cpp
+)
 
 # oscpack: no exported target, so wire the located headers/lib by hand. The static
 # library pulls in Winsock on Windows, so the consumer must link ws2_32 + winmm.
@@ -253,20 +285,6 @@ if(WIN32)
     target_link_libraries(Siv3DCore PRIVATE ws2_32 winmm)
 endif()
 
-# PUBLIC: these appear in public Siv3D headers, so consumers need their includes
-# (and the shared include root also covers config-less pcg / parallel-hashmap).
-target_link_libraries(Siv3DCore PUBLIC
-    Microsoft::DirectXMath
-    nlohmann_json::nlohmann_json
-    nanoflann::nanoflann
-    fmt::fmt
-    toml11::toml11
-    unofficial::obfuscate::obfuscate
-    unofficial::xoshiro-cpp::xoshiro-cpp
-    unofficial::enumbitmask::enumbitmask
-    unofficial::libcpprime::libcpprime
-)
-
 # SSE4.2 baseline (x86-64 only; PUBLIC so consumers of the SIMD headers get it).
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86|x86)$")
     target_compile_options(Siv3DCore PUBLIC "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>")
@@ -274,7 +292,6 @@ endif()
 
 # Platform system libraries.
 if(WIN32)
-    find_package(unofficial-wintoast CONFIG REQUIRED)               # unofficial::wintoast::wintoast
     target_link_libraries(Siv3DCore PRIVATE
         d3d11 dxgi dxguid d3dcompiler
         winmm ws2_32 imm32 version
@@ -282,7 +299,7 @@ if(WIN32)
     )
     target_compile_definitions(Siv3DCore PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE)
 elseif(APPLE)
-    # GLFW is the macOS window/input backend (found above for all non-Windows).
+    # GLFW is the macOS window/input backend.
     target_link_libraries(Siv3DCore PRIVATE glfw)
     # System frameworks the macOS platform .mm sources import (Cocoa pulls in
     # AppKit/Foundation). UNVERIFIED — wired by inspecting the imports, not built.
@@ -295,11 +312,8 @@ elseif(APPLE)
         target_link_libraries(Siv3DCore PRIVATE "${SIV3D_FW_${_fw}}")
     endforeach()
 elseif(UNIX)
-    find_package(glfw3 CONFIG REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE glfw)
     # OpenGL backend: glad (GL 4.1 loader) + system GL.
-    find_package(glad CONFIG REQUIRED)
-    find_package(OpenGL REQUIRED)
     target_link_libraries(Siv3DCore PRIVATE glad::glad OpenGL::GL)
     # X11 dev libs: needed when GLFW is built with its X11 backend (the default,
     # and still present in a dual X11+Wayland build). The engine itself makes no
@@ -315,7 +329,6 @@ endif()
 
 # zstd is built with ZSTD_MULTITHREAD -> needs pthread on POSIX.
 if(NOT WIN32)
-    find_package(Threads REQUIRED)
     target_link_libraries(Siv3DCore PUBLIC Threads::Threads)
 endif()
 
@@ -473,7 +486,6 @@ install(FILES ${_siv3d_dxmath} DESTINATION "${SIV3D_THIRDPARTY_INCLUDEDIR}")
 include(CMakePackageConfigHelpers)
 set(SIV3D_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/Siv3D")
 set(SIV3D_VCPKG_BUNDLE_RELDIR "${CMAKE_INSTALL_DATAROOTDIR}/Siv3D/vcpkg")
-set(SIV3D_BOOST_MIN_VERSION 1.88)
 
 # Usage requirements for the fat target (the raw .a has none of its own).
 # Single-option genexes so they survive as a list.
