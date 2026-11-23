@@ -19,7 +19,8 @@ set(_siv3d_fat_dir "${PACKAGE_PREFIX_DIR}/@SIV3D_INSTALL_VARIANT_LIBDIR@")
 set(_siv3d_fat_release "${_siv3d_fat_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3D${CMAKE_STATIC_LIBRARY_SUFFIX}")
 set(_siv3d_fat_debug "${_siv3d_fat_dir}/${CMAKE_STATIC_LIBRARY_PREFIX}Siv3Dd${CMAKE_STATIC_LIBRARY_SUFFIX}")
 if((EXISTS "${_siv3d_fat_release}" OR EXISTS "${_siv3d_fat_debug}") AND NOT TARGET Siv3D::Siv3D)
-    if(NOT WIN32)
+    set(_siv3d_fat_system_libs "@SIV3D_FAT_SYSTEM_LIBS@")
+    if("Threads::Threads" IN_LIST _siv3d_fat_system_libs)
         include(CMakeFindDependencyMacro)
         find_dependency(Threads)
     endif()
@@ -42,8 +43,9 @@ if((EXISTS "${_siv3d_fat_release}" OR EXISTS "${_siv3d_fat_debug}") AND NOT TARG
         INTERFACE_COMPILE_FEATURES "cxx_std_23"
         INTERFACE_COMPILE_OPTIONS "@SIV3D_PUBLIC_COMPILE_OPTIONS@"
         INTERFACE_COMPILE_DEFINITIONS "@SIV3D_PUBLIC_COMPILE_DEFINITIONS@"
-        INTERFACE_LINK_LIBRARIES "@SIV3D_FAT_SYSTEM_LIBS@"
+        INTERFACE_LINK_LIBRARIES "${_siv3d_fat_system_libs}"
     )
+    unset(_siv3d_fat_system_libs)
 endif()
 unset(_siv3d_fat_dir)
 unset(_siv3d_fat_release)

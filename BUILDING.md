@@ -12,8 +12,10 @@ there is no vendored-lib / MSBuild path anymore.
   it on its own (e.g. to install the SDK), use the root `CMakePresets.json`
   (`windows`, `windows-md`, `linux`). Such a build also registers CTest tests
   for the fat lib: after building a configuration,
-  `ctest --test-dir <build> -C <config>` links every member of it, installed
-  to a prefix in the build tree, into `cmake/FatLibLinkTest`.
+  `ctest --test-dir <build> -C <config>` checks that it bundles only vcpkg
+  archives (system libraries go to the link interface of `Siv3D::Siv3D`) and
+  links every member of it, installed to a prefix in the build tree, into
+  `cmake/FatLibLinkTest`.
 - **`App/`** — the **top-level** project you build. It drives the engine via
   `add_subdirectory` (default) or `find_package` (opt-in). Configure/build from
   here, not from the repo root.
