@@ -186,11 +186,9 @@ if(APPLE)
     )
 endif()
 
-# include/ThirdParty is PUBLIC: public headers include siblings as "fmt/...".
 target_include_directories(Siv3DCore
     PUBLIC
         "$<BUILD_INTERFACE:${SIV3D_INCLUDE}>"
-        "$<BUILD_INTERFACE:${SIV3D_INCLUDE}/ThirdParty>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Siv3D>"
         # Bundled third-party headers install to include/Siv3D-thirdparty (matches
         # the fat-lib target + the install(FILES ...) rules below), NOT
