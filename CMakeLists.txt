@@ -182,11 +182,28 @@ target_compile_features(Siv3DCore PUBLIC cxx_std_23)
 # EXPORT_NO_SYSTEM: keep the public ThirdParty headers ahead of system/vcpkg copies.
 set_target_properties(Siv3DCore PROPERTIES CXX_EXTENSIONS OFF DEBUG_POSTFIX d EXPORT_NO_SYSTEM TRUE)
 
-# PUBLIC (via genex) so consumers parse the headers the same way; /MP is just
-# build-speed for our own TUs (VS generator), so it stays PRIVATE.
+# Usage requirements for consumers of the headers. The fat-lib target in
+# Siv3DConfig.cmake gets the same lists, so keep one option per genex: each
+# element must survive substitution into the config as a list item.
+set(SIV3D_PUBLIC_COMPILE_OPTIONS
+    "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>"
+    "$<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>")
+# SSE4.2 baseline (x86-64 only) for the SIMD headers.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86|x86)$")
+    list(APPEND SIV3D_PUBLIC_COMPILE_OPTIONS "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>")
+endif()
+set(SIV3D_PUBLIC_COMPILE_DEFINITIONS "")
+if(MSVC)
+    # Int128.hpp includes absl/numeric/int128.h, which uses
+    # std::float_denorm_style, deprecated in C++23 by the MSVC STL.
+    list(APPEND SIV3D_PUBLIC_COMPILE_DEFINITIONS _SILENCE_CXX23_DENORM_DEPRECATION_WARNING)
+endif()
+
+# /MP is just build-speed for our own TUs (VS generator), so it stays PRIVATE.
 target_compile_options(Siv3DCore
-    PUBLIC  "$<$<CXX_COMPILER_ID:MSVC>:/utf-8;/Zc:__cplusplus>"
+    PUBLIC  ${SIV3D_PUBLIC_COMPILE_OPTIONS}
     PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/MP>")
+target_compile_definitions(Siv3DCore PUBLIC ${SIV3D_PUBLIC_COMPILE_DEFINITIONS})
 if(APPLE)
     set_target_properties(Siv3DCore PROPERTIES
         OBJCXX_STANDARD 23
@@ -233,7 +250,6 @@ if(MSVC)
         _CRT_SECURE_NO_WARNINGS
         _ENABLE_EXTENDED_ALIGNED_STORAGE
         _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
-        _SILENCE_CXX23_DENORM_DEPRECATION_WARNING
     )
 endif()
 
@@ -290,16 +306,12 @@ if(WIN32)
     target_link_libraries(Siv3DCore PRIVATE ws2_32 winmm)
 endif()
 
-# SSE4.2 baseline (x86-64 only; PUBLIC so consumers of the SIMD headers get it).
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86|x86)$")
-    target_compile_options(Siv3DCore PUBLIC "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>")
-endif()
-
 # Platform system libraries.
 if(WIN32)
+    # Also linked by fat-lib consumers (SIV3D_FAT_SYSTEM_LIBS below).
+    set(SIV3D_WINDOWS_SYSTEM_LIBS d3d11 dxgi dxguid d3dcompiler winmm ws2_32 imm32 version)
     target_link_libraries(Siv3DCore PRIVATE
-        d3d11 dxgi dxguid d3dcompiler
-        winmm ws2_32 imm32 version
+        ${SIV3D_WINDOWS_SYSTEM_LIBS}
         unofficial::wintoast::wintoast
     )
     target_compile_definitions(Siv3DCore PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE)
@@ -489,15 +501,10 @@ include(CMakePackageConfigHelpers)
 set(SIV3D_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/Siv3D")
 set(SIV3D_VCPKG_BUNDLE_RELDIR "${CMAKE_INSTALL_DATAROOTDIR}/Siv3D/vcpkg")
 
-# Usage requirements for the fat target (the raw .a has none of its own).
-# Single-option genexes so they survive as a list.
-set(SIV3D_FAT_COMPILE_OPTIONS
-    "$<$<CXX_COMPILER_ID:MSVC>:/utf-8>;$<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>")
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64|i[3-6]86|x86)$")
-    string(APPEND SIV3D_FAT_COMPILE_OPTIONS ";$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-msse4.2>")
-endif()
+# System libraries for the fat target (the raw .a has none of its own usage
+# requirements); its compile options and definitions are Siv3DCore's PUBLIC ones.
 if(WIN32)
-    set(SIV3D_FAT_SYSTEM_LIBS "d3d11;dxgi;dxguid;d3dcompiler;winmm;ws2_32;imm32;version")
+    set(SIV3D_FAT_SYSTEM_LIBS "${SIV3D_WINDOWS_SYSTEM_LIBS}")
 elseif(APPLE)
     # Mirror the engine's framework set so find_package consumers link them too.
     set(SIV3D_FAT_SYSTEM_LIBS "")

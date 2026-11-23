@@ -171,12 +171,7 @@ elseif(APPLE)
 endif()
 
 if(MSVC)
-    target_compile_definitions(Siv3D-App PRIVATE
-        _WINDOWS
-        _ENABLE_EXTENDED_ALIGNED_STORAGE
-        _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
-        _SILENCE_CXX23_DENORM_DEPRECATION_WARNING
-    )
+    target_compile_definitions(Siv3D-App PRIVATE _WINDOWS)
 endif()
 
 # F5 in Visual Studio runs from app/ (the engine/ + example/ assets).
