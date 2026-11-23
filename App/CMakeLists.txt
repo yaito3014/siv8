@@ -78,6 +78,12 @@ else()
     add_subdirectory("${SIV3D_ENGINE_DIR}" siv3d-engine)
 endif()
 
+# PDFium: a shared library the engine loads at run time (not yet on Linux). It
+# comes from the pdfium-binaries overlay port and is staged next to the app below.
+if(WIN32 OR APPLE)
+    find_package(unofficial-pdfium-binaries CONFIG REQUIRED)
+endif()
+
 # Windows packaging shared by Siv3D-App and Siv3D-Test: a GUI-subsystem exe (the
 # engine provides WinMain(), which calls the program's Main()), the engine's
 # resources embedded through Resource.rc, the UTF-8 code-page manifest, and a
@@ -101,6 +107,17 @@ function(siv3d_app_windows_executable target)
             -DDST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/app
             -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CopyAppBinaries.cmake"
         COMMENT "Staging ${target} into app/"
+    )
+    # PDFium goes where the engine loads it from: engine/dll/ under app/.
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/app/engine/dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:unofficial::pdfium-binaries::library>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/app/engine/dll/pdfium.dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${unofficial-pdfium-binaries_LICENSE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/app/engine/dll/pdfium-license.txt"
+        COMMENT "Staging PDFium into app/engine/dll/"
     )
 endfunction()
 
@@ -141,8 +158,7 @@ if(WIN32)
     siv3d_app_windows_executable(Siv3D-App)
 elseif(APPLE)
     # .app bundle (Info.plist + icon). NOTE: everything below is UNVERIFIED —
-    # wired by reference (no macOS to build/run on). pdfium (app/dll/dll/
-    # libpdfium.dylib) is still not linked/staged — see the TODO in the engine.
+    # wired by reference (no macOS to build/run on).
     set_target_properties(Siv3D-App PROPERTIES
         MACOSX_BUNDLE ON
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/platform/macOS/Info.plist"
@@ -168,6 +184,19 @@ elseif(APPLE)
     target_sources(Siv3D-App PRIVATE "${_siv3d_metallib}")
     set_source_files_properties("${_siv3d_metallib}" PROPERTIES
         GENERATED TRUE MACOSX_PACKAGE_LOCATION Resources)
+
+    # PDFium goes where the engine loads it from: Contents/Frameworks/dll/.
+    add_custom_command(TARGET Siv3D-App POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_BUNDLE_CONTENT_DIR:Siv3D-App>/Frameworks/dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:unofficial::pdfium-binaries::library>"
+            "$<TARGET_BUNDLE_CONTENT_DIR:Siv3D-App>/Frameworks/dll/libpdfium.dylib"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${unofficial-pdfium-binaries_LICENSE}"
+            "$<TARGET_BUNDLE_CONTENT_DIR:Siv3D-App>/Frameworks/dll/pdfium-license.txt"
+        COMMENT "Staging PDFium into Siv3D-App.app"
+    )
 
     # Stage runtime assets to cover both load paths: engine/ + example/ into
     # Contents/Resources (Resource()-based loads), and the built .app copied next

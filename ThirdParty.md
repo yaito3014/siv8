@@ -46,7 +46,7 @@ Name | Version
 [OpenCV](https://github.com/opencv/opencv) | 4.10.0
 [oscpack](http://www.rossbencina.com/code/oscpack) | 1.1.0
 [pcg-cpp](https://github.com/imneme/pcg-cpp) | 
-[PDFium](https://pdfium.googlesource.com/pdfium/) | 
+[PDFium](https://pdfium.googlesource.com/pdfium/) | chromium/7725
 [PFFFT](https://bitbucket.org/jpommier/pffft/src/master/) | 
 [PFFFT DOUBLE](https://github.com/marton78/pffft) | 
 [plutovg](https://github.com/sammycage/plutovg) | 

@@ -77,6 +77,8 @@ set(SIV3D_DEPENDENCIES
     "unofficial-xoshiro-cpp CONFIG"
     "unofficial-enumbitmask CONFIG"
     "unofficial-libcpprime CONFIG"
+    # Headers only; the PDF renderer loads the shared library at run time.
+    "unofficial-pdfium-binaries CONFIG"
 )
 if(WIN32)
     list(APPEND SIV3D_DEPENDENCIES "unofficial-wintoast CONFIG")
@@ -119,8 +121,6 @@ if(NOT TARGET mimalloc-static OR NOT TARGET zstd::libzstd_static)
         "<arch>-windows-static (/MT) or <arch>-windows-static-md (/MD) on Windows, "
         "x64-linux, x64-osx or arm64-osx elsewhere.")
 endif()
-
-# TODO(pdfium): not on vcpkg; stays prebuilt, wire as an IMPORTED target later.
 
 # ============================================================================
 # Vendored ThirdParty sources compiled into the engine
@@ -307,6 +307,7 @@ target_link_libraries(Siv3DCore
         unofficial::easyexif::easyexif
         unofficial::r8brain-free-src::r8brain-free-src
         serial_cpp::serial_cpp
+        unofficial::pdfium-binaries::headers
 )
 
 # oscpack: no exported target, so wire the located headers/lib by hand. On
@@ -580,6 +581,21 @@ set(SIV3D_INSTALL_VARIANT_CMAKEDIR "${SIV3D_INSTALL_CMAKEDIR}${_siv3d_variant_su
 
 if(SIV3D_FAT_LIB)
     install(FILES "${_siv3d_fat}" DESTINATION "${SIV3D_INSTALL_VARIANT_LIBDIR}")
+endif()
+
+# The engine loads PDFium at run time (engine/dll/pdfium.dll under the working
+# directory on Windows, Contents/Frameworks/dll/libpdfium.dylib in a macOS
+# bundle), so ship the library and its licenses for consumers to stage there.
+if(WIN32 OR APPLE)
+    if(WIN32)
+        set(_siv3d_pdfium_dir "${CMAKE_INSTALL_BINDIR}")
+    else()
+        set(_siv3d_pdfium_dir "${CMAKE_INSTALL_LIBDIR}")
+    endif()
+    install(FILES "$<TARGET_FILE:unofficial::pdfium-binaries::library>"
+        DESTINATION "${_siv3d_pdfium_dir}")
+    install(FILES "${unofficial-pdfium-binaries_LICENSE}"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/Siv3D/licenses" RENAME "pdfium.txt")
 endif()
 
 # Third-party headers the public Siv3D headers include go to a sibling

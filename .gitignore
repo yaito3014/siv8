@@ -440,6 +440,9 @@ gmon.out
 /Siv3D/lib/Linux/siv3d/*.a
 **/App/*.app
 **/App/*.exe
+# PDFium, staged from the pdfium-binaries overlay port by App/CMakeLists.txt.
+App/app/engine/dll/pdfium.dll
+App/app/engine/dll/pdfium-license.txt
 **/App/Siv3DTest
 
 ## Ignore any saved local files

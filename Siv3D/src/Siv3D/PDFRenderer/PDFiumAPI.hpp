@@ -11,8 +11,8 @@
 
 # pragma once
 # include <Siv3D/DLL.hpp>
-# include <ThirdParty-prebuilt/PDFium/fpdfview.h>
-# include <ThirdParty-prebuilt/PDFium/fpdf_doc.h>
+# include <fpdfview.h>
+# include <fpdf_doc.h>
 
 namespace s3d
 {

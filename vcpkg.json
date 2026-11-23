@@ -90,7 +90,8 @@
     {
       "name": "wintoast",
       "platform": "windows"
-    }
+    },
+    "pdfium-binaries"
   ],
   "features": {
     "tests": {

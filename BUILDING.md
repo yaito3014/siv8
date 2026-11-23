@@ -21,8 +21,9 @@ there is no vendored-lib / MSBuild path anymore.
   here, not from the repo root.
 - **`overlay-ports/`** — forked/orphan ports, selected via
   `vcpkg-configuration.json`: bc7enc-rdo, pffft, serial-cpp, glfw3 (Siv3D fork),
-  r8brain-free-src, easyexif, muparser, levenshtein-sse, rectpack2d, and the
-  header-only set obfuscate / xoshiro-cpp / enumbitmask / libcpprime.
+  r8brain-free-src, easyexif, muparser, levenshtein-sse, rectpack2d, the
+  header-only set obfuscate / xoshiro-cpp / enumbitmask / libcpprime, and
+  pdfium-binaries (prebuilt PDFium, pinned by release and SHA512).
 - **`Test/`** — Catch2/nanobench harness, compiled into the app when the
   `tests` feature is on. Catch2 is the upstream-vendored amalgamation in
   `Test/ThirdParty/Catch2/`; nanobench comes from vcpkg.
@@ -120,6 +121,9 @@ cmake --build build --config Release
 
   A consumer configuration without a matching installed build falls back to
   the other one, which MSVC cannot link across debug and release C runtimes.
+- PDFium is a shared library the engine loads at run time; the build copies it
+  from the `pdfium-binaries` port to `app/engine/dll/pdfium.dll` (with its
+  licenses), where the engine looks for it.
 - Output: a GUI-subsystem `Siv3D-App.exe` (~38 MB, self-contained). `Resource.rc`
   embeds assets by paths relative to the staged tree, so `App/CMakeLists.txt`
   adds `App/app/` to the RC `/I` include path.
