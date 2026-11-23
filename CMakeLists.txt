@@ -83,8 +83,8 @@ if(WIN32)
 else()
     list(APPEND SIV3D_DEPENDENCIES "glfw3 CONFIG" "Threads")
     if(NOT APPLE)
-        # OpenGL 4.1 backend: glad (GL loader) + system GL.
-        list(APPEND SIV3D_DEPENDENCIES "glad CONFIG" "OpenGL")
+        # OpenGL 4.1 backend: glad (GL loader) + system GL; Xlib for GLFW.
+        list(APPEND SIV3D_DEPENDENCIES "glad CONFIG" "OpenGL" "X11")
     endif()
 endif()
 
@@ -343,8 +343,8 @@ elseif(UNIX)
     # X11 dev libs: needed when GLFW is built with its X11 backend (the default,
     # and still present in a dual X11+Wayland build). The engine itself makes no
     # direct Xlib/native calls -- GLFW carries the actual windowing link interface.
-    find_package(X11 REQUIRED)
-    target_link_libraries(Siv3DCore PRIVATE ${X11_LIBRARIES})
+    # libX11 only: X11_LIBRARIES also holds libXext, which nothing here calls.
+    target_link_libraries(Siv3DCore PRIVATE X11::X11)
     # stduuid's system generator (UUIDValue) calls uuid_generate from libuuid,
     # which ships a pkg-config file (uuid.pc) but no CMake package.
     find_package(PkgConfig REQUIRED)
