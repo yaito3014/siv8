@@ -149,6 +149,12 @@ TEST_CASE("Pattern.halftone_packing")
 
 namespace
 {
+	// Composited at half alpha over Palette::Green and compared with a solid
+	// fill. Every channel stays clear of an x.5 RGBA8 rounding tie (0.2 and 0.6
+	// would land on 25.5 and 76.5), since different shader paths may round a tie
+	// either way within the API's float precision.
+	constexpr ColorF CompositedBackground{ 0.22, 0.4, 0.62, 0.5 };
+
 	uint32 TruchetReferenceHash(const int32 x, const int32 y, const uint32 seed)
 	{
 		const uint32 kx = std::bit_cast<uint32>(static_cast<float>(x) + 0.5f);
@@ -535,7 +541,7 @@ TEST_CASE("Pattern.truchet_rendering")
 		auto p = base;
 		p.thickness = (full ? p.pitch : 0);
 		p.primary = ColorF{ 0.8, 0.3, 0.1, 0.5 };
-		p.background = ColorF{ 0.2, 0.4, 0.6, 0.5 };
+		p.background = CompositedBackground;
 		const auto actual = CapturePatternDraw([&]
 		{
 			RectF{ 10, 10, 240, 240 }.draw(Palette::Green);
@@ -735,7 +741,7 @@ TEST_CASE("Pattern.weave_rendering")
 		p.thickness = (full ? p.pitch : 0);
 		p.gap = 0;
 		p.primary = ColorF{ 0.8, 0.3, 0.1, 0.5 };
-		p.background = ColorF{ 0.2, 0.4, 0.6, 0.5 };
+		p.background = CompositedBackground;
 		const auto actual = CapturePatternDraw([&]
 		{
 			RectF{ 10, 10, 240, 240 }.draw(Palette::Green);
@@ -882,7 +888,7 @@ TEST_CASE("Pattern.ripple_rendering")
 		auto p = centered;
 		p.thickness = (full ? p.pitch : 0);
 		p.primary = ColorF{ 0.8, 0.3, 0.1, 0.5 };
-		p.background = ColorF{ 0.2, 0.4, 0.6, 0.5 };
+		p.background = CompositedBackground;
 		const auto actual = CapturePatternDraw([&]
 		{
 			RectF{ 10, 10, 240, 240 }.draw(Palette::Green);
@@ -1047,7 +1053,7 @@ TEST_CASE("Pattern.wave_rendering")
 		auto p = base;
 		p.thickness = (full ? p.pitch : 0);
 		p.primary = ColorF{ 0.8, 0.3, 0.1, 0.5 };
-		p.background = ColorF{ 0.2, 0.4, 0.6, 0.5 };
+		p.background = CompositedBackground;
 		const auto actual = CapturePatternDraw([&]
 		{
 			RectF{ 10, 10, 240, 240 }.draw(Palette::Green);
@@ -1185,7 +1191,7 @@ TEST_CASE("Pattern.halftone_rendering")
 	// A zero radius must reveal exactly the same composited background as a solid fill.
 	auto zero = base;
 	zero.minRadius = zero.maxRadius = 0;
-	zero.background = ColorF{ 0.2, 0.4, 0.6, 0.5 };
+	zero.background = CompositedBackground;
 	const auto patternBackground = CapturePatternDraw([&]
 	{
 		RectF{ 10, 10, 240, 240 }.draw(Palette::Green);
