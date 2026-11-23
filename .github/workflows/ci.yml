@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Both projects include ../Dependencies/boost_1_88_0, which the repository
+# keeps empty. The hash is the one archives.boost.io publishes.
+env:
+  BOOST_VERSION: 1.88.0
+  BOOST_SHA256: 3621533e820dcab1e8012afd583c0c73cf0f77694952b81352bf38c1488f9cb4
+
+jobs:
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 tools/check_docs.py
+
+  windows:
+    name: Windows (x64, Release)
+    # The projects use the v145 (Visual Studio 2026) toolset.
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - id: boost
+        uses: actions/cache@v6
+        with:
+          path: Dependencies/boost_1_88_0/boost
+          key: boost-${{ env.BOOST_VERSION }}-headers
+      - if: steps.boost.outputs.cache-hit != 'true'
+        shell: bash
+        run: .github/scripts/fetch-boost-headers.sh "$BOOST_VERSION" "$BOOST_SHA256"
+      - name: Build and test
+        shell: pwsh
+        # Hosted runners have no GPU; the engine falls back to WARP, which is
+        # much slower than the 600-second default allows for. Cases WARP
+        # renders differently are listed in .github/windows-warp-known-failures.txt.
+        run: |
+          $exclusions = Get-Content .github/windows-warp-known-failures.txt |
+            Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { "~`"$_`"" }
+          ./WindowsDesktop/run-tests.ps1 -Jobs 4 -TimeoutSeconds 3600 -TestArguments ($exclusions -join ' ')
+      - name: Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-test-reports
+          path: WindowsDesktop/Intermediate/TestReports/
+          if-no-files-found: ignore
+
+  macos:
+    name: macOS (arm64, Debug)
+    runs-on: macos-26
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - run: xcodebuild -version
+      - id: boost
+        uses: actions/cache@v6
+        with:
+          path: Dependencies/boost_1_88_0/boost
+          key: boost-${{ env.BOOST_VERSION }}-headers
+      - if: steps.boost.outputs.cache-hit != 'true'
+        run: .github/scripts/fetch-boost-headers.sh "$BOOST_VERSION" "$BOOST_SHA256"
+      - name: Validate projects
+        run: ./macOS/validate-projects.sh
+      - name: Build and test
+        run: ./macOS/run-tests.sh
