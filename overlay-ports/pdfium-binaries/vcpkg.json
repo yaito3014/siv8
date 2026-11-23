@@ -1,0 +1,7 @@
+{
+  "name": "pdfium-binaries",
+  "version": "147.0.7725.0",
+  "description": "Prebuilt PDFium shared library from bblanchon/pdfium-binaries (release chromium/7725). Siv3D overlay port: not in the registry; installs the headers, the shared library and a CMake config exporting unofficial::pdfium-binaries::headers and unofficial::pdfium-binaries::library.",
+  "homepage": "https://github.com/bblanchon/pdfium-binaries",
+  "supports": "(windows | osx | linux) & (x64 | arm64) & !uwp"
+}
