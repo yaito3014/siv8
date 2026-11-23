@@ -300,7 +300,6 @@ target_link_libraries(Siv3DCore
         simdutf::simdutf
         lunasvg::lunasvg
         zstd::libzstd_static
-        libjpeg-turbo::jpeg-static
         libjpeg-turbo::turbojpeg-static
         unofficial::bc7enc-rdo::bc7enc_rdo
         unofficial::levenshtein-sse::levenshtein-sse
