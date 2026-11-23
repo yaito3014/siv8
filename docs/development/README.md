@@ -58,11 +58,12 @@ Also run the real suite to verify the build and application integration.
 ### CMake build on Windows
 
 The root [CMakeLists.txt](../../CMakeLists.txt) builds the same two targets as the
-Visual Studio solution, for x64 `Debug` and `Release` with MSVC. Its source lists
-are in [Siv3DSources.cmake](../../cmake/Siv3DSources.cmake) and its per-file
-settings in `CMakeLists.txt`; when adding, removing or reconfiguring a source in
-`WindowsDesktop/Siv3D.vcxproj` or `WindowsDesktop/Siv3D-Test.vcxproj`, make the
-same change there. The `Siv3D.vcxproj` and `Siv3D-Test.vcxproj` tests compare the
+Visual Studio solution, for x64 `Debug` and `Release` with MSVC. Its source and
+header lists are in [Siv3DSources.cmake](../../cmake/Siv3DSources.cmake), and its
+per-file settings in `CMakeLists.txt`. The headers form file sets, one per include
+directory, whose base directories make up the include path. When adding, removing
+or reconfiguring a source or header in `WindowsDesktop/Siv3D.vcxproj` or
+`WindowsDesktop/Siv3D-Test.vcxproj`, make the same change there. The `Siv3D.vcxproj` and `Siv3D-Test.vcxproj` tests compare the
 two ([checker](../../cmake/Siv3DCheckVcxproj.cmake)) and print every difference;
 the checker fails on per-file project settings it does not recognize. Project-wide
 settings are not compared. The Boost 1.88.0 headers must be unpacked into

@@ -1,10 +1,12 @@
 # Script mode (cmake -P): checks that the CMake build compiles the sources a
-# Visual Studio project compiles, with the same per-file settings.
+# Visual Studio project compiles, with the same per-file settings, and lists
+# the same headers.
 #   -DVCXPROJ=<project> -DFACTS=<file written by siv3d_finish_sources()>
 #   -DROOT=<repository root>
 #
-# The project's ClCompile and ResourceCompile items become facts in the form
-# siv3d_finish_sources() writes. Recognized per-file metadata, each optionally
+# The project's ClCompile, ResourceCompile and ClInclude items become facts in
+# the form siv3d_finish_sources() writes; headers go in the CMake build's
+# header file sets. Recognized per-file metadata, each optionally
 # conditioned on '$(Configuration)|$(Platform)'=='<Debug|Release>|x64':
 #   WarningLevel, DisableSpecificWarnings, PreprocessorDefinitions (those the
 #   project defines for every file are left out) and
@@ -70,7 +72,7 @@ set(_file "")
 foreach(_line IN LISTS _lines)
     string(STRIP "${_line}" _line)
     if(_file STREQUAL "")
-        if(_line MATCHES "^<(ClCompile|ResourceCompile) Include=\"([^\"]+)\"( /)?>$")
+        if(_line MATCHES "^<(ClCompile|ResourceCompile|ClInclude) Include=\"([^\"]+)\"( /)?>$")
             string(REPLACE "\\" "/" _path "${CMAKE_MATCH_2}")
             get_filename_component(_file "${_path}" ABSOLUTE BASE_DIR "${_dir}")
             file(RELATIVE_PATH _file "${ROOT}" "${_file}")
@@ -82,7 +84,7 @@ foreach(_line IN LISTS _lines)
             else()
                 continue()
             endif()
-        elseif(_line MATCHES "^<(ClCompile|ResourceCompile) ")
+        elseif(_line MATCHES "^<(ClCompile|ResourceCompile|ClInclude) ")
             _fail("unsupported item ${_line}")
         else()
             continue()
@@ -90,11 +92,16 @@ foreach(_line IN LISTS _lines)
     endif()
 
     if(_line STREQUAL "</${_kind}>")
-        if(NOT _excluded)
+        if(_kind STREQUAL "ClInclude")
+            list(APPEND _facts "${_file}|*|header|")
+        elseif(NOT _excluded)
             list(APPEND _facts "${_file}|*|source|" ${_item_facts})
         endif()
         set(_file "")
         continue()
+    endif()
+    if(_kind STREQUAL "ClInclude")
+        _fail("unsupported metadata on ClInclude ${_file}: ${_line}")
     endif()
 
     if(NOT _line MATCHES "^<([A-Za-z]+)( Condition=\"([^\"]*)\")?( />|>(.*)</[A-Za-z]+>)$")

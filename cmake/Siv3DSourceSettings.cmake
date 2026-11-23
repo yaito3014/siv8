@@ -15,7 +15,9 @@
 #
 #   siv3d_finish_sources(<target> WARNING_LEVEL <0-4> FACTS <file>)
 #
-# Gives the target its warning level and writes the facts file. Without
+# Call it once the target has its sources and header file sets. It gives the
+# target its warning level and writes the facts file, with the sources and the
+# headers of every header file set. Without
 # per-file levels the level is a target option, which also covers the
 # precompiled header CMake generates. With them, every file gets an explicit
 # level, its own or the target's, since a per-file level after a target-wide
@@ -163,6 +165,19 @@ function(siv3d_finish_sources _target)
     else()
         target_compile_options(${_target} PRIVATE /W${_arg_WARNING_LEVEL})
     endif()
+
+    get_target_property(_sets ${_target} HEADER_SETS)
+    foreach(_set IN LISTS _sets)
+        if(_set STREQUAL "HEADERS")
+            get_target_property(_headers ${_target} HEADER_SET)
+        else()
+            get_target_property(_headers ${_target} HEADER_SET_${_set})
+        endif()
+        foreach(_header IN LISTS _headers)
+            file(RELATIVE_PATH _relative "${CMAKE_SOURCE_DIR}" "${_header}")
+            list(APPEND _facts "${_relative}|*|header|")
+        endforeach()
+    endforeach()
 
     list(SORT _facts)
     list(JOIN _facts "\n" _content)

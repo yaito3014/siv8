@@ -37,8 +37,13 @@ endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DSources.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Siv3DSourceSettings.cmake")
-list(TRANSFORM SIV3D_ENGINE_SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
-list(TRANSFORM SIV3D_TEST_SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+foreach(_siv3d_list
+        SIV3D_ENGINE_SOURCES SIV3D_TEST_SOURCES SIV3D_PUBLIC_HEADERS
+        SIV3D_PUBLIC_THIRDPARTY_HEADERS SIV3D_SRC_HEADERS SIV3D_PLATFORM_HEADERS
+        SIV3D_THIRDPARTY_HEADERS SIV3D_SKIA_HEADERS SIV3D_PREBUILT_HEADERS
+        SIV3D_FREETYPE_HEADERS SIV3D_TEST_HEADERS)
+    list(TRANSFORM ${_siv3d_list} PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+endforeach()
 
 # The two projects build Debug differently (the library optimized and without
 # run-time checks, the application with Visual Studio's defaults), so the
@@ -74,6 +79,38 @@ endfunction()
 # Siv3D: WindowsDesktop/Siv3D.vcxproj
 # ----------------------------------------------------------------------------
 add_library(Siv3D STATIC ${SIV3D_ENGINE_SOURCES})
+# The include directories are the file sets' base directories, in the order of
+# the project's include path.
+target_sources(Siv3D
+    PUBLIC
+        FILE_SET HEADERS
+            BASE_DIRS "${_siv3d_root}/include"
+            FILES ${SIV3D_PUBLIC_HEADERS}
+        FILE_SET public_thirdparty TYPE HEADERS
+            BASE_DIRS "${_siv3d_root}/include/ThirdParty"
+            FILES ${SIV3D_PUBLIC_THIRDPARTY_HEADERS}
+    PRIVATE
+        FILE_SET src TYPE HEADERS
+            BASE_DIRS "${_siv3d_root}/src"
+            FILES ${SIV3D_SRC_HEADERS}
+        FILE_SET platform TYPE HEADERS
+            BASE_DIRS "${_siv3d_root}/src/Siv3D-Platform/WindowsDesktop"
+            FILES ${SIV3D_PLATFORM_HEADERS}
+        FILE_SET thirdparty TYPE HEADERS
+            BASE_DIRS "${_siv3d_root}/src/ThirdParty"
+            FILES ${SIV3D_THIRDPARTY_HEADERS}
+        FILE_SET skia TYPE HEADERS
+            BASE_DIRS "${_siv3d_root}/src/ThirdParty/skia"
+            FILES ${SIV3D_SKIA_HEADERS}
+        FILE_SET prebuilt TYPE HEADERS
+            BASE_DIRS "${_siv3d_root}/src/ThirdParty-prebuilt"
+            FILES ${SIV3D_PREBUILT_HEADERS}
+        FILE_SET freetype TYPE HEADERS
+            BASE_DIRS "${_siv3d_root}/src/ThirdParty-prebuilt/freetype"
+            FILES ${SIV3D_FREETYPE_HEADERS})
+# The Boost headers are not part of the repository's lists: each developer
+# unpacks them, as for the Visual Studio build.
+target_include_directories(Siv3D PRIVATE "${SIV3D_BOOST_DIR}")
 _siv3d_common_settings(Siv3D)
 siv3d_source_settings(Siv3D WARNING_LEVEL 1 DIRECTORY Siv3D/src/ThirdParty/skia)
 siv3d_source_settings(Siv3D DEFINITIONS SK_DISABLE_LEGACY_PNG_WRITEBUFFER
@@ -101,18 +138,6 @@ target_compile_definitions(Siv3D PRIVATE
     SK_RELEASE SK_ENABLE_OPTIMIZE_SIZE SK_DISABLE_TRACING SK_DISABLE_EFFECT_DESERIALIZATION
     LUNASVG_BUILD_STATIC OSC_HOST_LITTLE_ENDIAN R8B_PFFFT_DOUBLE TOML11_COMPILE_SOURCES)
 target_compile_options(Siv3D PRIVATE /O2)
-target_include_directories(Siv3D
-    PUBLIC
-        "${_siv3d_root}/include"
-        "${_siv3d_root}/include/ThirdParty"
-    PRIVATE
-        "${_siv3d_root}/src"
-        "${_siv3d_root}/src/Siv3D-Platform/WindowsDesktop"
-        "${_siv3d_root}/src/ThirdParty"
-        "${_siv3d_root}/src/ThirdParty/skia"
-        "${_siv3d_root}/src/ThirdParty-prebuilt"
-        "${_siv3d_root}/src/ThirdParty-prebuilt/freetype"
-        "${SIV3D_BOOST_DIR}")
 # The prebuilt libraries Siv3D.hpp links by name, and the library itself.
 target_link_directories(Siv3D INTERFACE
     "${CMAKE_BINARY_DIR}/lib"
@@ -122,6 +147,10 @@ target_link_directories(Siv3D INTERFACE
 # Siv3D-Test: WindowsDesktop/Siv3D-Test.vcxproj
 # ----------------------------------------------------------------------------
 add_executable(Siv3D-Test WIN32 ${SIV3D_TEST_SOURCES} "${_siv3d_windows}/codepage.manifest")
+target_sources(Siv3D-Test PRIVATE
+    FILE_SET HEADERS
+        BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/Test" "${_siv3d_windows}"
+        FILES ${SIV3D_TEST_HEADERS})
 _siv3d_common_settings(Siv3D-Test)
 siv3d_source_settings(Siv3D-Test
     INCLUDE_DIRECTORIES Siv3D/src Siv3D/src/Siv3D-Platform/WindowsDesktop
