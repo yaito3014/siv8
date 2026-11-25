@@ -594,11 +594,112 @@ namespace s3d
 			return JSONConstRef{ getRef() };
 		}
 
+		template <class Derived>
+		JSONMutableMixin<Derived>::iterator JSONMutableMixin<Derived>::begin() noexcept
+		{
+			JSONBase& json = getMutableRef();
+			return iterator{ json.begin(), json.is_array() ? 0 : NotArray };
+		}
+
+		template <class Derived>
+		JSONMutableMixin<Derived>::iterator JSONMutableMixin<Derived>::end() noexcept
+		{
+			JSONBase& json = getMutableRef();
+			return iterator{ json.end(), json.is_array() ? json.size() : NotArray };
+		}
+
+		template <class Derived>
+		JSONRef JSONMutableMixin<Derived>::operator [](std::string_view key)
+		{
+			try
+			{
+				return JSONRef{ getMutableRef()[key] };
+			}
+			catch (const detail::JSONBase::exception& e)
+			{
+				throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
+			}
+		}
+
+		template <class Derived>
+		JSONRef JSONMutableMixin<Derived>::operator [](StringView key)
+		{
+			try
+			{
+				return JSONRef{ getMutableRef()[Unicode::ToUTF8(key)] };
+			}
+			catch (const detail::JSONBase::exception& e)
+			{
+				throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
+			}
+		}
+
+		template <class Derived>
+		JSONRef JSONMutableMixin<Derived>::operator [](const std::size_t index)
+		{
+			return JSONRef{ CheckedAt(getMutableRef(), index) };
+		}
+
+		template <class Derived>
+		void JSONMutableMixin<Derived>::push_back(JSON value)
+		{
+			PushBack(getMutableRef(), std::move(value.m_json));
+		}
+
+		template <class Derived>
+		void JSONMutableMixin<Derived>::pop_back()
+		{
+			PopBack(getMutableRef());
+		}
+
+		template <class Derived>
+		void JSONMutableMixin<Derived>::clear()
+		{
+			getMutableRef().clear();
+		}
+
+		template <class Derived>
+		void JSONMutableMixin<Derived>::erase(const std::string_view key)
+		{
+			EraseKey(getMutableRef(), key);
+		}
+
+		template <class Derived>
+		void JSONMutableMixin<Derived>::erase(const StringView key)
+		{
+			EraseKey(getMutableRef(), Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		void JSONMutableMixin<Derived>::erase(const std::size_t index)
+		{
+			EraseIndex(getMutableRef(), index);
+		}
+
+		template <class Derived>
+		JSONArrayView<false> JSONMutableMixin<Derived>::arrayView()
+		{
+			JSONBase& json = getMutableRef();
+
+			if (json.is_array())
+			{
+				return JSONArrayView<false>{ json };
+			}
+			else
+			{
+				throw Error{ "JSON::arrayView(): This JSON value is not an array" };
+			}
+		}
+
 		template class JSONMixin<JSON>;
 
 		template class JSONMixin<JSONRef>;
 
 		template class JSONMixin<JSONConstRef>;
+
+		template class JSONMutableMixin<JSON>;
+
+		template class JSONMutableMixin<JSONRef>;
 	}
 
 	JSON::JSON() : m_json() {}
@@ -625,87 +726,6 @@ namespace s3d
 	{
 		m_json = std::move(other).m_json;
 		return *this;
-	}
-
-	JSON::iterator JSON::begin() noexcept
-	{
-		return iterator{ m_json.begin(), m_json.is_array() ? 0 : detail::NotArray };
-	}
-
-	JSON::iterator JSON::end() noexcept
-	{
-		return iterator{ m_json.end(), m_json.is_array() ? m_json.size() : detail::NotArray };
-	}
-
-	JSONRef JSON::operator [](std::string_view key)
-	{
-		try
-		{
-			return JSONRef{ m_json[key] };
-		}
-		catch (const detail::JSONBase::exception& e)
-		{
-			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
-		}
-	}
-
-	JSONRef JSON::operator [](StringView key)
-	{
-		try
-		{
-			return JSONRef{ m_json[Unicode::ToUTF8(key)] };
-		}
-		catch (const detail::JSONBase::exception& e)
-		{
-			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
-		}
-	}
-
-	JSONRef JSON::operator [](const std::size_t index)
-	{
-		return JSONRef{ CheckedAt(m_json, index) };
-	}
-
-	void JSON::push_back(JSON value)
-	{
-		PushBack(m_json, std::move(value.m_json));
-	}
-
-	void JSON::pop_back()
-	{
-		PopBack(m_json);
-	}
-
-	void JSON::clear()
-	{
-		m_json.clear();
-	}
-
-	void JSON::erase(const std::string_view key)
-	{
-		EraseKey(m_json, key);
-	}
-
-	void JSON::erase(const StringView key)
-	{
-		EraseKey(m_json, Unicode::ToUTF8(key));
-	}
-
-	void JSON::erase(const std::size_t index)
-	{
-		EraseIndex(m_json, index);
-	}
-
-	JSONArrayView<false> JSON::arrayView()
-	{
-		if (m_json.is_array())
-		{
-			return JSONArrayView<false>{ m_json };
-		}
-		else
-		{
-			throw Error{ "JSON::arrayView(): This JSON value is not an array" };
-		}
 	}
 
 	void JSON::swap(JSON& other) noexcept
@@ -850,88 +870,6 @@ namespace s3d
 	{
 		m_json_ref = std::move(other).m_json;
 		return *this;
-	}
-
-	JSONRef::iterator JSONRef::begin() noexcept
-	{
-		return iterator{ m_json_ref.begin(), m_json_ref.is_array() ? 0 : detail::NotArray };
-	}
-
-	JSONRef::iterator JSONRef::end() noexcept
-	{
-		return iterator{ m_json_ref.end(), m_json_ref.is_array() ? m_json_ref.size() : detail::NotArray };
-	}
-
-	JSONRef JSONRef::operator [](std::string_view key)
-	{
-		try
-		{
-			return JSONRef{ m_json_ref[key] };
-		}
-		catch (const detail::JSONBase::exception& e)
-		{
-			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
-		}
-	}
-
-	JSONRef JSONRef::operator [](StringView key)
-	{
-		try
-		{
-			return JSONRef{ m_json_ref[Unicode::ToUTF8(key)] };
-		}
-		catch (const detail::JSONBase::exception& e)
-		{
-			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
-		}
-
-	}
-
-	JSONRef JSONRef::operator [](const std::size_t index)
-	{
-		return JSONRef{ CheckedAt(m_json_ref, index) };
-	}
-
-	void JSONRef::push_back(JSON value)
-	{
-		PushBack(m_json_ref, std::move(value.m_json));
-	}
-
-	void JSONRef::pop_back()
-	{
-		PopBack(m_json_ref);
-	}
-
-	void JSONRef::clear()
-	{
-		m_json_ref.clear();
-	}
-
-	void JSONRef::erase(const std::string_view key)
-	{
-		EraseKey(m_json_ref, key);
-	}
-
-	void JSONRef::erase(const StringView key)
-	{
-		EraseKey(m_json_ref, Unicode::ToUTF8(key));
-	}
-
-	void JSONRef::erase(const std::size_t index)
-	{
-		EraseIndex(m_json_ref, index);
-	}
-
-	JSONArrayView<false> JSONRef::arrayView()
-	{
-		if (m_json_ref.is_array())
-		{
-			return JSONArrayView<false>{ m_json_ref };
-		}
-		else
-		{
-			throw Error{ "JSON::arrayView(): This JSON value is not an array" };
-		}
 	}
 
 	bool operator ==(JSONConstRef lhs, JSONConstRef rhs) noexcept

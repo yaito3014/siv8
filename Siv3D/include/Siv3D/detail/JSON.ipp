@@ -69,9 +69,24 @@ namespace s3d
 		extern template class JSONMixin<JSONRef>;
 
 		extern template class JSONMixin<JSONConstRef>;
+
+		template <class Derived>
+		inline JSONBase& JSONMutableMixin<Derived>::getMutableRef() noexcept
+		{
+			return static_cast<Derived&>(*this).getMutableRefImpl();
+		}
+
+		extern template class JSONMutableMixin<JSON>;
+
+		extern template class JSONMutableMixin<JSONRef>;
 	}
 
 	inline const detail::JSONBase& JSON::getRefImpl() const noexcept
+	{
+		return m_json;
+	}
+
+	inline detail::JSONBase& JSON::getMutableRefImpl() noexcept
 	{
 		return m_json;
 	}
@@ -80,6 +95,11 @@ namespace s3d
 		: m_json_ref{ json_ref } {}
 
 	inline const detail::JSONBase& JSONRef::getRefImpl() const noexcept
+	{
+		return m_json_ref;
+	}
+
+	inline detail::JSONBase& JSONRef::getMutableRefImpl() noexcept
 	{
 		return m_json_ref;
 	}

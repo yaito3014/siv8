@@ -376,23 +376,109 @@ namespace s3d
 				formatData.string.append(value.format());
 			}
 		};
+
+		template <class Derived>
+		class JSONMutableMixin : public JSONMixin<Derived>
+		{
+		public:
+
+			using iterator = JSONIterator;
+
+			using JSONMixin<Derived>::begin;
+
+			/// @brief オブジェクトまたは配列の要素の先頭を指すイテレータを返します。
+			/// @return オブジェクトまたは配列の要素の先頭を指すイテレータ
+			[[nodiscard]]
+			iterator begin() noexcept;
+
+			using JSONMixin<Derived>::end;
+
+			/// @brief オブジェクトまたは配列の要素の終端位置を指すイテレータを返します。
+			/// @return オブジェクトまたは配列の要素の終端位置を指すイテレータ
+			[[nodiscard]]
+			iterator end() noexcept;
+
+			using JSONMixin<Derived>::operator [];
+
+			/// @brief オブジェクトの指定したキーの要素を参照します。
+			/// @param key キー (UTF-8)
+			/// @return 要素への参照
+			/// @throw Error 値がオブジェクトでも null でもない場合
+			/// @remark キーがなければ null の要素を追加します。値が null の場合は空のオブジェクトにしてから追加します。
+			[[nodiscard]]
+			JSONRef operator [](std::string_view key);
+
+			/// @brief オブジェクトの指定したキーの要素を参照します。
+			/// @param key キー
+			/// @return 要素への参照
+			/// @throw Error 値がオブジェクトでも null でもない場合
+			/// @remark キーがなければ null の要素を追加します。値が null の場合は空のオブジェクトにしてから追加します。
+			[[nodiscard]]
+			JSONRef operator [](StringView key);
+
+			/// @brief 配列の指定したインデックスの要素を参照します。
+			/// @param index インデックス
+			/// @return 要素への参照
+			/// @throw Error 値が配列でない場合、またはインデックスが範囲外の場合
+			[[nodiscard]]
+			JSONRef operator [](std::size_t index);
+
+			/// @brief 配列の末尾に要素を追加します。
+			/// @param value 追加する要素
+			/// @throw Error 値が配列でも null でもない場合
+			/// @remark 値が null の場合は配列にしてから追加します。
+			/// @pre value をムーブで作成する場合、ムーブ元はこの値を含んでいてはいけません。
+			void push_back(JSON value);
+
+			/// @brief 配列の末尾の要素を削除します。
+			/// @throw Error 値が配列でない場合、または配列が空の場合
+			void pop_back();
+
+			/// @brief 値の型はそのままで、値を空にします。
+			/// @remark 配列・オブジェクト・文字列・バイナリデータは空に、数値は 0 に、bool は false になります。
+			void clear();
+
+			/// @brief オブジェクトの指定したキーの要素を削除します。
+			/// @param key キー (UTF-8)
+			/// @throw Error 値がオブジェクトでない場合
+			/// @remark キーがない場合は何もしません。
+			void erase(std::string_view key);
+
+			/// @brief オブジェクトの指定したキーの要素を削除します。
+			/// @param key キー
+			/// @throw Error 値がオブジェクトでない場合
+			/// @remark キーがない場合は何もしません。
+			void erase(StringView key);
+
+			/// @brief 配列の指定したインデックスの要素を削除します。
+			/// @param index インデックス
+			/// @throw Error 値が配列でない場合、またはインデックスが範囲外の場合
+			void erase(std::size_t index);
+
+			using JSONMixin<Derived>::arrayView;
+
+			/// @brief 配列の要素を参照するビューを返します。
+			/// @return ビュー
+			/// @throw Error 値が配列でない場合
+			[[nodiscard]]
+			JSONArrayView<false> arrayView();
+
+		protected:
+
+			[[nodiscard]]
+			JSONBase& getMutableRef() noexcept;
+		};
 	}
 
 	/// @brief 挿入順を保持する JSON の値を所有するクラス。
 	/// @remark コピーは値全体を複製します。
 	/// @remark `operator []`、`arrayView()`、イテレータから得る要素は値への参照です。値の破棄、代入、要素の追加・削除で無効になることがあります。独立した値が必要な場合は `JSON` にコピーしてください。
-	class JSON final : public detail::JSONMixin<JSON>
+	class JSON final : public detail::JSONMutableMixin<JSON>
 	{
-	private:
-
-		using base_type = detail::JSONMixin<JSON>;
-
 	public:
 
 		/// @brief 基盤ライブラリの JSON 型
 		using json_base = detail::JSONBase;
-
-		using iterator = JSONIterator;
 
 		using const_iterator = JSONConstIterator;
 
@@ -456,84 +542,6 @@ namespace s3d
 		/// @remark other は置き換えの前に作成されるため、この値の要素への参照から代入できます。
 		JSON& operator =(JSON other) noexcept;
 
-		using base_type::begin;
-
-		/// @brief オブジェクトまたは配列の要素の先頭を指すイテレータを返します。
-		/// @return オブジェクトまたは配列の要素の先頭を指すイテレータ
-		[[nodiscard]]
-		iterator begin() noexcept;
-
-		using base_type::end;
-
-		/// @brief オブジェクトまたは配列の要素の終端位置を指すイテレータを返します。
-		/// @return オブジェクトまたは配列の要素の終端位置を指すイテレータ
-		[[nodiscard]]
-		iterator end() noexcept;
-
-		using base_type::operator [];
-
-		/// @brief オブジェクトの指定したキーの要素を参照します。
-		/// @param key キー (UTF-8)
-		/// @return 要素への参照
-		/// @throw Error 値がオブジェクトでも null でもない場合
-		/// @remark キーがなければ null の要素を追加します。値が null の場合は空のオブジェクトにしてから追加します。
-		[[nodiscard]]
-		JSONRef operator [](std::string_view key);
-
-		/// @brief オブジェクトの指定したキーの要素を参照します。
-		/// @param key キー
-		/// @return 要素への参照
-		/// @throw Error 値がオブジェクトでも null でもない場合
-		/// @remark キーがなければ null の要素を追加します。値が null の場合は空のオブジェクトにしてから追加します。
-		[[nodiscard]]
-		JSONRef operator [](StringView key);
-
-		/// @brief 配列の指定したインデックスの要素を参照します。
-		/// @param index インデックス
-		/// @return 要素への参照
-		/// @throw Error 値が配列でない場合、またはインデックスが範囲外の場合
-		[[nodiscard]]
-		JSONRef operator [](std::size_t index);
-
-		/// @brief 配列の末尾に要素を追加します。
-		/// @param value 追加する要素
-		/// @throw Error 値が配列でも null でもない場合
-		/// @remark 値が null の場合は配列にしてから追加します。
-		/// @pre value をムーブで作成する場合、ムーブ元はこの値を含んでいてはいけません。
-		void push_back(JSON value);
-
-		/// @brief 配列の末尾の要素を削除します。
-		/// @throw Error 値が配列でない場合、または配列が空の場合
-		void pop_back();
-
-		/// @brief 値の型はそのままで、値を空にします。
-		/// @remark 配列・オブジェクト・文字列・バイナリデータは空に、数値は 0 に、bool は false になります。
-		void clear();
-
-		/// @brief オブジェクトの指定したキーの要素を削除します。
-		/// @param key キー (UTF-8)
-		/// @throw Error 値がオブジェクトでない場合
-		/// @remark キーがない場合は何もしません。
-		void erase(std::string_view key);
-
-		/// @brief オブジェクトの指定したキーの要素を削除します。
-		/// @param key キー
-		/// @throw Error 値がオブジェクトでない場合
-		/// @remark キーがない場合は何もしません。
-		void erase(StringView key);
-
-		/// @brief 配列の指定したインデックスの要素を削除します。
-		/// @param index インデックス
-		/// @throw Error 値が配列でない場合、またはインデックスが範囲外の場合
-		void erase(std::size_t index);
-
-		using base_type::arrayView;
-
-		/// @brief 配列の要素を参照するビューを返します。
-		/// @return ビュー
-		/// @throw Error 値が配列でない場合
-		[[nodiscard]]
-		JSONArrayView<false> arrayView();
 
 		/// @brief 値を交換します。
 		/// @param other 交換する値
@@ -670,7 +678,10 @@ namespace s3d
 
 	private:
 
-		friend base_type;
+		friend detail::JSONMixin<JSON>;
+
+		template <class>
+		friend class detail::JSONMutableMixin;
 
 		friend JSONRef;
 
@@ -683,20 +694,18 @@ namespace s3d
 		[[nodiscard]]
 		const detail::JSONBase& getRefImpl() const noexcept;
 
+		[[nodiscard]]
+		detail::JSONBase& getMutableRefImpl() noexcept;
+
 		detail::JSONBase m_json;
 	};
 
 	/// @brief JSON の値の要素を参照するクラス。
 	/// @remark 値を所有しません。コピーは同じ要素を参照し、代入は参照先の値を置き換えます。
 	/// @remark 参照先を含む値の破棄、代入、要素の追加・削除で無効になることがあります。独立した値が必要な場合は `JSON` にコピーしてください。
-	class JSONRef final : public detail::JSONMixin<JSONRef>
+	class JSONRef final : public detail::JSONMutableMixin<JSONRef>
 	{
-	private:
-
-		using base_type = detail::JSONMixin<JSONRef>;
-
 	public:
-		using iterator = JSONIterator;
 
 		[[nodiscard]]
 		JSONRef(const JSONRef&) noexcept = default;
@@ -736,84 +745,6 @@ namespace s3d
 		/// @pre other は参照先を含んでいてはいけません。参照先を含む値を代入する場合は、ムーブせずにコピーしてください。
 		const JSONRef& operator =(JSON&& other) const;
 
-		using base_type::begin;
-
-		/// @brief オブジェクトまたは配列の要素の先頭を指すイテレータを返します。
-		/// @return オブジェクトまたは配列の要素の先頭を指すイテレータ
-		[[nodiscard]]
-		iterator begin() noexcept;
-
-		using base_type::end;
-
-		/// @brief オブジェクトまたは配列の要素の終端位置を指すイテレータを返します。
-		/// @return オブジェクトまたは配列の要素の終端位置を指すイテレータ
-		[[nodiscard]]
-		iterator end() noexcept;
-
-		using base_type::operator [];
-
-		/// @brief オブジェクトの指定したキーの要素を参照します。
-		/// @param key キー (UTF-8)
-		/// @return 要素への参照
-		/// @throw Error 値がオブジェクトでも null でもない場合
-		/// @remark キーがなければ null の要素を追加します。値が null の場合は空のオブジェクトにしてから追加します。
-		[[nodiscard]]
-		JSONRef operator [](std::string_view key);
-
-		/// @brief オブジェクトの指定したキーの要素を参照します。
-		/// @param key キー
-		/// @return 要素への参照
-		/// @throw Error 値がオブジェクトでも null でもない場合
-		/// @remark キーがなければ null の要素を追加します。値が null の場合は空のオブジェクトにしてから追加します。
-		[[nodiscard]]
-		JSONRef operator [](StringView key);
-
-		/// @brief 配列の指定したインデックスの要素を参照します。
-		/// @param index インデックス
-		/// @return 要素への参照
-		/// @throw Error 値が配列でない場合、またはインデックスが範囲外の場合
-		[[nodiscard]]
-		JSONRef operator [](std::size_t index);
-
-		/// @brief 配列の末尾に要素を追加します。
-		/// @param value 追加する要素
-		/// @throw Error 値が配列でも null でもない場合
-		/// @remark 値が null の場合は配列にしてから追加します。
-		/// @pre value をムーブで作成する場合、ムーブ元はこの値を含んでいてはいけません。
-		void push_back(JSON value);
-
-		/// @brief 配列の末尾の要素を削除します。
-		/// @throw Error 値が配列でない場合、または配列が空の場合
-		void pop_back();
-
-		/// @brief 値の型はそのままで、値を空にします。
-		/// @remark 配列・オブジェクト・文字列・バイナリデータは空に、数値は 0 に、bool は false になります。
-		void clear();
-
-		/// @brief オブジェクトの指定したキーの要素を削除します。
-		/// @param key キー (UTF-8)
-		/// @throw Error 値がオブジェクトでない場合
-		/// @remark キーがない場合は何もしません。
-		void erase(std::string_view key);
-
-		/// @brief オブジェクトの指定したキーの要素を削除します。
-		/// @param key キー
-		/// @throw Error 値がオブジェクトでない場合
-		/// @remark キーがない場合は何もしません。
-		void erase(StringView key);
-
-		/// @brief 配列の指定したインデックスの要素を削除します。
-		/// @param index インデックス
-		/// @throw Error 値が配列でない場合、またはインデックスが範囲外の場合
-		void erase(std::size_t index);
-
-		using base_type::arrayView;
-
-		/// @brief 配列の要素を参照するビューを返します。
-		/// @return ビュー
-		/// @throw Error 値が配列でない場合
-		[[nodiscard]]
-		JSONArrayView<false> arrayView();
 
 		/// @brief 2 つの参照先の値を交換します。
 		/// @param lhs 交換する値への参照
@@ -826,7 +757,10 @@ namespace s3d
 
 	private:
 
-		friend base_type;
+		friend detail::JSONMixin<JSONRef>;
+
+		template <class>
+		friend class detail::JSONMutableMixin;
 
 		friend JSON;
 
@@ -839,6 +773,9 @@ namespace s3d
 
 		[[nodiscard]]
 		const detail::JSONBase& getRefImpl() const noexcept;
+
+		[[nodiscard]]
+		detail::JSONBase& getMutableRefImpl() noexcept;
 
 		detail::JSONBase& m_json_ref;
 	};
@@ -1036,6 +973,9 @@ namespace s3d
 
 		template <class>
 		friend class detail::JSONMixin;
+
+		template <class>
+		friend class detail::JSONMutableMixin;
 
 		explicit JSONArrayView(detail::maybe_const<Const, detail::JSONBase>& json);
 

@@ -84,6 +84,9 @@ namespace s3d
 		template <class>
 		friend class detail::JSONMixin;
 
+		template <class>
+		friend class detail::JSONMutableMixin;
+
 		JSONIterator(detail::JSONBase::iterator itr, std::size_t index);
 
 		detail::JSONBase::iterator m_iterator;
