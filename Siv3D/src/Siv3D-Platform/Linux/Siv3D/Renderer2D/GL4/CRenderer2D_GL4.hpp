@@ -37,13 +37,8 @@ namespace s3d
 	// A complete 2D renderer. Geometry is tessellated by the common Vertex2DBuilder;
 	// shaders + constants flow through the engine shader registry (CEngineShader_GL4)
 	// and real UBOs, bound via a GL program pipeline (CShader_GL4) — matching the
-	// D3D11/Metal backends. Supports solid/gradient shapes, textures/sprites, MSDF
-	// text (incl. SDF outline/shadow/glow), all six fill patterns (every shape),
-	// shadows, dashed/dotted lines, quad-warp, custom user shaders, and the full 2D
-	// render state (blend/rasterizer/sampler/scissor/viewport). No-op TODO(linux):
-	// render-to-texture / scene-letterbox (no scene FBO yet; MSAA lives on the window),
-	// custom shader constant buffers, and the Halftone/Wave/Ripple/Weave/Truchet
-	// pattern shaders (drawn with the solid shape shader until ported to GLSL).
+	// D3D11/Metal backends. Draws go into CRenderer_GL4's scene framebuffer, with
+	// color, SDF, pattern and custom constant-buffer state recorded per draw command.
 	class CRenderer2D_GL4 final : public ISiv3DRenderer2D
 	{
 	public:
@@ -481,7 +476,7 @@ namespace s3d
 
 		void discard(const uint32 indexCount) { pushCommand(indexCount, Program::Shape, 0); } // shape draw
 
-		// Pattern fills carry per-draw params, so each is its own command (no merge).
+		// Pattern fills merge only with a previous fill that has the same parameters.
 		void pushPatternCommand(const uint32 indexCount, const PatternParameters& pattern)
 		{
 			if (indexCount == 0)
@@ -495,8 +490,17 @@ namespace s3d
 			command.patternParams	= pattern.toFloat4Array();
 			command.patternType		= static_cast<uint8>(FromEnum(pattern.type));
 			captureState(command);
-			recordConstantBuffers(command);
-			m_commands.push_back(command);
+			const bool constantBuffersChanged = recordConstantBuffers(command);
+
+			if ((not constantBuffersChanged) && (not m_commands.isEmpty())
+				&& sameState(m_commands.back(), command) && (m_commands.back().patternParams == command.patternParams))
+			{
+				m_commands.back().indexCount += indexCount;
+			}
+			else
+			{
+				m_commands.push_back(command);
+			}
 		}
 
 		// Commits pending custom constant-buffer changes ahead of `command`; returns

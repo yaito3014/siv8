@@ -315,6 +315,127 @@ R"glsl(void main()
 	//
 	//	MSDF font (median distance + screen-space AA via texture dimensions)
 	//
+	constexpr std::string_view GLSL_PS_PatternHalftone =
+R"glsl(void main()
+{
+	float normalizedMinRadius = g_patternUVTransform[1].z;
+	float normalizedMaxRadius = g_patternUVTransform[1].w;
+	vec2 radiusFieldGradient = g_patternExtraParams.xy;
+	float radiusFieldBias = g_patternExtraParams.z;
+	vec2 uv = Pattern_UVTransform(v_uv);
+	vec2 cellCenter = (floor(uv) + 0.5);
+	vec2 repeat = (2.0 * (uv - cellCenter));
+	float radiusBlend = clamp((dot(cellCenter, radiusFieldGradient) + radiusFieldBias), 0.0, 1.0);
+	float normalizedRadius = mix(normalizedMinRadius, normalizedMaxRadius,
+		(radiusBlend * radiusBlend * (3.0 - 2.0 * radiusBlend)));
+	float fw = length(fwidth(uv));
+	float coverage = ((1.0 - smoothstep((normalizedRadius - fw), (normalizedRadius + fw), length(repeat)))
+		* clamp((normalizedRadius / fw), 0.0, 1.0));
+	o_color = mix(Pattern_BackgroundColor(), s3d_shapeColor(v_colorPMA), coverage);
+}
+)glsl";
+
+	constexpr std::string_view GLSL_PS_PatternWave =
+R"glsl(void main()
+{
+	float normalizedThickness = g_patternUVTransform[1].z;
+	float normalizedAmplitude = g_patternUVTransform[1].w;
+	float slopeAmplitude = g_patternExtraParams.x;
+	vec2 uv = Pattern_UVTransform(v_uv);
+	float phase = (6.28318530718 * uv.x);
+	float waveCoord = (uv.y - normalizedAmplitude * sin(phase) + 0.5);
+	float slope = (slopeAmplitude * cos(phase));
+	float width = clamp((normalizedThickness * sqrt(1.0 + slope * slope)), 0.0, 1.0);
+	float fw = fwidth(waveCoord);
+	float value = abs(2.0 * fract(waveCoord) - 1.0);
+	float thickness = (width * (1.0 + 2.0 * fw) - fw);
+	float t = smoothstep((thickness - fw), (thickness + fw), value);
+	o_color = mix(s3d_shapeColor(v_colorPMA), Pattern_BackgroundColor(), t);
+}
+)glsl";
+
+	constexpr std::string_view GLSL_PS_PatternRipple =
+R"glsl(void main()
+{
+	float normalizedThickness = g_patternUVTransform[1].z;
+	float normalizedRadiusOffset = g_patternUVTransform[1].w;
+	vec2 uv = Pattern_UVTransform(v_uv);
+	float ringCoord = (length(uv) - normalizedRadiusOffset + 0.5);
+	float fw = length(fwidth(uv));
+	float value = abs(2.0 * fract(ringCoord) - 1.0);
+	float thickness = (normalizedThickness * (1.0 + 2.0 * fw) - fw);
+	float t = smoothstep((thickness - fw), (thickness + fw), value);
+	o_color = mix(s3d_shapeColor(v_colorPMA), Pattern_BackgroundColor(), t);
+}
+)glsl";
+
+	constexpr std::string_view GLSL_PS_PatternWeave =
+R"glsl(void main()
+{
+	float normalizedBandWidth = g_patternUVTransform[1].z;
+	float normalizedClearanceWidth = g_patternUVTransform[1].w;
+	vec2 uv = Pattern_UVTransform(v_uv);
+	vec2 fw = fwidth(uv);
+	vec2 value = abs(2.0 * fract(uv + 0.5) - 1.0);
+	vec2 width = (normalizedBandWidth * (1.0 + 2.0 * fw) - fw);
+	vec2 clearance = (normalizedClearanceWidth * (1.0 + 2.0 * fw) - fw);
+	vec2 band = (1.0 - smoothstep((width - fw), (width + fw), value));
+	vec2 expanded = (1.0 - smoothstep((clearance - fw), (clearance + fw), value));
+	float horizontalOver = Pattern_CheckersFiltered((uv + 0.5), vec2(1.0, 1.0));
+	float verticalCut = ((expanded.x - band.x) * band.y);
+	float horizontalCut = ((expanded.y - band.y) * band.x);
+	float coverage = (max(band.x, band.y) - mix(verticalCut, horizontalCut, horizontalOver));
+	o_color = mix(Pattern_BackgroundColor(), s3d_shapeColor(v_colorPMA), coverage);
+}
+)glsl";
+
+	// Pattern::Truchet::Layout: Random 0, Uniform 1, Alternating 2.
+	constexpr std::string_view GLSL_PS_PatternTruchet =
+R"glsl(uint Pattern_DecodeTruchetSeed(vec2 seedHalves)
+{
+	uint seedLow = uint(seedHalves.x);
+	uint seedHigh = uint(seedHalves.y);
+	return (seedLow | (seedHigh << 16));
+}
+uint Pattern_TruchetHash(vec2 cell, uint seed)
+{
+	uvec2 key = floatBitsToUint(cell + 0.5);
+	uint h = ((key.x * 0x9E3779B9u) ^ (key.y * 0x85EBCA6Bu) ^ seed);
+	h ^= (h >> 16);
+	h *= 0x7FEB352Du;
+	h ^= (h >> 15);
+	h *= 0x846CA68Bu;
+	h ^= (h >> 16);
+	return h;
+}
+void main()
+{
+	float normalizedThickness = g_patternUVTransform[1].z;
+	vec2 uv = Pattern_UVTransform(v_uv);
+	vec2 cell = floor(uv);
+	vec2 tilePosition = (uv - cell);
+	uint truchetLayout = uint(g_patternExtraParams.z);
+	bool flip = false;
+	if (truchetLayout == 0u)
+	{
+		uint seed = Pattern_DecodeTruchetSeed(g_patternExtraParams.xy);
+		flip = ((Pattern_TruchetHash(cell, seed) & 1u) != 0u);
+	}
+	else if (truchetLayout == 2u)
+	{
+		flip = (fract(dot(cell, vec2(0.5, 0.5))) > 0.25);
+	}
+	tilePosition.x = (flip ? (1.0 - tilePosition.x) : tilePosition.x);
+	vec2 oppositeCornerOffset = (tilePosition - 1.0);
+	float dist = abs(sqrt(min(dot(tilePosition, tilePosition),
+		dot(oppositeCornerOffset, oppositeCornerOffset))) - 0.5);
+	float fw = length(fwidth(uv));
+	float width = (normalizedThickness * (1.0 + 2.0 * fw) - fw);
+	float coverage = (1.0 - smoothstep((width - fw), (width + fw), (2.0 * dist)));
+	o_color = mix(Pattern_BackgroundColor(), s3d_shapeColor(v_colorPMA), coverage);
+}
+)glsl";
+
 	constexpr std::string_view GLSL_PSMSDFPrefix =
 R"glsl(const float MSDF_PixelRange = 16.0;
 const float MSDF_TextThreshold = 0.5;

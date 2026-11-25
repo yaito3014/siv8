@@ -334,7 +334,7 @@ TEST_CASE("Pattern.wave_packing")
 	}
 }
 
-# if SIV3D_PLATFORM(WINDOWS) || SIV3D_PLATFORM(MACOS)
+# if SIV3D_PLATFORM(WINDOWS) || SIV3D_PLATFORM(MACOS) || SIV3D_PLATFORM(LINUX)
 
 namespace
 {
@@ -1628,6 +1628,14 @@ float4 ReadExtra() : SV_TARGET
 }
 )";
 	const PixelShader ps = PixelShader::HLSL(source, U"ReadExtra");
+# elif SIV3D_PLATFORM(LINUX)
+	// Slot 1 is the engine's PSEffectConstants2D binding.
+	const PixelShader ps = PixelShader::GLSL(std::string{ R"(#version 410 core
+#extension GL_ARB_shading_language_420pack : require
+layout(std140, binding = 1) uniform Effects { vec4 padding[3]; vec4 extra; };
+layout(location = 0) out vec4 o_color;
+void main() { o_color = vec4(extra.xyz * extra.w, 1.0); }
+)" }, U"main");
 # else
 	const std::string source = R"(
 #include <metal_stdlib>
@@ -1730,6 +1738,31 @@ float4 Coordinates(Varying input) : SV_TARGET
 )";
 	const VertexShader vs = VertexShader::HLSL(source, U"ShiftPattern");
 	const PixelShader ps = PixelShader::HLSL(source, U"Coordinates");
+# elif SIV3D_PLATFORM(LINUX)
+	const VertexShader vs = VertexShader::GLSL(std::string{ R"(#version 410 core
+#extension GL_ARB_shading_language_420pack : require
+out gl_PerVertex { vec4 gl_Position; };
+layout(location = 0) in vec2 i_position;
+layout(location = 1) in vec2 i_uv;
+layout(location = 2) in vec4 i_color;
+layout(location = 0) out vec4 v_colorPMA;
+layout(location = 1) out vec2 v_uv;
+layout(std140, binding = 0) uniform Constants { vec4 transform[3]; vec4 colorMul; };
+void main()
+{
+    const vec2 pos = i_position + vec2(23.0, 0.0);
+    gl_Position = (pos.x * transform[0]) + (pos.y * transform[1]) + transform[2];
+    vec4 color = i_color * colorMul;
+    v_colorPMA = vec4(color.rgb * color.a, color.a);
+    v_uv = i_position;
+}
+)" }, U"main");
+	const PixelShader ps = PixelShader::GLSL(std::string{ R"(#version 410 core
+layout(location = 0) in vec4 v_colorPMA;
+layout(location = 1) in vec2 v_uv;
+layout(location = 0) out vec4 o_color;
+void main() { o_color = vec4(fract(v_uv / 32.0), 0.0, 1.0); }
+)" }, U"main");
 # else
 	const std::string source = R"(
 #include <metal_stdlib>
