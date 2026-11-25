@@ -136,11 +136,13 @@ cmake --build build --config Release
 
 The Linux **GLFW + OpenGL 4.1 backend** renders the full 2D sample: solid/
 gradient shapes, premultiplied-alpha blending, transforms, textures/sprites +
-emoji, MSDF text (incl. CJK) with SDF outline/shadow/glow, all six fill patterns,
-shadows, dashed/dotted lines, quad-warp, custom user shaders, the full 2D render
-state, and 4× MSAA edges matching the D3D11/Metal output. Shaders + constants go
-through the engine shader registry (`CEngineShader_GL4`) and real UBOs, bound via
-a GL program pipeline. Both `Siv3D-App` and `Siv3D-Test` build into runnable ELFs.
+emoji, MSDF text (incl. CJK) with SDF outline/shadow/glow, all eleven fill
+patterns, shadows, dashed/dotted lines, quad-warp, custom user shaders with
+custom constant buffers, and the full 2D render state. The scene is drawn into
+its own x4 MSAA framebuffer and letterboxed onto the window, like the D3D11/Metal
+back buffers. Shaders + constants go through the engine shader registry
+(`CEngineShader_GL4`) and real UBOs, bound via a GL program pipeline. Both
+`Siv3D-App` and `Siv3D-Test` build into runnable ELFs.
 
 Verified headless (Xvfb + Mesa **llvmpipe**) and live on a physical monitor via
 **WSLg**. Tested in the **`siv8` docker container** (Ubuntu 26.04, gcc 15.2).
@@ -216,14 +218,24 @@ Platform code comes from two trees (see the `elseif(UNIX)` blocks in the root
     `/proc/self/exe` + a freedesktop trash impl.
   - `UserInfo/`, `Resource/`, `FreestandingMessageBox/` (→ `std::cerr`),
     `System/` (`CSystem` + `OpenInBrowser()` via `fork`+`execlp("xdg-open")`).
-  - `Window/` + `GLFW/` — `CWindow` (GLFW, OpenGL 4.1 core, 4× MSAA framebuffer);
-    logs the selected GLFW platform (X11/Wayland). `Cursor/` — `CCursor`.
-  - `Renderer/GL4/` — `CRenderer_GL4` (clear/present, MSAA, screenshot capture via
-    a resolve-FBO) + `CRenderer2D_GL4`: selects engine shaders from
-    `CEngineShader_GL4` (or a custom shader) and binds them through a GL program
-    pipeline (`CShader_GL4`, separable programs) with `ConstantBuffer_GL4` UBOs;
-    a draw-command batch over a streaming VBO/IBO reusing `Vertex2DBuilder`.
-    `CTexture_GL4` uploads RGBA8 via `AssetHandleManager`.
+  - `Window/` + `GLFW/` — `CWindow` (GLFW, OpenGL 4.1 core, single-sample
+    window framebuffer); logs the selected GLFW platform (X11/Wayland).
+    `Cursor/` — `CCursor`.
+  - `Renderer/GL4/` — `CRenderer_GL4`: the scene framebuffer (MSAA renderbuffer
+    resolved into a texture), resize modes, the letterbox blit onto the window,
+    and screenshots of the resolved scene. `CRenderer2D_GL4` selects engine
+    shaders from `CEngineShader_GL4` (or a custom shader) and binds them through
+    a GL program pipeline (`CShader_GL4`, separable programs) with
+    `ConstantBuffer_GL4` UBOs; a draw-command batch over a streaming VBO/IBO
+    reusing `Vertex2DBuilder`, with color, SDF and custom constant-buffer state
+    recorded per draw.
+  - `Texture/GL4/` — `CTexture_GL4`: every `TextureFormat`, supplied or
+    generated mipmaps, BCn when the context supports it (S3TC/BPTC extensions,
+    RGTC from core), dynamic-texture fills, and the null texture.
+  - User GLSL shaders place custom uniform blocks with
+    `layout(std140, binding = N)`, N being the stage-local constant-buffer slot
+    (needs GLSL 4.20 or `GL_ARB_shading_language_420pack`); the engine blocks are
+    bound by name.
   - `Siv3DMain.cpp` — entry point (`main` → chdir to exe dir → engine init →
     user `Main`).
   - Device services (Clipboard, DragDrop, MediaTranscoder, NativeShare,
@@ -233,14 +245,15 @@ Platform code comes from two trees (see the `elseif(UNIX)` blocks in the root
 
 **Works:** window + GL 4.1 core context, the update loop, input, and the full 2D
 pipeline through the registry+UBO shader path — shapes/gradients, blending,
-transforms, textures/sprites + emoji, MSDF text (incl. CJK) with SDF
-outline/shadow/glow, all six fill patterns, shadows, dashed/dotted lines,
-quad-warp, custom user shaders (incl. the `GLSL(...)` factories), the full 2D
-render state, screenshots, and 4× MSAA edges.
+transforms, textures/sprites + emoji in every texture format, MSDF text (incl.
+CJK) with SDF outline/shadow/glow, all eleven fill patterns, shadows,
+dashed/dotted lines, quad-warp, custom user shaders and constant buffers (incl.
+the `GLSL(...)` factories), the full 2D render state, the x4 MSAA scene buffer
+with every resize mode and letterboxing, screenshots, and Profiler frame metrics.
 
-**Remaining `TODO(linux)`:** render-to-texture / scene-letterbox (MSAA currently
-lives on the window framebuffer; move it to an explicit scene buffer when this
-lands), and the device-service stubs (clipboard / drag-drop / notifications / …).
+**Remaining:** a frame of more than 65535 vertices draws incorrectly (see
+TODO.md), and the device-service stubs (clipboard / drag-drop / notifications /
+…) are still `TODO(linux)`.
 
 The standalone `Siv3D-Test` exe gets its `Main()` from `Test/TestMain/TestMain.cpp`
 (a subdirectory so the engine's recursive `Test/*.cpp` glob includes it but the
