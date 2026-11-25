@@ -539,6 +539,9 @@
 // JSON の値の種類 | JSON value type
 # include <Siv3D/JSONValueType.hpp>
 
+// JSON のパースエラー | JSON parse error
+# include <Siv3D/JSONParseErrorReason.hpp>
+
 // JSON データの読み書き | JSON reader/writer
 # include <Siv3D/JSON.hpp>
 # include <Siv3D/JSONIterator.hpp>

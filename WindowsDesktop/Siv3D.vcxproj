@@ -546,6 +546,7 @@
     <ClInclude Include="..\Siv3D\include\Siv3D\JoinStyle.hpp" />
     <ClInclude Include="..\Siv3D\include\Siv3D\JSON.hpp" />
     <ClInclude Include="..\Siv3D\include\Siv3D\JSONIterator.hpp" />
+    <ClInclude Include="..\Siv3D\include\Siv3D\JSONParseErrorReason.hpp" />
     <ClInclude Include="..\Siv3D\include\Siv3D\JSONPointer.hpp" />
     <ClInclude Include="..\Siv3D\include\Siv3D\JSONValueType.hpp" />
     <ClInclude Include="..\Siv3D\include\Siv3D\KDTree.hpp" />
@@ -1842,6 +1843,7 @@
     <ClCompile Include="..\Siv3D\src\Siv3D\IPv4Endpoint\SivIPv4Endpoint.cpp" />
     <ClCompile Include="..\Siv3D\src\Siv3D\JoinStyle\SivJoinStyle.cpp" />
     <ClCompile Include="..\Siv3D\src\Siv3D\JSONIterator\SivJSONIterator.cpp" />
+    <ClCompile Include="..\Siv3D\src\Siv3D\JSONParseErrorReason\SivJSONParseErrorReason.cpp" />
     <ClCompile Include="..\Siv3D\src\Siv3D\JSONSerialization\SivJSONSerialization.cpp" />
     <ClCompile Include="..\Siv3D\src\Siv3D\JSONValueType\SivJSONValueType.cpp" />
     <ClCompile Include="..\Siv3D\src\Siv3D\JSON\SivJSON.cpp" />

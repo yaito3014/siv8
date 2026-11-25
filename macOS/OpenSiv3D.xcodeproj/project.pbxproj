@@ -528,10 +528,12 @@
 		F90F79E92FA868F30077F398 /* Glyph.ipp in Headers */ = {isa = PBXBuildFile; fileRef = F90F79E82FA868F30077F398 /* Glyph.ipp */; };
 		F90F79ED2FA9044D0077F398 /* TOMLValueType.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F90F79EC2FA9044D0077F398 /* TOMLValueType.hpp */; };
 		F90F79EE2FA9044D0077F398 /* TOMLParseErrorReason.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F90F79EB2FA9044D0077F398 /* TOMLParseErrorReason.hpp */; };
+		39A55159B53A99252CA392E0 /* JSONParseErrorReason.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F2DA3BD47797E9C34C0C342E /* JSONParseErrorReason.hpp */; };
 		F90F79EF2FA9044D0077F398 /* TOML.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F90F79EA2FA9044D0077F398 /* TOML.hpp */; };
 		F90F79F12FA904650077F398 /* TOML.ipp in Headers */ = {isa = PBXBuildFile; fileRef = F90F79F02FA904650077F398 /* TOML.ipp */; };
 		F90F79FB2FA904CD0077F398 /* SivTOMLValueType.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F90F79F92FA904CD0077F398 /* SivTOMLValueType.cpp */; };
 		F90F79FC2FA904CD0077F398 /* SivTOMLParseErrorReason.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F90F79F72FA904CD0077F398 /* SivTOMLParseErrorReason.cpp */; };
+		D37724D928DA4A21317F62CB /* SivJSONParseErrorReason.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4EB712DD72CFC8A0B67B8952 /* SivJSONParseErrorReason.cpp */; };
 		F90F79FD2FA904CD0077F398 /* SivTOML.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F90F79F52FA904CD0077F398 /* SivTOML.cpp */; };
 		F90F79FF2FA9053B0077F398 /* Test_TOML.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F90F79FE2FA9053B0077F398 /* Test_TOML.cpp */; };
 		F90F7A052FA9B7A90077F398 /* CSVReadOptions.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F90F7A032FA9B7A90077F398 /* CSVReadOptions.hpp */; };
@@ -3880,10 +3882,12 @@
 		F90F79E82FA868F30077F398 /* Glyph.ipp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Glyph.ipp; sourceTree = "<group>"; };
 		F90F79EA2FA9044D0077F398 /* TOML.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TOML.hpp; sourceTree = "<group>"; };
 		F90F79EB2FA9044D0077F398 /* TOMLParseErrorReason.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TOMLParseErrorReason.hpp; sourceTree = "<group>"; };
+		F2DA3BD47797E9C34C0C342E /* JSONParseErrorReason.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = JSONParseErrorReason.hpp; sourceTree = "<group>"; };
 		F90F79EC2FA9044D0077F398 /* TOMLValueType.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TOMLValueType.hpp; sourceTree = "<group>"; };
 		F90F79F02FA904650077F398 /* TOML.ipp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TOML.ipp; sourceTree = "<group>"; };
 		F90F79F52FA904CD0077F398 /* SivTOML.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SivTOML.cpp; sourceTree = "<group>"; };
 		F90F79F72FA904CD0077F398 /* SivTOMLParseErrorReason.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SivTOMLParseErrorReason.cpp; sourceTree = "<group>"; };
+		4EB712DD72CFC8A0B67B8952 /* SivJSONParseErrorReason.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SivJSONParseErrorReason.cpp; sourceTree = "<group>"; };
 		F90F79F92FA904CD0077F398 /* SivTOMLValueType.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SivTOMLValueType.cpp; sourceTree = "<group>"; };
 		F90F79FE2FA9053B0077F398 /* Test_TOML.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Test_TOML.cpp; sourceTree = "<group>"; };
 		F90F7A002FA9B7A90077F398 /* CSV.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CSV.hpp; sourceTree = "<group>"; };
@@ -8168,6 +8172,7 @@
 				F9070C2D2B9F175000383E4D /* Time.hpp */,
 				F90F79EA2FA9044D0077F398 /* TOML.hpp */,
 				F90F79EB2FA9044D0077F398 /* TOMLParseErrorReason.hpp */,
+				F2DA3BD47797E9C34C0C342E /* JSONParseErrorReason.hpp */,
 				F90F79EC2FA9044D0077F398 /* TOMLValueType.hpp */,
 				F9712A462C25B8360049CC26 /* Transformer2D.hpp */,
 				F99881612F40B61700C8991D /* Transition.hpp */,
@@ -8974,6 +8979,7 @@
 				F9E794562C19743A002615BA /* Timer */,
 				F90F79F62FA904CD0077F398 /* TOML */,
 				F90F79F82FA904CD0077F398 /* TOMLParseErrorReason */,
+				0BE538A9A219F6590E228E22 /* JSONParseErrorReason */,
 				F90F79FA2FA904CD0077F398 /* TOMLValueType */,
 				F9712A492C25B8500049CC26 /* Transformer2D */,
 				F980C4812C04B3EB00A86B68 /* Triangle */,
@@ -9323,6 +9329,14 @@
 				F90F79F72FA904CD0077F398 /* SivTOMLParseErrorReason.cpp */,
 			);
 			path = TOMLParseErrorReason;
+			sourceTree = "<group>";
+		};
+		0BE538A9A219F6590E228E22 /* JSONParseErrorReason */ = {
+			isa = PBXGroup;
+			children = (
+				4EB712DD72CFC8A0B67B8952 /* SivJSONParseErrorReason.cpp */,
+			);
+			path = JSONParseErrorReason;
 			sourceTree = "<group>";
 		};
 		F90F79FA2FA904CD0077F398 /* TOMLValueType */ = {
@@ -15781,6 +15795,7 @@
 				F933AD8F2E54A375005624D7 /* arithmetics.hpp in Headers */,
 				F90F79ED2FA9044D0077F398 /* TOMLValueType.hpp in Headers */,
 				F90F79EE2FA9044D0077F398 /* TOMLParseErrorReason.hpp in Headers */,
+				39A55159B53A99252CA392E0 /* JSONParseErrorReason.hpp in Headers */,
 				F90F79EF2FA9044D0077F398 /* TOML.hpp in Headers */,
 				F933AD902E54A375005624D7 /* SignedDistance.hpp in Headers */,
 				F933AD912E54A375005624D7 /* Range.hpp in Headers */,
@@ -17228,6 +17243,7 @@
 				F98605D12BE4BE67006A4C0F /* CKeyboard.cpp in Sources */,
 				F90F79FB2FA904CD0077F398 /* SivTOMLValueType.cpp in Sources */,
 				F90F79FC2FA904CD0077F398 /* SivTOMLParseErrorReason.cpp in Sources */,
+				D37724D928DA4A21317F62CB /* SivJSONParseErrorReason.cpp in Sources */,
 				F90F79FD2FA904CD0077F398 /* SivTOML.cpp in Sources */,
 				F9712A4A2C25B8500049CC26 /* SivTransformer2D.cpp in Sources */,
 				F933ADBC2E54A3F0005624D7 /* SivScopedCustomShader2D.cpp in Sources */,
