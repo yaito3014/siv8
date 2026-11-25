@@ -60,32 +60,56 @@ namespace s3d
 
 		const Image& getScreenCapture() const override;
 
+		/// @brief Binds the framebuffer the 2D renderer draws the scene into.
+		void bindSceneFramebuffer() const;
+
 	private:
 
-		// Resolve the back buffer into m_captureFBO before each swap, so
-		// captureScreenshot() (invoked after present()) can read the just-rendered
-		// frame. Reading the FRONT buffer after the swap returns black under some
-		// compositors (e.g. WSLg), and the window framebuffer is multisampled, so a
-		// persistent single-sample resolve target is the portable option.
-		void updateCaptureTarget(Size frameBufferSize);
+		// The scene is drawn into `msaaFramebuffer` (or `framebuffer` without MSAA), then
+		// resolved into `texture` / `framebuffer`, which is letterboxed onto the window
+		// and read for screenshots.
+		struct SceneBuffers
+		{
+			uint32 sampleCount = FromEnum(Scene::DefaultMSAASampleCount);
+
+			Size size{ 0, 0 };
+
+			GLuint msaaFramebuffer = 0;
+
+			GLuint msaaRenderbuffer = 0;
+
+			GLuint framebuffer = 0;
+
+			GLuint texture = 0;
+
+			// Whether `texture` holds the current frame of a multisampled scene.
+			bool resolved = false;
+		};
+
+		void createSceneBuffers(Size size);
+
+		void destroySceneBuffers();
+
+		void clearScene();
+
+		void resolveScene();
+
+		void renderSceneToBackBuffer();
+
+		void updateSceneBufferSize();
 
 		GLFWwindow* m_window = nullptr;
 
 		SceneStyle m_sceneStyle;
 
-		ResizeMode m_sceneResizeMode = ResizeMode::Virtual;
+		ResizeMode m_sceneResizeMode = Scene::DefaultResizeMode;
 
-		Size m_sceneBufferSize = Scene::DefaultSceneSize;
+		SceneBuffers m_scene;
+
+		Size m_backBufferSize{ 0, 0 };
 
 		bool m_vSyncEnabled = true;
 
 		Image m_screenCapture;
-
-		// Persistent single-sample resolve target for screenshots (see captureScreenshot).
-		GLuint m_captureFBO = 0;
-
-		GLuint m_captureTexture = 0;
-
-		Size m_captureSize{ 0, 0 };
 	};
 }

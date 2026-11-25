@@ -9,6 +9,8 @@
 //-----------------------------------------------
 
 # include "CRenderer_GL4.hpp"
+# include <algorithm>
+# include <cmath>
 # include <Siv3D/Error/InternalEngineError.hpp>
 # include <Siv3D/Window/IWindow.hpp>
 # include <Siv3D/WindowState.hpp>
@@ -22,21 +24,29 @@
 
 namespace s3d
 {
+	namespace
+	{
+		static void ClearBoundFramebuffer(const Size& size, const ColorF& color)
+		{
+			::glViewport(0, 0, size.x, size.y);
+			::glClearColor(static_cast<float>(color.r), static_cast<float>(color.g), static_cast<float>(color.b), static_cast<float>(color.a));
+			::glClear(GL_COLOR_BUFFER_BIT);
+		}
+
+		static void CheckFramebuffer(const char* name)
+		{
+			if (::glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			{
+				throw InternalEngineError{ fmt::format("CRenderer_GL4: the {} framebuffer is incomplete", name) };
+			}
+		}
+	}
+
 	CRenderer_GL4::~CRenderer_GL4()
 	{
 		LOG_SCOPED_DEBUG("CRenderer_GL4::~CRenderer_GL4()");
 
-		if (m_captureFBO)
-		{
-			::glDeleteFramebuffers(1, &m_captureFBO);
-			m_captureFBO = 0;
-		}
-
-		if (m_captureTexture)
-		{
-			::glDeleteTextures(1, &m_captureTexture);
-			m_captureTexture = 0;
-		}
+		destroySceneBuffers();
 	}
 
 	StringView CRenderer_GL4::getName() const
@@ -65,8 +75,6 @@ namespace s3d
 
 		::glfwSwapInterval(m_vSyncEnabled ? 1 : 0);
 
-		// The window framebuffer is multisampled (GLFW_SAMPLES in CWindow) to match
-		// the D3D11/Metal x4 scene MSAA; enable it so 2D edges resolve smoothly.
 		::glEnable(GL_MULTISAMPLE);
 
 		LOG_INFO(fmt::format("ℹ️ OpenGL {}.{} renderer", GLVersion.major, GLVersion.minor));
@@ -94,6 +102,16 @@ namespace s3d
 		SIV3D_ENGINE(Texture)->init();
 		SIV3D_ENGINE(Shader)->init();
 		SIV3D_ENGINE(EngineShader)->init();
+
+		{
+			GLint maxSamples = 1;
+			::glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+			m_scene.sampleCount = Clamp<uint32>(m_scene.sampleCount, 1, static_cast<uint32>(Max(maxSamples, 1)));
+			LOG_INFO(fmt::format("ℹ️ Scene MSAA: x{}", m_scene.sampleCount));
+		}
+
+		m_backBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
+		createSceneBuffers(SIV3D_ENGINE(Window)->getState().virtualSize);
 	}
 
 	void CRenderer_GL4::waitForFrame()
@@ -103,73 +121,34 @@ namespace s3d
 
 	void CRenderer_GL4::beginFrame()
 	{
-		const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
-		::glViewport(0, 0, frameBufferSize.x, frameBufferSize.y);
+		if (const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
+			(frameBufferSize != m_backBufferSize) && (0 < frameBufferSize.x) && (0 < frameBufferSize.y))
+		{
+			LOG_DEBUG(fmt::format("CRenderer_GL4: back buffer resized to {}", frameBufferSize));
+			m_backBufferSize = frameBufferSize;
+			updateSceneBufferSize();
+		}
 
-		const ColorF& bg = m_sceneStyle.backgroundColor;
-		::glClearColor(static_cast<float>(bg.r), static_cast<float>(bg.g), static_cast<float>(bg.b), 1.0f);
-		::glClear(GL_COLOR_BUFFER_BIT);
+		clearScene();
+
+		::glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		const ColorF& letterbox = m_sceneStyle.letterboxColor;
+		ClearBoundFramebuffer(m_backBufferSize, ColorF{ letterbox.r, letterbox.g, letterbox.b, 1.0 });
 	}
 
 	void CRenderer_GL4::flush()
 	{
 		SIV3D_ENGINE(Renderer2D)->flush();
 
+		renderSceneToBackBuffer();
+
 		::glFlush();
 	}
 
 	bool CRenderer_GL4::present()
 	{
-		// Resolve the freshly rendered back buffer into the persistent single-sample
-		// capture target BEFORE the swap, so captureScreenshot() (called afterwards)
-		// reads the current frame rather than the post-swap front buffer (which reads
-		// back black under WSLg and is multisampled on the window).
-		const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
-
-		if ((0 < frameBufferSize.x) && (0 < frameBufferSize.y))
-		{
-			updateCaptureTarget(frameBufferSize);
-
-			::glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-			::glReadBuffer(GL_BACK);
-			::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_captureFBO);
-			::glBlitFramebuffer(0, 0, frameBufferSize.x, frameBufferSize.y,
-								0, 0, frameBufferSize.x, frameBufferSize.y,
-								GL_COLOR_BUFFER_BIT, GL_NEAREST);
-			::glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-			::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		}
-
 		::glfwSwapBuffers(m_window);
 		return true;
-	}
-
-	void CRenderer_GL4::updateCaptureTarget(const Size frameBufferSize)
-	{
-		if ((m_captureFBO != 0) && (m_captureSize == frameBufferSize))
-		{
-			return;
-		}
-
-		if (m_captureTexture == 0)
-		{
-			::glGenTextures(1, &m_captureTexture);
-		}
-
-		::glBindTexture(GL_TEXTURE_2D, m_captureTexture);
-		::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, frameBufferSize.x, frameBufferSize.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-		::glBindTexture(GL_TEXTURE_2D, 0);
-
-		if (m_captureFBO == 0)
-		{
-			::glGenFramebuffers(1, &m_captureFBO);
-		}
-
-		::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_captureFBO);
-		::glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_captureTexture, 0);
-		::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-		m_captureSize = frameBufferSize;
 	}
 
 	SceneStyle& CRenderer_GL4::getSceneStyle() noexcept
@@ -180,7 +159,7 @@ namespace s3d
 	void CRenderer_GL4::setSceneResizeMode(const ResizeMode resizeMode)
 	{
 		m_sceneResizeMode = resizeMode;
-		updateSceneSize();
+		updateSceneBufferSize();
 	}
 
 	ResizeMode CRenderer_GL4::getSceneResizeMode() const noexcept
@@ -190,23 +169,30 @@ namespace s3d
 
 	void CRenderer_GL4::resizeSceneBuffer(const Size size)
 	{
-		m_sceneBufferSize = size;
+		if ((size.x <= 0) || (size.y <= 0) || (size == m_scene.size))
+		{
+			return;
+		}
+
+		LOG_DEBUG(fmt::format("CRenderer_GL4::resizeSceneBuffer({})", size));
+
+		destroySceneBuffers();
+		createSceneBuffers(size);
 	}
 
 	const Size& CRenderer_GL4::getSceneBufferSize() const noexcept
 	{
-		return m_sceneBufferSize;
+		return m_scene.size;
 	}
 
 	std::pair<double, RectF> CRenderer_GL4::getLetterboxComposition() const noexcept
 	{
-		const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
-		return SceneMisc::CalculateLetterboxComposition(frameBufferSize, m_sceneBufferSize);
+		return SceneMisc::CalculateLetterboxComposition(m_backBufferSize, m_scene.size);
 	}
 
 	void CRenderer_GL4::updateSceneSize()
 	{
-		// TODO(linux): recompute the scene buffer size for Virtual/Keep resize modes.
+		updateSceneBufferSize();
 	}
 
 	void CRenderer_GL4::setVSyncEnabled(const bool enabled)
@@ -222,39 +208,25 @@ namespace s3d
 
 	void CRenderer_GL4::captureScreenshot()
 	{
-		// present() already resolved the current frame into m_captureFBO.
-		if ((m_captureFBO == 0) || (m_captureSize.x <= 0) || (m_captureSize.y <= 0))
-		{
-			m_screenCapture.clear();
-			return;
-		}
+		resolveScene();
 
-		const GLsizei w = m_captureSize.x;
-		const GLsizei h = m_captureSize.y;
+		const Size size = m_scene.size;
+		m_screenCapture.resize(size);
 
-		m_screenCapture.resize(m_captureSize);
-
-		::glBindFramebuffer(GL_READ_FRAMEBUFFER, m_captureFBO);
+		::glBindFramebuffer(GL_READ_FRAMEBUFFER, m_scene.framebuffer);
 		::glReadBuffer(GL_COLOR_ATTACHMENT0);
-		::glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		::glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, m_screenCapture.data());
+		::glPixelStorei(GL_PACK_ALIGNMENT, 4);
+		::glReadPixels(0, 0, size.x, size.y, GL_RGBA, GL_UNSIGNED_BYTE, m_screenCapture.data());
 		::glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
-		// GL fills rows bottom-to-top; Image is top-to-bottom. Flip in place and
-		// force opaque alpha (the window backbuffer alpha is not meaningful here).
+		// GL returns rows bottom-to-top, Image is top-to-bottom; the capture is opaque
+		// like the D3D11/Metal ones.
 		Color* const pixels = m_screenCapture.data();
 
-		for (int32 y = 0; y < (h / 2); ++y)
+		for (int32 y = 0; y < (size.y / 2); ++y)
 		{
-			Color* const rowTop = (pixels + (static_cast<size_t>(y) * w));
-			Color* const rowBottom = (pixels + (static_cast<size_t>(h - 1 - y) * w));
-
-			for (int32 x = 0; x < w; ++x)
-			{
-				const Color t = rowTop[x];
-				rowTop[x] = rowBottom[x];
-				rowBottom[x] = t;
-			}
+			std::swap_ranges((pixels + (static_cast<size_t>(y) * size.x)), (pixels + (static_cast<size_t>(y + 1) * size.x)),
+				(pixels + (static_cast<size_t>(size.y - 1 - y) * size.x)));
 		}
 
 		for (Color& pixel : m_screenCapture)
@@ -266,5 +238,143 @@ namespace s3d
 	const Image& CRenderer_GL4::getScreenCapture() const
 	{
 		return m_screenCapture;
+	}
+
+	void CRenderer_GL4::bindSceneFramebuffer() const
+	{
+		::glBindFramebuffer(GL_FRAMEBUFFER, ((1 < m_scene.sampleCount) ? m_scene.msaaFramebuffer : m_scene.framebuffer));
+	}
+
+	void CRenderer_GL4::createSceneBuffers(const Size size)
+	{
+		m_scene.size = size;
+		m_scene.resolved = false;
+
+		::glGenTextures(1, &m_scene.texture);
+		::glBindTexture(GL_TEXTURE_2D, m_scene.texture);
+		::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+		::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		::glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		::glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.x, size.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		::glBindTexture(GL_TEXTURE_2D, 0);
+
+		::glGenFramebuffers(1, &m_scene.framebuffer);
+		::glBindFramebuffer(GL_FRAMEBUFFER, m_scene.framebuffer);
+		::glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_scene.texture, 0);
+		CheckFramebuffer("scene");
+
+		if (1 < m_scene.sampleCount)
+		{
+			::glGenRenderbuffers(1, &m_scene.msaaRenderbuffer);
+			::glBindRenderbuffer(GL_RENDERBUFFER, m_scene.msaaRenderbuffer);
+			::glRenderbufferStorageMultisample(GL_RENDERBUFFER, static_cast<GLsizei>(m_scene.sampleCount), GL_RGBA8, size.x, size.y);
+			::glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+			::glGenFramebuffers(1, &m_scene.msaaFramebuffer);
+			::glBindFramebuffer(GL_FRAMEBUFFER, m_scene.msaaFramebuffer);
+			::glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, m_scene.msaaRenderbuffer);
+			CheckFramebuffer("MSAA scene");
+		}
+
+		::glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		clearScene();
+	}
+
+	void CRenderer_GL4::destroySceneBuffers()
+	{
+		if (m_scene.msaaFramebuffer)
+		{
+			::glDeleteFramebuffers(1, &m_scene.msaaFramebuffer);
+		}
+
+		if (m_scene.msaaRenderbuffer)
+		{
+			::glDeleteRenderbuffers(1, &m_scene.msaaRenderbuffer);
+		}
+
+		if (m_scene.framebuffer)
+		{
+			::glDeleteFramebuffers(1, &m_scene.framebuffer);
+		}
+
+		if (m_scene.texture)
+		{
+			::glDeleteTextures(1, &m_scene.texture);
+		}
+
+		m_scene = SceneBuffers{ .sampleCount = m_scene.sampleCount };
+	}
+
+	void CRenderer_GL4::clearScene()
+	{
+		bindSceneFramebuffer();
+		ClearBoundFramebuffer(m_scene.size, m_sceneStyle.backgroundColor);
+		::glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		m_scene.resolved = false;
+	}
+
+	void CRenderer_GL4::resolveScene()
+	{
+		if ((m_scene.sampleCount <= 1) || m_scene.resolved)
+		{
+			return;
+		}
+
+		const Size size = m_scene.size;
+		::glBindFramebuffer(GL_READ_FRAMEBUFFER, m_scene.msaaFramebuffer);
+		::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_scene.framebuffer);
+		::glBlitFramebuffer(0, 0, size.x, size.y, 0, 0, size.x, size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		::glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		m_scene.resolved = true;
+	}
+
+	void CRenderer_GL4::renderSceneToBackBuffer()
+	{
+		if ((m_backBufferSize.x <= 0) || (m_backBufferSize.y <= 0))
+		{
+			return;
+		}
+
+		const Size sceneSize = m_scene.size;
+
+		// Same size: a multisampled scene resolves straight into the window, as on D3D11.
+		if ((1 < m_scene.sampleCount) && (m_backBufferSize == sceneSize) && (not m_scene.resolved))
+		{
+			::glBindFramebuffer(GL_READ_FRAMEBUFFER, m_scene.msaaFramebuffer);
+			::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			::glBlitFramebuffer(0, 0, sceneSize.x, sceneSize.y, 0, 0, sceneSize.x, sceneSize.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			::glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			return;
+		}
+
+		resolveScene();
+
+		// Letterbox rect in window space, whose origin is the bottom-left corner.
+		const auto [s, viewRect] = getLetterboxComposition();
+		const GLint x0 = static_cast<GLint>(std::lround(viewRect.x));
+		const GLint x1 = static_cast<GLint>(std::lround(viewRect.x + viewRect.w));
+		const GLint y0 = static_cast<GLint>(std::lround(m_backBufferSize.y - (viewRect.y + viewRect.h)));
+		const GLint y1 = static_cast<GLint>(std::lround(m_backBufferSize.y - viewRect.y));
+		const GLenum filter = ((m_sceneStyle.textureFilter == TextureFilter::Linear) ? GL_LINEAR : GL_NEAREST);
+
+		::glBindFramebuffer(GL_READ_FRAMEBUFFER, m_scene.framebuffer);
+		::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		::glBlitFramebuffer(0, 0, sceneSize.x, sceneSize.y, x0, y0, x1, y1, GL_COLOR_BUFFER_BIT, filter);
+		::glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	void CRenderer_GL4::updateSceneBufferSize()
+	{
+		if (m_sceneResizeMode == ResizeMode::Actual)
+		{
+			resizeSceneBuffer(SIV3D_ENGINE(Window)->getState().frameBufferSize);
+		}
+		else if (m_sceneResizeMode == ResizeMode::Virtual)
+		{
+			resizeSceneBuffer(SIV3D_ENGINE(Window)->getState().virtualSize);
+		}
 	}
 }

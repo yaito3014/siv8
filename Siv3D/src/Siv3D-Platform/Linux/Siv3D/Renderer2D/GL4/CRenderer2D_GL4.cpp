@@ -20,6 +20,7 @@
 # include <Siv3D/Error/InternalEngineError.hpp>
 # include <Siv3D/EngineLog.hpp>
 # include <Siv3D/Texture/GL4/CTexture_GL4.hpp>
+# include <Siv3D/Renderer/GL4/CRenderer_GL4.hpp>
 # include <Siv3D/Shader/IShader.hpp>
 # include <Siv3D/Shader/GL4/CShader_GL4.hpp>
 # include <Siv3D/EngineShader/IEngineShader.hpp>
@@ -285,8 +286,10 @@ namespace s3d
 
 		// Each command carries its (local * camera) * quad-warp transform; the
 		// screen->clip part is folded in per command since a custom viewport changes
-		// the screen mapping.
-		const Size frameBufferSize = SIV3D_ENGINE(Window)->getState().frameBufferSize;
+		// the screen mapping. The scene framebuffer is the render target.
+		auto* const renderer = static_cast<CRenderer_GL4*>(SIV3D_ENGINE(Renderer));
+		renderer->bindSceneFramebuffer();
+		const Size targetSize = renderer->getSceneBufferSize();
 
 		// Bind the program pipeline + engine constant buffers (UBOs) once for the
 		// batch; per command we update the UBO data and swap the pipeline's stages.
@@ -339,14 +342,14 @@ namespace s3d
 
 			// viewport (GL window-space origin is bottom-left, so flip Y); the screen
 			// matrix maps scene (0,0)-(w,h) into it, like the D3D11 backend.
-			const Rect vp = command.viewport.value_or(Rect{ 0, 0, frameBufferSize.x, frameBufferSize.y });
-			::glViewport(vp.pos.x, (frameBufferSize.y - (vp.pos.y + vp.size.y)), vp.size.x, vp.size.y);
+			const Rect vp = command.viewport.value_or(Rect{ 0, 0, targetSize.x, targetSize.y });
+			::glViewport(vp.pos.x, (targetSize.y - (vp.pos.y + vp.size.y)), vp.size.x, vp.size.y);
 
 			if (command.scissor)
 			{
 				const Rect& sc = *command.scissor;
 				::glEnable(GL_SCISSOR_TEST);
-				::glScissor(sc.pos.x, (frameBufferSize.y - (sc.pos.y + sc.size.y)), sc.size.x, sc.size.y);
+				::glScissor(sc.pos.x, (targetSize.y - (sc.pos.y + sc.size.y)), sc.size.x, sc.size.y);
 			}
 			else
 			{
@@ -404,7 +407,8 @@ namespace s3d
 		::glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 		::glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		::glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		::glViewport(0, 0, frameBufferSize.x, frameBufferSize.y);
+		::glViewport(0, 0, targetSize.x, targetSize.y);
+		::glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		::glBindVertexArray(0);
 
