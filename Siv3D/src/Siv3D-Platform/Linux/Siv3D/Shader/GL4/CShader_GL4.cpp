@@ -146,13 +146,13 @@ namespace s3d
 
 	void CShader_GL4::setConstantBufferVS(const uint32 slot, IConstantBuffer* cb)
 	{
-		const GLuint handle = static_cast<ConstantBuffer_GL4*>(cb)->getHandle();
+		const GLuint handle = (cb ? static_cast<ConstantBuffer_GL4*>(cb)->getHandle() : 0);
 		::glBindBufferBase(GL_UNIFORM_BUFFER, (VSUniformBlockBindingBase + slot), handle);
 	}
 
 	void CShader_GL4::setConstantBufferPS(const uint32 slot, IConstantBuffer* cb)
 	{
-		const GLuint handle = static_cast<ConstantBuffer_GL4*>(cb)->getHandle();
+		const GLuint handle = (cb ? static_cast<ConstantBuffer_GL4*>(cb)->getHandle() : 0);
 		::glBindBufferBase(GL_UNIFORM_BUFFER, (PSUniformBlockBindingBase + slot), handle);
 	}
 

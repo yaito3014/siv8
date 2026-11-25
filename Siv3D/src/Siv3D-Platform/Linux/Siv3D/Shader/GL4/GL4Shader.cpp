@@ -9,6 +9,9 @@
 //-----------------------------------------------
 
 # include "GL4Shader.hpp"
+# include <algorithm>
+# include <iterator>
+# include <string_view>
 # include <Siv3D/EngineLog.hpp>
 
 namespace s3d
@@ -50,29 +53,54 @@ namespace s3d
 		return program;
 	}
 
-	void AssociateEngineUniformBlocks(const GLuint program)
+	void AssignUniformBlockBindings(const GLuint program, const GLuint stageBindingBase)
 	{
 		struct BlockBinding
 		{
-			const char* name;
+			std::string_view name;
 			GLuint binding;
 		};
 
 		// Names + bindings mirror the engine's cbuffer slots (see GL4Shader.hpp).
-		const BlockBinding blocks[] = {
+		constexpr BlockBinding EngineBlocks[] = {
 			{ "VSConstants2D",       (VSUniformBlockBindingBase + 0) },
 			{ "PSConstants2D",       (PSUniformBlockBindingBase + 0) },
 			{ "PSEffectConstants2D", (PSUniformBlockBindingBase + 1) },
 		};
 
-		for (const auto& block : blocks)
-		{
-			const GLuint index = ::glGetUniformBlockIndex(program, block.name);
+		GLint blockCount = 0;
+		::glGetProgramiv(program, GL_ACTIVE_UNIFORM_BLOCKS, &blockCount);
 
-			if (index != GL_INVALID_INDEX)
+		for (GLuint index = 0; index < static_cast<GLuint>(blockCount); ++index)
+		{
+			GLint nameLength = 0;
+			::glGetActiveUniformBlockiv(program, index, GL_UNIFORM_BLOCK_NAME_LENGTH, &nameLength);
+
+			std::string name(static_cast<size_t>(Max(nameLength, 1)), '\0');
+			GLsizei written = 0;
+			::glGetActiveUniformBlockName(program, index, static_cast<GLsizei>(name.size()), &written, name.data());
+			name.resize(static_cast<size_t>(written));
+
+			const auto engineBlock = std::find_if(std::begin(EngineBlocks), std::end(EngineBlocks),
+				[&](const BlockBinding& block) { return (block.name == name); });
+
+			if (engineBlock != std::end(EngineBlocks))
 			{
-				::glUniformBlockBinding(program, index, block.binding);
+				::glUniformBlockBinding(program, index, engineBlock->binding);
+				continue;
 			}
+
+			GLint slot = 0;
+			::glGetActiveUniformBlockiv(program, index, GL_UNIFORM_BLOCK_BINDING, &slot);
+
+			if ((slot < 0) || (Graphics::ConstantBufferSlotCount <= static_cast<uint32>(slot)))
+			{
+				LOG_FAIL(fmt::format("❌ AssignUniformBlockBindings(): uniform block `{}` uses binding {}, but the slot must be less than {}",
+					name, slot, Graphics::ConstantBufferSlotCount));
+				continue;
+			}
+
+			::glUniformBlockBinding(program, index, (stageBindingBase + static_cast<GLuint>(slot)));
 		}
 	}
 
@@ -89,7 +117,7 @@ namespace s3d
 
 		if (m_program)
 		{
-			AssociateEngineUniformBlocks(m_program);
+			AssignUniformBlockBindings(m_program, VSUniformBlockBindingBase);
 			m_initialized = true;
 		}
 	}
@@ -131,7 +159,7 @@ namespace s3d
 
 		if (m_program)
 		{
-			AssociateEngineUniformBlocks(m_program);
+			AssignUniformBlockBindings(m_program, PSUniformBlockBindingBase);
 			m_initialized = true;
 		}
 	}

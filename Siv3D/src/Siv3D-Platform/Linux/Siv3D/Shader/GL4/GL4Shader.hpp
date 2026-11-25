@@ -12,6 +12,7 @@
 # include <string>
 # include <Siv3D/Common.hpp>
 # include <Siv3D/Blob.hpp>
+# include <Siv3D/Graphics.hpp>
 # include <Siv3D/Common/OpenGL.hpp>
 
 namespace s3d
@@ -23,7 +24,7 @@ namespace s3d
 	// glUniformBlockBinding) and CShader_GL4::setConstantBuffer*() use this map.
 	inline constexpr GLuint VSUniformBlockBindingBase = 0;
 
-	inline constexpr GLuint PSUniformBlockBindingBase = 8;
+	inline constexpr GLuint PSUniformBlockBindingBase = Graphics::ConstantBufferSlotCount;
 
 	// Compile a single stage as a separable program object (GL 4.1 core
 	// ARB_separate_shader_objects), so a VS and PS can be mixed independently
@@ -32,10 +33,12 @@ namespace s3d
 	[[nodiscard]]
 	GLuint CreateSeparableShaderProgram(GLenum shaderType, const std::string& source);
 
-	// Associate the engine's known std140 uniform blocks (VSConstants2D,
-	// PSConstants2D, PSEffectConstants2D) in a program with their binding points.
-	// Needed because #version 410 cannot use `layout(binding = N)` on blocks.
-	void AssociateEngineUniformBlocks(GLuint program);
+	// Binds every active uniform block of a single-stage program to its GL binding
+	// point. The engine's blocks (VSConstants2D, PSConstants2D, PSEffectConstants2D)
+	// are matched by name. Any other block takes its stage-local slot from
+	// `layout(binding = N)` (GLSL 4.20 or ARB_shading_language_420pack), like an
+	// HLSL register(bN), and is moved to `stageBindingBase + N`.
+	void AssignUniformBlockBindings(GLuint program, GLuint stageBindingBase);
 
 	class GL4VertexShader
 	{

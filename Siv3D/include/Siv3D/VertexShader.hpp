@@ -169,6 +169,7 @@ namespace s3d
 		/// @param path GLSL ファイルのパス
 		/// @param entryPoint エントリーポイント (GLSL では未使用、main() が使われます)
 		/// @return 頂点シェーダ
+		/// @remark エンジン以外の uniform ブロックは `layout(std140, binding = N)` で定数バッファのスロット N を指定します (GLSL 4.20 または GL_ARB_shading_language_420pack が必要です)。スロットはシェーダステージごとに独立しています。
 		[[nodiscard]]
 		static VertexShader GLSL(FilePathView path, StringView entryPoint);
 
@@ -179,6 +180,7 @@ namespace s3d
 		/// @param source GLSL ソースコード
 		/// @param entryPoint エントリーポイント (GLSL では未使用、main() が使われます)
 		/// @return 頂点シェーダ
+		/// @remark エンジン以外の uniform ブロックは `layout(std140, binding = N)` で定数バッファのスロット N を指定します (GLSL 4.20 または GL_ARB_shading_language_420pack が必要です)。スロットはシェーダステージごとに独立しています。
 		[[nodiscard]]
 		static VertexShader GLSL(const std::string& source, StringView entryPoint);
 

@@ -16,7 +16,7 @@
 //	App/app/engine/shader/d3d11/2d.hlsl). Each shader is assembled from a shared
 //	prefix + a per-shader main(). std140 uniform blocks mirror the engine
 //	constant structs; binding points are assigned via glUniformBlockBinding in
-//	CShader_GL4 (VSConstants2D@0, PSConstants2D@8, PSEffectConstants2D@9).
+//	CShader_GL4 (VSConstants2D@0, PSConstants2D@14, PSEffectConstants2D@15).
 //
 //	Conventions matching the GL4 renderer:
 //	- vertex attribute locations 0=position, 1=uv, 2=color (the VAO layout).
