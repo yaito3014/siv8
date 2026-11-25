@@ -9,10 +9,14 @@ and BSON, CBOR and MessagePack conversion. Engine types use
 
 ## Reading application data
 
-Keep the root alive while using its children. Check `isInvalid()` to detect
-parse failure: a successfully parsed `null` also converts to `false`.
-Check `contains()` before reading an optional key from a const object.
-A mutable subscript inserts null for a missing key.
+Keep the root alive while using its children. `Parse()` and `Load()` return an
+invalid value on failure; check `isInvalid()` rather than the `bool` conversion,
+because a successfully parsed `null` also converts to `false`. Use
+`ParseResult()` / `LoadResult()` when the failure reason is needed: the error
+side holds one `JSONParseErrorReason` whose location reads
+`input-name:line:column`, with the column counted in UTF-8 bytes. Check
+`contains()` before reading an optional key from a const object. A mutable
+subscript inserts null for a missing key.
 
 ```cpp
 const JSON config = JSON::Load(U"config.json");
@@ -41,28 +45,48 @@ numbers require a separate representation agreed with the data producer.
 
 ## Ownership and editing
 
-Children returned by subscripting and iteration borrow storage. Copying a child
-copies that reference; copying an owning root copies its data. Use `clone()`
-when retaining a child independently, returning it from a function, or editing
-its parent in a way that can invalidate references. Insertion and erasure in
-objects can invalidate children just as array reallocation can.
+`JSON` owns its value, and copying it copies the whole document. Subscripting,
+iteration and `arrayView()` return borrowed handles: `JSONRef` for mutable
+access and `JSONConstRef` for read-only access. Copying a handle copies the
+reference. Assigning to a `JSONRef` replaces the value it refers to rather than
+rebinding it. Copy a handle into a `JSON` to retain the value independently,
+for example when returning a child from a function or before editing its parent
+in a way that can invalidate references. Insertion and erasure in objects can
+invalidate children just as array reallocation can.
 
 ```cpp
 JSON readSettings()
 {
-    const JSON document = JSON::Load(U"settings.json", AllowExceptions::Yes);
-    return document[U"settings"].clone();
+    const auto document = JSON::LoadResult(U"settings.json");
+    if (not document)
+    {
+        throw Error{ document.error().front().format() };
+    }
+    return (*document)[U"settings"];
 }
 ```
 
-A borrowed const child copied into a mutable variable detaches on mutable element
-access or modification.
-Do not retain a child of a temporary root without cloning it. `swap()` exchanges
-the handles and their ownership/reference state, rather than writing through
-two borrowed handles. For a same-object copy into a new key, write
-`object[U"new"] = object[U"old"].clone();`: the right-hand-side clone must be
-completed before insertion can reallocate the parent. Use iteration over objects
-or arrays; scalar iteration has no object key and is unsuitable for the key/value loop interface.
+Do not retain a handle into a temporary root. `swap()` on two `JSONRef`s
+exchanges the values they refer to; `JSON::swap()` exchanges owned values. For a
+same-object copy into a new key, write
+`object[U"new"] = JSON{ object[U"old"] };`: the right operand of an assignment
+is evaluated first, so a bare `object[U"old"]` handle would be read after the
+insertion of `"new"` may have reallocated the parent. Likewise, copy rather than
+move a value into one of its own descendants: `parent[U"child"] = parent;` is
+supported, while `parent[U"child"] = std::move(parent);` and
+`array.push_back(std::move(root))` with `array` inside `root` break the
+precondition, because the move empties the storage the destination lives in.
+Use iteration over objects or arrays; scalar iteration has no object key and is
+unsuitable for the key/value loop interface.
+
+`arrayView()` returns a random-access range of element handles. Standard
+algorithms can reorder the array in place:
+
+```cpp
+JSON ranking = JSON::Load(U"ranking.json");
+std::ranges::sort(ranking[U"scores"].arrayView(),
+    [](JSONConstRef a, JSONConstRef b) { return (a.get<int32>() < b.get<int32>()); });
+```
 
 ## Representation and limits
 
@@ -88,9 +112,11 @@ or arrays; scalar iteration has no object key and is unsuitable for the key/valu
 Pending changes that need contract or lower-layer design decisions are tracked
 in [TODO.md](../../TODO.md), including checked numeric conversion and write-error
 reporting. The wrapper does not currently provide a single exception family for
-all operations; `Parse`/`Load`, `get`, checked array access and const object
-access translate documented failures to `Error`, while other delegated
-operations can throw `JSON::json_base::exception`. Custom serializers and custom
+all operations. `Parse`/`Load` report failures through an invalid value or the
+`*Result` error side. Value getters, subscripting, checked array access,
+element editing and `arrayView()` translate documented failures to `Error`,
+while other delegated operations, such as formatting, `flatten()` and binary
+serialization, can throw exceptions of the underlying nlohmann library. Custom serializers and custom
 readers may propagate their own exceptions.
 
 ## Validation
