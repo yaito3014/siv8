@@ -340,16 +340,9 @@ namespace s3d
 
 		const Size sceneSize = m_scene.size;
 
-		// Same size: a multisampled scene resolves straight into the window, as on D3D11.
-		if ((1 < m_scene.sampleCount) && (m_backBufferSize == sceneSize) && (not m_scene.resolved))
-		{
-			::glBindFramebuffer(GL_READ_FRAMEBUFFER, m_scene.msaaFramebuffer);
-			::glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-			::glBlitFramebuffer(0, 0, sceneSize.x, sceneSize.y, 0, 0, sceneSize.x, sceneSize.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-			::glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			return;
-		}
-
+		// Always resolve into the scene texture first: a blit from a multisampled
+		// framebuffer requires identical read and draw formats, and the window's
+		// format is not ours to choose.
 		resolveScene();
 
 		// Letterbox rect in window space, whose origin is the bottom-left corner.
