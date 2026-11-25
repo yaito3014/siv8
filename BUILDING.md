@@ -251,8 +251,7 @@ dashed/dotted lines, quad-warp, custom user shaders and constant buffers (incl.
 the `GLSL(...)` factories), the full 2D render state, the x4 MSAA scene buffer
 with every resize mode and letterboxing, screenshots, and Profiler frame metrics.
 
-**Remaining:** a frame of more than 65535 vertices draws incorrectly (see
-TODO.md), and the device-service stubs (clipboard / drag-drop / notifications /
+**Remaining:** the device-service stubs (clipboard / drag-drop / notifications /
 …) are still `TODO(linux)`.
 
 The standalone `Siv3D-Test` exe gets its `Main()` from `Test/TestMain/TestMain.cpp`

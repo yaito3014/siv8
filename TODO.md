@@ -59,7 +59,6 @@
 
 ## Linux OpenGL 4.1 バックエンド (`CRenderer2D_GL4`)
 
-- 1 フレームの頂点をすべて 1 本の VBO に積み、`Vertex2D::IndexType` (uint16) の基準頂点で参照するため、頂点数が 65535 を超えるフレームは折り返して誤描画する。`Test_QuadWarp.cpp` の `pattern_curves_and_text` と `Test_Pattern.cpp` の `batch_boundaries_and_mixed_shaders` が境界前後の描画一致で失敗する。D3D11 と同様にバッチを分割するか、`glDrawElementsBaseVertex` で基準頂点を渡す。
 - `Test_Pattern.cpp` の `halftone_transforms_and_state` は、同じ Halftone を隣接する矩形で描いた結果と 1 枚の矩形で描いた結果の完全一致を求めるが、Mesa llvmpipe では点の縁の AA 画素が 1 段階ずれる (例: 37 と 36)。三角形ごとの描画座標の補間誤差と考えられる。実 GPU のドライバで再確認し、補間の精度差なら許容範囲を設けるかを判断する。
 
 ## vcpkg overlay port `bc7enc-rdo`

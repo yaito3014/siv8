@@ -416,6 +416,8 @@ namespace s3d
 			std::array<Float4, 3> sdfParams{};
 			// Custom constant-buffer commands [0, constantBufferCommandEnd) precede this draw.
 			uint32 constantBufferCommandEnd = 0;
+			// First vertex of the batch this command's 16-bit indices are relative to.
+			size_t baseVertex = 0;
 		};
 
 		// True when two commands share every piece of render state, so their index
@@ -428,7 +430,8 @@ namespace s3d
 				&& (a.sampler.asValue() == b.sampler.asValue())
 				&& (a.scissor == b.scissor) && (a.viewport == b.viewport) && (a.transform == b.transform)
 				&& (a.customVS == b.customVS) && (a.customPS == b.customPS)
-				&& (a.colorMul == b.colorMul) && (a.colorAdd == b.colorAdd) && (a.sdfParams == b.sdfParams);
+				&& (a.colorMul == b.colorMul) && (a.colorAdd == b.colorAdd) && (a.sdfParams == b.sdfParams)
+				&& (a.baseVertex == b.baseVertex);
 		}
 
 		// Stamp the current render state onto a command being recorded.
@@ -445,6 +448,7 @@ namespace s3d
 			command.colorMul	= m_colorMul;
 			command.colorAdd	= m_colorAdd;
 			command.sdfParams	= m_sdfParams;
+			command.baseVertex	= m_batchBaseVertex;
 		}
 
 		// Append `indexCount` indices, merging with the previous command when the
@@ -535,6 +539,9 @@ namespace s3d
 		static constexpr uint32 MaxSamplerSlots = 8;
 
 		Array<Vertex2D> m_vertices;
+
+		// Start of the vertex batch that new geometry is indexed from (see createBuffer).
+		size_t m_batchBaseVertex = 0;
 
 		Array<Vertex2D::IndexType> m_indices;
 

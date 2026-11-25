@@ -10,6 +10,7 @@
 
 # include "CRenderer2D_GL4.hpp"
 # include <cstddef>
+# include <limits>
 # include <Siv3D/Image.hpp>
 # include <Siv3D/Resource.hpp>
 # include <Siv3D/Unicode.hpp>
@@ -236,13 +237,23 @@ namespace s3d
 
 	Vertex2DBufferPointer CRenderer2D_GL4::createBuffer(const uint16 vertexCount, const uint32 indexCount)
 	{
-		const Vertex2D::IndexType vertexBase = static_cast<Vertex2D::IndexType>(m_vertices.size());
+		// 16-bit indices address at most 65536 vertices from a batch's base vertex;
+		// start a new batch when this geometry would run past that.
+		constexpr size_t MaxBatchVertexCount = (size_t{ std::numeric_limits<Vertex2D::IndexType>::max() } + 1);
+
+		if (MaxBatchVertexCount < ((m_vertices.size() - m_batchBaseVertex) + vertexCount))
+		{
+			m_batchBaseVertex = m_vertices.size();
+		}
+
+		const size_t vertexOffset = m_vertices.size();
+		const Vertex2D::IndexType vertexBase = static_cast<Vertex2D::IndexType>(vertexOffset - m_batchBaseVertex);
 		const size_t indexBase = m_indices.size();
 
 		m_vertices.resize(m_vertices.size() + vertexCount);
 		m_indices.resize(indexBase + indexCount);
 
-		return{ (m_vertices.data() + vertexBase), (m_indices.data() + indexBase), vertexBase };
+		return{ (m_vertices.data() + vertexOffset), (m_indices.data() + indexBase), vertexBase };
 	}
 
 	GLuint CRenderer2D_GL4::glTextureOf(const Texture& texture)
@@ -337,6 +348,7 @@ namespace s3d
 		{
 			m_vertices.clear();
 			m_indices.clear();
+			m_batchBaseVertex = 0;
 			m_constantBuffers.reset();
 			return;
 		}
@@ -466,8 +478,8 @@ namespace s3d
 				applyConstantBuffer(m_constantBuffers.get(appliedConstantBuffers++));
 			}
 
-			::glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(command.indexCount), GL_UNSIGNED_SHORT,
-				reinterpret_cast<void*>(indexOffset * sizeof(Vertex2D::IndexType)));
+			::glDrawElementsBaseVertex(GL_TRIANGLES, static_cast<GLsizei>(command.indexCount), GL_UNSIGNED_SHORT,
+				reinterpret_cast<void*>(indexOffset * sizeof(Vertex2D::IndexType)), static_cast<GLint>(command.baseVertex));
 
 			indexOffset += command.indexCount;
 			++drawCalls;
@@ -493,6 +505,7 @@ namespace s3d
 
 		m_vertices.clear();
 		m_indices.clear();
+		m_batchBaseVertex = 0;
 		m_commands.clear();
 		m_constantBuffers.reset();
 	}
