@@ -538,6 +538,9 @@ namespace s3d
 		// SamplerState (asValue) -> GL sampler object.
 		std::unordered_map<uint64, GLuint> m_samplerCache;
 
+		// 0 when the context has no anisotropic filtering extension.
+		GLfloat m_maxAnisotropy = 0.0f;
+
 		GLuint m_vao = 0;
 
 		GLuint m_vbo = 0;

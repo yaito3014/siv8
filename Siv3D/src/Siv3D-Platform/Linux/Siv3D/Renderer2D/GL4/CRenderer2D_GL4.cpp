@@ -104,11 +104,35 @@ namespace s3d
 		}
 
 		[[nodiscard]]
-		static GLint ToGLFilter(const TextureFilter f)
+		static GLint ToGLMagFilter(const TextureFilter f)
 		{
-			// Textures carry no mip chain on this backend, so use the non-mipmapped
-			// variants for both min and mag (a mipmap min filter would sample black).
 			return ((f == TextureFilter::Nearest) ? GL_NEAREST : GL_LINEAR);
+		}
+
+		// Textures cap GL_TEXTURE_MAX_LEVEL at their real mip count, so a mipmapped
+		// min filter is valid for single-level textures too.
+		[[nodiscard]]
+		static GLint ToGLMinFilter(const TextureFilter minFilter, const TextureFilter mipFilter)
+		{
+			if (minFilter == TextureFilter::Nearest)
+			{
+				return ((mipFilter == TextureFilter::Nearest) ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST_MIPMAP_LINEAR);
+			}
+			else
+			{
+				return ((mipFilter == TextureFilter::Nearest) ? GL_LINEAR_MIPMAP_NEAREST : GL_LINEAR_MIPMAP_LINEAR);
+			}
+		}
+
+		[[nodiscard]]
+		static std::array<GLfloat, 4> ToGLBorderColor(const SamplerBorderColor borderColor) noexcept
+		{
+			switch (borderColor)
+			{
+			case SamplerBorderColor::OpaqueBlack:	return{ 0.0f, 0.0f, 0.0f, 1.0f };
+			case SamplerBorderColor::OpaqueWhite:	return{ 1.0f, 1.0f, 1.0f, 1.0f };
+			default:								return{ 0.0f, 0.0f, 0.0f, 0.0f };
+			}
 		}
 
 	}
@@ -134,11 +158,22 @@ namespace s3d
 
 		GLuint sampler = 0;
 		::glGenSamplers(1, &sampler);
-		::glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, ToGLFilter(state.minFilter));
-		::glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, ToGLFilter(state.magFilter));
+		::glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, ToGLMinFilter(state.minFilter, state.mipFilter));
+		::glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, ToGLMagFilter(state.magFilter));
 		::glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, ToGLWrap(state.uAddressMode));
 		::glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, ToGLWrap(state.vAddressMode));
 		::glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, ToGLWrap(state.wAddressMode));
+		::glSamplerParameterf(sampler, GL_TEXTURE_MIN_LOD, state.minLOD);
+
+		const std::array<GLfloat, 4> borderColor = ToGLBorderColor(state.borderColor);
+		::glSamplerParameterfv(sampler, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+
+		// Like D3D11, anisotropy applies only to an all-linear filter.
+		if ((1 < state.maxAnisotropy) && (0.0f < m_maxAnisotropy)
+			&& (state.minFilter == TextureFilter::Linear) && (state.magFilter == TextureFilter::Linear) && (state.mipFilter == TextureFilter::Linear))
+		{
+			::glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY, Min(static_cast<float>(state.maxAnisotropy), m_maxAnisotropy));
+		}
 		m_samplerCache.emplace(key, sampler);
 		return sampler;
 	}
@@ -168,10 +203,26 @@ namespace s3d
 
 		::glBindVertexArray(0);
 
+		if (HasGLExtension("GL_ARB_texture_filter_anisotropic") || HasGLExtension("GL_EXT_texture_filter_anisotropic"))
+		{
+			::glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &m_maxAnisotropy);
+		}
+
 		// Box-shadow sprite for addCircleShadow/addRectShadow/addRoundRectShadow.
-		// (The Linux texture backend uploads the base image only; the mip pyramid
-		// the D3D11/Metal path supplies is ignored, so just load the 256px base.)
-		m_shadowTexture = std::make_unique<Texture>(Image{ Resource(U"engine/texture/box-shadow/256.png") });
+		{
+			const Image boxShadowImage{ Resource(U"engine/texture/box-shadow/256.png") };
+
+			const Array<Image> boxShadowImageMips =
+			{
+				Image{ Resource(U"engine/texture/box-shadow/128.png") },
+				Image{ Resource(U"engine/texture/box-shadow/64.png") },
+				Image{ Resource(U"engine/texture/box-shadow/32.png") },
+				Image{ Resource(U"engine/texture/box-shadow/16.png") },
+				Image{ Resource(U"engine/texture/box-shadow/8.png") },
+			};
+
+			m_shadowTexture = std::make_unique<Texture>(boxShadowImage, boxShadowImageMips);
+		}
 
 		if (m_shadowTexture->isEmpty())
 		{
