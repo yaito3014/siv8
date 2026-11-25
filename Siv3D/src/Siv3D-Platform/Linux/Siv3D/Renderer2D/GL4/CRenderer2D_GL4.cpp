@@ -23,6 +23,8 @@
 # include <Siv3D/Renderer/GL4/CRenderer_GL4.hpp>
 # include <Siv3D/Shader/IShader.hpp>
 # include <Siv3D/Profiler/IProfiler.hpp>
+# include <Siv3D/IConstantBuffer.hpp>
+# include <bit>
 # include <Siv3D/Shader/GL4/CShader_GL4.hpp>
 # include <Siv3D/EngineShader/IEngineShader.hpp>
 # include <Siv3D/Mat3x3.hpp>
@@ -268,12 +270,74 @@ namespace s3d
 		pushCommand(Vertex2DBuilder::BuildTexturedRoundRect(bufferCreator(), rect, w, h, r, uvRect, color, getRMSScaling()), Program::Texture, glTextureOf(texture));
 	}
 
+	void CRenderer2D_GL4::setConstantBuffer(const ShaderStage stage, const uint32 slot, const void* data, const size_t size)
+	{
+		m_constantBuffers.push(stage, slot, data, size);
+	}
+
+	uint32 CRenderer2D_GL4::beginConstantBufferScope(const ShaderStage stage, const uint32 slot, const void* data, const size_t size)
+	{
+		const uint32 previous = m_constantBuffers.save(stage, slot);
+
+		try
+		{
+			m_constantBuffers.push(stage, slot, data, size);
+		}
+		catch (...)
+		{
+			m_constantBuffers.release(previous);
+			throw;
+		}
+
+		return previous;
+	}
+
+	void CRenderer2D_GL4::endConstantBufferScope(const ShaderStage stage, const uint32 slot, const uint32 previous)
+	{
+		m_constantBuffers.restore(stage, slot, previous);
+	}
+
+	void CRenderer2D_GL4::applyConstantBuffer(const ConstantBuffer2DCommand& command)
+	{
+		auto* const shader = static_cast<CShader_GL4*>(SIV3D_ENGINE(Shader));
+		IConstantBuffer* buffer = nullptr;
+
+		if (command.size != 0)
+		{
+			CustomConstantBuffer& destination = m_customConstantBuffers[FromEnum(command.stage)][command.slot];
+
+			if (destination.capacity < command.size)
+			{
+				const size_t capacity = std::bit_ceil(command.size);
+				destination.buffer = IConstantBuffer::Create(capacity);
+				destination.capacity = capacity;
+			}
+
+			if (not destination.buffer->_internal_update(m_constantBuffers.data(command), command.size))
+			{
+				throw InternalEngineError{ "Failed to upload a custom 2D constant buffer" };
+			}
+
+			buffer = destination.buffer.get();
+		}
+
+		if (command.stage == ShaderStage::Vertex)
+		{
+			shader->setConstantBufferVS(command.slot, buffer);
+		}
+		else
+		{
+			shader->setConstantBufferPS(command.slot, buffer);
+		}
+	}
+
 	void CRenderer2D_GL4::flush()
 	{
 		if (m_commands.isEmpty())
 		{
 			m_vertices.clear();
 			m_indices.clear();
+			m_constantBuffers.reset();
 			return;
 		}
 
@@ -320,6 +384,7 @@ namespace s3d
 		shader->setConstantBufferPS(1, m_psEffectConstants._base());
 
 		size_t indexOffset = 0;
+		uint32 appliedConstantBuffers = 0;
 		uint32 drawCalls = 0;
 		uint32 triangleCount = 0;
 
@@ -362,6 +427,7 @@ namespace s3d
 			// --- constants (UBOs) ---
 			m_vsConstants->setTransform(command.transform * Mat3x3{ Mat3x2::Screen(vp.size.x, vp.size.y) });
 			m_vsConstants->colorMul = command.colorMul;
+			m_psConstants->patternBackgroundColorMul = command.colorMul;
 
 			m_psConstants->colorAdd				= Float4{ command.colorAdd.x, command.colorAdd.y, command.colorAdd.z, 0.0f };
 			m_psConstants->sdfParam				= command.sdfParams[0];
@@ -395,6 +461,11 @@ namespace s3d
 				::glBindSampler(0, 0);
 			}
 
+			while (appliedConstantBuffers < command.constantBufferCommandEnd)
+			{
+				applyConstantBuffer(m_constantBuffers.get(appliedConstantBuffers++));
+			}
+
 			::glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(command.indexCount), GL_UNSIGNED_SHORT,
 				reinterpret_cast<void*>(indexOffset * sizeof(Vertex2D::IndexType)));
 
@@ -423,5 +494,6 @@ namespace s3d
 		m_vertices.clear();
 		m_indices.clear();
 		m_commands.clear();
+		m_constantBuffers.reset();
 	}
 }

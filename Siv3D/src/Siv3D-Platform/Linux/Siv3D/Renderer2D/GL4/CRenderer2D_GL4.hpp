@@ -29,6 +29,7 @@
 # include <Siv3D/BlendState.hpp>
 # include <Siv3D/RasterizerState.hpp>
 # include <Siv3D/SamplerState.hpp>
+# include <Siv3D/Renderer2D/ConstantBuffer2DCommands.hpp>
 # include <Siv3D/Common/OpenGL.hpp>
 
 namespace s3d
@@ -339,11 +340,10 @@ namespace s3d
 			pushCommand(Vertex2DBuilder::BuildMesh2D(bufferCreator(), vertices, indices, offset), Program::Texture, glTextureOf(texture));
 		}
 
-		// TODO(linux): custom shader constant buffers are not forwarded to the GL
-		// pipeline yet; D3D11/Metal record them per draw command.
-		void setConstantBuffer(ShaderStage, uint32, const void*, size_t) override {}
-		uint32 beginConstantBufferScope(ShaderStage, uint32, const void*, size_t) override { return 0; }
-		void endConstantBufferScope(ShaderStage, uint32, uint32) override {}
+		// Custom constant buffers are snapshotted per draw, like D3D11/Metal.
+		void setConstantBuffer(ShaderStage stage, uint32 slot, const void* data, size_t size) override;
+		uint32 beginConstantBufferScope(ShaderStage stage, uint32 slot, const void* data, size_t size) override;
+		void endConstantBufferScope(ShaderStage stage, uint32 slot, uint32 previous) override;
 
 		// render state: tracked here and snapshotted into each DrawCommand, then
 		// applied per-command in flush(). VS sampler state is stored for fidelity
@@ -419,6 +419,8 @@ namespace s3d
 			Float4 colorMul{ 1.0f, 1.0f, 1.0f, 1.0f };
 			Float3 colorAdd{ 0.0f, 0.0f, 0.0f };
 			std::array<Float4, 3> sdfParams{};
+			// Custom constant-buffer commands [0, constantBufferCommandEnd) precede this draw.
+			uint32 constantBufferCommandEnd = 0;
 		};
 
 		// True when two commands share every piece of render state, so their index
@@ -465,8 +467,9 @@ namespace s3d
 			command.indexCount	= indexCount;
 			command.patternType	= subType;
 			captureState(command);
+			const bool constantBuffersChanged = recordConstantBuffers(command);
 
-			if ((not m_commands.isEmpty()) && sameState(m_commands.back(), command))
+			if ((not constantBuffersChanged) && (not m_commands.isEmpty()) && sameState(m_commands.back(), command))
 			{
 				m_commands.back().indexCount += indexCount;
 			}
@@ -492,8 +495,27 @@ namespace s3d
 			command.patternParams	= pattern.toFloat4Array();
 			command.patternType		= static_cast<uint8>(FromEnum(pattern.type));
 			captureState(command);
+			recordConstantBuffers(command);
 			m_commands.push_back(command);
 		}
+
+		// Commits pending custom constant-buffer changes ahead of `command`; returns
+		// whether there were any (the command then cannot merge with the previous one).
+		bool recordConstantBuffers(DrawCommand& command)
+		{
+			const bool changed = m_constantBuffers.hasStateChange();
+
+			if (changed)
+			{
+				m_constantBuffers.flush();
+			}
+
+			command.constantBufferCommandEnd = static_cast<uint32>(m_constantBuffers.size());
+			return changed;
+		}
+
+		// Uploads one recorded custom constant buffer and binds it to its stage slot.
+		void applyConstantBuffer(const ConstantBuffer2DCommand& command);
 
 		// Cached like the D3D11 backend: getRMSScaling() runs on every tessellated draw.
 		void updateRMSScaling() noexcept { m_rmsScaling = (m_localTransform * m_cameraTransform).rmsScaling(); }
@@ -555,7 +577,7 @@ namespace s3d
 		GLuint m_ibo = 0;
 
 		// Engine constant buffers (UBOs), bound to their block binding points
-		// (VSConstants2D@0, PSConstants2D@8, PSEffectConstants2D@9) and updated
+		// (VSConstants2D@0, PSConstants2D@14, PSEffectConstants2D@15) and updated
 		// per DrawCommand in flush().
 		ConstantBuffer<VSConstants2D> m_vsConstants;
 
@@ -571,5 +593,17 @@ namespace s3d
 		Optional<VertexShader> m_customVS;
 
 		Optional<PixelShader> m_customPS;
+
+		ConstantBuffer2DCommands m_constantBuffers;
+
+		struct CustomConstantBuffer
+		{
+			std::unique_ptr<IConstantBuffer> buffer;
+
+			size_t capacity = 0;
+		};
+
+		// [stage][slot] upload buffers for custom constant buffers, grown to powers of two.
+		std::array<std::array<CustomConstantBuffer, Graphics::ConstantBufferSlotCount>, 2> m_customConstantBuffers;
 	};
 }

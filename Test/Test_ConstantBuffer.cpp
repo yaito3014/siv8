@@ -87,8 +87,23 @@ namespace
 
 	PixelShader LoadConstantPS(const StringView entry)
 	{
+# if SIV3D_PLATFORM(LINUX)
+		return PixelShader::GLSL(((entry == U"PS_TintShape") ? U"example/shader/glsl/constant_buffer_tint_shape.frag"
+			: U"example/shader/glsl/constant_buffer_tint_texture.frag"), U"main");
+# else
 		return HLSL{ U"example/shader/hlsl/constant_buffer.hlsl", String{ entry } }
 			| MSL{ U"example/shader/msl/constant_buffer.metal", String{ entry } };
+# endif
+	}
+
+	VertexShader LoadOffsetVS()
+	{
+# if SIV3D_PLATFORM(LINUX)
+		return VertexShader::GLSL(U"example/shader/glsl/constant_buffer_offset.vert", U"main");
+# else
+		return HLSL{ U"example/shader/hlsl/constant_buffer.hlsl", U"VS_Offset" }
+			| MSL{ U"example/shader/msl/constant_buffer.metal", U"VS_Offset" };
+# endif
 	}
 
 	void CheckImages(const Image& actual, const Image& expected)
@@ -181,8 +196,7 @@ TEST_CASE("ConstantBuffer.sample_shaders_snapshot_and_PMA")
 	const ConstantBufferSceneScope scope;
 	const PixelShader shape = LoadConstantPS(U"PS_TintShape");
 	const PixelShader texture = LoadConstantPS(U"PS_TintTexture");
-	const VertexShader offset = HLSL{ U"example/shader/hlsl/constant_buffer.hlsl", U"VS_Offset" }
-		| MSL{ U"example/shader/msl/constant_buffer.metal", U"VS_Offset" };
+	const VertexShader offset = LoadOffsetVS();
 	REQUIRE(shape);
 	REQUIRE(texture);
 	REQUIRE(offset);
@@ -239,6 +253,13 @@ cbuffer A : register(b2) { uint4 a; }
 cbuffer B : register(b13) { uint4 b; }
 float4 PS() : SV_TARGET { return float4(float(a.x) / 255.0, float(b.x) / 255.0, 0, 1); }
 )" }, U"PS");
+# elif SIV3D_PLATFORM(LINUX)
+	const PixelShader ps = PixelShader::GLSL(std::string{ "#version 410 core\n#extension GL_ARB_shading_language_420pack : require\n" R"(
+layout(std140, binding = 2) uniform A { uvec4 a; };
+layout(std140, binding = 13) uniform B { uvec4 b; };
+layout(location = 0) out vec4 o_color;
+void main() { o_color = vec4(float(a.x) / 255.0, float(b.x) / 255.0, 0, 1); }
+)" }, U"main");
 # else
 	const PixelShader ps = PixelShader::MSL(std::string{ R"(
 #include <metal_stdlib>
@@ -273,6 +294,10 @@ namespace
 		const std::string source = "cbuffer C : register(b2) { float4 values[" + std::to_string(Count)
 			+ "]; } float4 PS() : SV_TARGET { return (values[0] + values[" + std::to_string(Count - 1) + "]) * 0.5; }";
 		const PixelShader ps = PixelShader::HLSL(source, U"PS");
+# elif SIV3D_PLATFORM(LINUX)
+		const std::string source = std::string{ "#version 410 core\n#extension GL_ARB_shading_language_420pack : require\n" } + "layout(std140, binding = 2) uniform C { vec4 values[" + std::to_string(Count)
+			+ "]; }; layout(location = 0) out vec4 o_color; void main() { o_color = (values[0] + values[" + std::to_string(Count - 1) + "]) * 0.5; }";
+		const PixelShader ps = PixelShader::GLSL(source, U"main");
 # else
 		const std::string source = "#include <metal_stdlib>\nusing namespace metal;\nstruct C { float4 values[" + std::to_string(Count)
 			+ "]; }; fragment float4 PS(constant C& c [[buffer(2)]]) { return (c.values[0] + c.values[" + std::to_string(Count - 1) + "]) * 0.5; }";
@@ -294,6 +319,25 @@ Output VS(Input input)
     return result;
 })";
 		const VertexShader vs = VertexShader::HLSL(vertexSource, U"VS");
+# elif SIV3D_PLATFORM(LINUX)
+		const std::string vertexSource = std::string{ "#version 410 core\n#extension GL_ARB_shading_language_420pack : require\n" } + "layout(std140, binding = 13) uniform C { vec4 values[" + std::to_string(Count) + R"(]; };
+layout(std140) uniform VSConstants2D { vec4 g_transform[3]; vec4 g_colorMul; };
+out gl_PerVertex { vec4 gl_Position; };
+layout(location = 0) in vec2 i_position;
+layout(location = 1) in vec2 i_uv;
+layout(location = 2) in vec4 i_color;
+layout(location = 0) out vec4 v_colorPMA;
+layout(location = 1) out vec2 v_uv;
+void main()
+{
+    vec2 p = i_position + values[0].xy + values[)" + std::to_string(Count - 1) + R"(].xy;
+    vec4 clip = (p.x * g_transform[0]) + (p.y * g_transform[1]) + g_transform[2];
+    gl_Position = vec4(clip.xy, 0.0, clip.w);
+    vec4 color = i_color * g_colorMul;
+    v_colorPMA = vec4(color.rgb * color.a, color.a);
+    v_uv = i_uv;
+})";
+		const VertexShader vs = VertexShader::GLSL(vertexSource, U"main");
 # else
 		const std::string vertexSource = "#include <metal_stdlib>\nusing namespace metal;\nstruct C { float4 values[" + std::to_string(Count) + R"(]; };
 struct V { float3x4 transform; float4 colorMul; };
@@ -419,8 +463,7 @@ TEST_CASE("ConstantBuffer.persists_across_flush_and_frames")
 {
 	const ConstantBufferSceneScope scope;
 	const PixelShader ps = LoadConstantPS(U"PS_TintShape");
-	const VertexShader vs = HLSL{ U"example/shader/hlsl/constant_buffer.hlsl", U"VS_Offset" }
-		| MSL{ U"example/shader/msl/constant_buffer.metal", U"VS_Offset" };
+	const VertexShader vs = LoadOffsetVS();
 	REQUIRE(vs);
 	REQUIRE(ps);
 	const auto oldVS = Graphics2D::GetCustomVertexShader();
@@ -463,8 +506,7 @@ TEST_CASE("ConstantBuffer.scopes_restore_and_move")
 	STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<ScopedPSConstantBuffer2D>);
 	const ConstantBufferSceneScope scope;
 	const PixelShader ps = LoadConstantPS(U"PS_TintShape");
-	const VertexShader vs = HLSL{ U"example/shader/hlsl/constant_buffer.hlsl", U"VS_Offset" }
-		| MSL{ U"example/shader/msl/constant_buffer.metal", U"VS_Offset" };
+	const VertexShader vs = LoadOffsetVS();
 	REQUIRE(ps);
 	REQUIRE(vs);
 	REQUIRE(System::Update());
@@ -701,8 +743,7 @@ TEST_CASE("ConstantBuffer.repeated_scopes_render_snapshots")
 {
 	const ConstantBufferSceneScope scope;
 	const PixelShader ps = LoadConstantPS(U"PS_TintShape");
-	const VertexShader vs = HLSL{ U"example/shader/hlsl/constant_buffer.hlsl", U"VS_Offset" }
-		| MSL{ U"example/shader/msl/constant_buffer.metal", U"VS_Offset" };
+	const VertexShader vs = LoadOffsetVS();
 	REQUIRE(vs);
 	REQUIRE(ps);
 	REQUIRE(System::Update());

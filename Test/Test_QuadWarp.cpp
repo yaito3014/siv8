@@ -249,6 +249,32 @@ float4 PS(Varying input) : SV_TARGET { return input.colorPMA; }
 )";
 	const VertexShader vs = VertexShader::HLSL(source, U"VS");
 	const PixelShader ps = PixelShader::HLSL(source, U"PS");
+# elif SIV3D_PLATFORM(LINUX)
+	// The engine's VS constants are bound by slot (0), not by block name.
+	const VertexShader vs = VertexShader::GLSL(std::string{ R"(#version 410 core
+#extension GL_ARB_shading_language_420pack : require
+out gl_PerVertex { vec4 gl_Position; };
+layout(location = 0) in vec2 i_position;
+layout(location = 1) in vec2 i_uv;
+layout(location = 2) in vec4 i_color;
+layout(location = 0) out vec4 v_colorPMA;
+layout(location = 1) out vec2 v_uv;
+layout(std140, binding = 0) uniform Constants { vec4 transform[3]; vec4 colorMul; };
+void main()
+{
+    const vec4 clip = (i_position.x * transform[0]) + (i_position.y * transform[1]) + transform[2];
+    gl_Position = vec4(clip.xy, 0.0, clip.w);
+    const vec4 color = i_color * colorMul;
+    v_colorPMA = vec4(color.rgb * color.a, color.a);
+    v_uv = i_uv;
+}
+)" }, U"main");
+	const PixelShader ps = PixelShader::GLSL(std::string{ R"(#version 410 core
+layout(location = 0) in vec4 v_colorPMA;
+layout(location = 1) in vec2 v_uv;
+layout(location = 0) out vec4 o_color;
+void main() { o_color = v_colorPMA; }
+)" }, U"main");
 # else
 	const std::string source = R"(
 #include <metal_stdlib>
