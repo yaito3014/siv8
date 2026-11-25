@@ -169,8 +169,11 @@ TEST_CASE("JSON.Parse.syntaxAndUnicode")
 	for (const auto source : valid)
 	{
 		INFO(source);
-		const JSON json = JSON::Parse(source, AllowExceptions::Yes);
+		const auto result = JSON::ParseResult(std::string{ source });
+		REQUIRE(result);
+		const JSON& json = *result;
 		REQUIRE_FALSE(json.isInvalid());
+		CHECK(JSON::Parse(std::string{ source }) == json);
 		CHECK(JSON::Parse(json.formatUTF8Minified()) == json);
 		CHECK(JSON::Parse(json.format()) == json);
 		CHECK(JSON::Parse(json.formatMinified(EnsureAscii::Yes)) == json);
@@ -185,17 +188,14 @@ TEST_CASE("JSON.Parse.syntaxAndUnicode")
 	for (const auto source : invalid)
 	{
 		INFO(source);
-		CHECK(JSON::Parse(source).isInvalid());
-		CHECK_THROWS_AS(JSON::Parse(source, AllowExceptions::Yes), Error);
-		JSON json = 42;
-		CHECK_FALSE(json.parse(source));
-		CHECK(json.isInvalid());
-		json = 42;
-		CHECK_THROWS_AS(json.parse(source, AllowExceptions::Yes), Error);
-		CHECK(json.isInvalid());
+		CHECK(JSON::Parse(std::string{ source }).isInvalid());
+		const auto result = JSON::ParseResult(std::string{ source });
+		REQUIRE_FALSE(result);
+		REQUIRE(result.error().size() == 1);
+		CHECK_FALSE(result.error().front().title.isEmpty());
 	}
 
-	const JSON text = JSON::Parse(valid[10]);
+	const JSON text = JSON::Parse(std::string{ valid[10] });
 	CHECK(text["nul"].getUTF8() == std::string("a\0b", 3));
 	CHECK(text["pair"].getString() == U"😀");
 	CHECK(text["escaped"].getUTF8() == "\"\\/\b\f\n\r\t");
@@ -210,10 +210,10 @@ TEST_CASE("JSON.Parse.embeddedNulAndOverflow")
 	{
 		INFO(source);
 		CHECK(JSON::Parse(source).isInvalid());
-		CHECK_THROWS_AS(JSON::Parse(source, AllowExceptions::Yes), Error);
-		JSON json = 42;
-		CHECK_THROWS_AS(json.parse(source, AllowExceptions::Yes), Error);
-		CHECK(json.isInvalid());
+		const auto result = JSON::ParseResult(source);
+		REQUIRE_FALSE(result);
+		REQUIRE(result.error().size() == 1);
+		CHECK_FALSE(result.error().front().title.isEmpty());
 	}
 }
 
@@ -223,9 +223,9 @@ TEST_CASE("JSON.Load.preservesSyntax")
 	for (const auto source : sources)
 	{
 		INFO(source);
-		REQUIRE(JSON::Parse(source).isInvalid());
+		REQUIRE(JSON::Parse(std::string{ source }).isInvalid());
 		CHECK(JSON::Load(MemoryViewReader{ source.data(), source.size() }).isInvalid());
-		CHECK_THROWS_AS(JSON::Load(MemoryViewReader{ source.data(), source.size() }, AllowExceptions::Yes), Error);
+		CHECK_FALSE(JSON::LoadResult(MemoryViewReader{ source.data(), source.size() }));
 	}
 }
 
@@ -284,8 +284,8 @@ TEST_CASE("JSON.mutationAndReferences")
 	json.erase(U"name");
 	CHECK_FALSE(json.contains("name"));
 
-	JSON alias = json["values"];
-	JSON copy = alias.clone();
+	JSONRef alias = json["values"];
+	JSON copy = alias;
 	alias[0] = 9;
 	CHECK(json["values"][0].get<int>() == 9);
 	CHECK(copy[0].get<int>() == 7);
@@ -406,9 +406,6 @@ TEST_CASE("JSON.nullCommentsDuplicatesAndClear")
 	CHECK(null.isNull());
 	CHECK_FALSE(null.isInvalid());
 	CHECK_FALSE(static_cast<bool>(null));
-	JSON json = 1;
-	CHECK(json.parse("null"));
-	CHECK_FALSE(static_cast<bool>(json));
 	CHECK_FALSE(JSON::Invalid());
 	CHECK(JSON(false));
 	CHECK(JSON(0));
@@ -420,7 +417,7 @@ TEST_CASE("JSON.nullCommentsDuplicatesAndClear")
 	CHECK(JSON::Parse("[1,/* comment */]").isInvalid());
 	for (const JSON& initial : { JSON(12), JSON(1.5), JSON(true), JSON("abc"), JSON::EmptyObject(), JSON::EmptyArray(), JSON::EmptyBinary() })
 	{
-		JSON value = initial.clone();
+		JSON value = initial;
 		value.clear();
 		CHECK(value.getType() == initial.getType());
 	}
@@ -459,7 +456,7 @@ namespace
 
 TEST_CASE("JSON.Load.filesAndReaders")
 {
-	const JSON json = JSON::Load(String{ JSONFixture } + U"sample.json", AllowExceptions::Yes);
+	const JSON json = JSON::Load(String{ JSONFixture } + U"sample.json");
 	REQUIRE(json.isObject());
 	CHECK(json["title"].getString() == U"設定 😀");
 	CHECK(json["players"].size() == 2);
@@ -475,9 +472,9 @@ TEST_CASE("JSON.Load.filesAndReaders")
 		const FilePath path = (String{ JSONFixture } + name);
 		INFO(path.toUTF8());
 		CHECK(JSON::Load(path) == expected);
-		JSON value;
-		CHECK(value.load(path));
-		CHECK(value == expected);
+		const auto result = JSON::LoadResult(path);
+		REQUIRE(result);
+		CHECK(*result == expected);
 		CHECK(JSON::Load(BinaryFileReader{ path }) == expected);
 	}
 
@@ -486,26 +483,21 @@ TEST_CASE("JSON.Load.filesAndReaders")
 		const FilePath path = (String{ JSONFixture } + name);
 		INFO(path.toUTF8());
 		CHECK(JSON::Load(path).isInvalid());
-		CHECK_THROWS_AS(JSON::Load(path, AllowExceptions::Yes), Error);
-		JSON value = 42;
-		CHECK_FALSE(value.load(path));
-		CHECK(value.isInvalid());
-		value = 42;
-		CHECK_THROWS_AS(value.load(path, AllowExceptions::Yes), Error);
-		CHECK(value.isInvalid());
+		const auto result = JSON::LoadResult(path);
+		REQUIRE_FALSE(result);
+		REQUIRE(result.error().size() == 1);
+		CHECK_FALSE(result.error().front().title.isEmpty());
 	}
 
 	const std::string source = expected.formatUTF8Minified();
 	CHECK(JSON::Load(JSONChunkReader{ source.data(), source.size() }) == expected);
 	CHECK(JSON::Load(JSONIncompleteReader{ source.data(), source.size() }).isInvalid());
-	CHECK_THROWS_AS(JSON::Load(JSONIncompleteReader{ source.data(), source.size() }, AllowExceptions::Yes), Error);
+	CHECK_FALSE(JSON::LoadResult(JSONIncompleteReader{ source.data(), source.size() }));
 	CHECK(JSON::Load(std::unique_ptr<IReader>{}).isInvalid());
-	CHECK_THROWS_AS(JSON::Load(std::unique_ptr<IReader>{}, AllowExceptions::Yes), Error);
-	JSON value;
-	CHECK(value.load(MemoryViewReader{ source.data(), source.size() }));
-	CHECK(value == expected);
-	CHECK_FALSE(value.load(std::unique_ptr<IReader>{}));
-	CHECK(value.isInvalid());
+	CHECK_FALSE(JSON::LoadResult(std::unique_ptr<IReader>{}));
+	const auto result = JSON::LoadResult(MemoryViewReader{ source.data(), source.size() });
+	REQUIRE(result);
+	CHECK(*result == expected);
 	CHECK(JSON::Load(MemoryViewReader{ "null", 4 }).isNull());
 	MemoryViewReader positioned{ "prefix null", 11 };
 	positioned.setPos(7);
@@ -613,24 +605,22 @@ TEST_CASE("JSON.assignmentAndSwap")
 	CHECK(original["b"] == destination);
 	original["a"] = std::move(destination);
 	CHECK(original["a"] == JSON::Parse("[2,3]"));
-	JSON first = original["a"];
-	JSON second = original["b"];
-	first.swap(second);
-	first[0] = 8;
-	CHECK(original["b"][0].get<int>() == 8);
-	CHECK(original["a"][0].get<int>() == 2);
+	original["b"][0] = 8;
+	swap(original["a"], original["b"]);
+	CHECK(original["a"][0].get<int>() == 8);
+	CHECK(original["b"][0].get<int>() == 2);
 	JSON object = JSON::EmptyObject();
 	for (int i = 0; i < 64; ++i)
 	{
 		object[ToString(i)] = i;
 	}
-	object["copy"] = object["0"].clone();
+	object["copy"] = JSON(object["0"]);
 	CHECK(object["copy"].get<int>() == 0);
 	JSON overlap = JSON::Parse("{\"child\":{\"value\":1}}");
 	overlap = overlap["child"];
 	CHECK(overlap["value"].get<int>() == 1);
 	JSON parent = JSON::Parse("{\"child\":1}");
-	parent["child"] = std::move(parent);
+	parent["child"] = parent;
 	CHECK(parent["child"]["child"].get<int>() == 1);
 }
 
@@ -658,4 +648,58 @@ TEST_CASE("JSON.stringEscapesAndByteBoundaries")
 	CHECK("null"_json.isNull());
 	CHECK(JSON{ 42 } == JSON::Parse("[42]"));
 	CHECK(JSON{ { "x", 42 } } == JSON::Parse("{\"x\":42}"));
+}
+
+TEST_CASE("JSON.ParseResult.locations")
+{
+	{
+		const auto result = JSON::ParseResult(std::string{ "[\n1,\n]" }, U"config.json");
+		REQUIRE_FALSE(result);
+		REQUIRE(result.error().size() == 1);
+		const JSONParseErrorReason& error = result.error().front();
+		CHECK(error.locations == Array<String>{ U"config.json:3:1" });
+		CHECK(error.format() == (error.title + U"\nconfig.json:3:1"));
+	}
+
+	{
+		const auto result = JSON::ParseResult(U"[1,]");
+		REQUIRE_FALSE(result);
+		CHECK(result.error().front().locations == Array<String>{ U"internal string:1:4" });
+	}
+
+	{
+		const auto result = JSON::ParseResult(std::string{ "1e9999" });
+		REQUIRE_FALSE(result);
+		CHECK_FALSE(result.error().front().title.isEmpty());
+	}
+
+	{
+		const FilePath path = (String{ JSONFixture } + U"invalid-truncated.json");
+		const auto result = JSON::LoadResult(path);
+		REQUIRE_FALSE(result);
+		REQUIRE(result.error().front().locations.size() == 1);
+		CHECK(result.error().front().locations.front().starts_with(path + U":"));
+	}
+
+	{
+		const auto result = JSON::LoadResult(String{ JSONFixture } + U"nonexistent.json");
+		REQUIRE_FALSE(result);
+		CHECK_FALSE(result.error().front().title.isEmpty());
+	}
+}
+
+TEST_CASE("JSON.ownershipAndArrayView")
+{
+	JSON root = JSON::Parse(R"({"values":[3,1,2]})");
+	const JSON braced{ root["values"] };
+	CHECK(braced == JSON::Parse("[3,1,2]"));
+	const JSON copied{ root };
+	CHECK(copied == root);
+
+	std::ranges::sort(root["values"].arrayView(), [](const JSONConstRef a, const JSONConstRef b) { return (a.get<int>() < b.get<int>()); });
+	CHECK(root["values"] == JSON::Parse("[1,2,3]"));
+	CHECK(braced == JSON::Parse("[3,1,2]"));
+	CHECK_THROWS_AS(root.arrayView(), Error);
+
+	CHECK(Format(JSON::Parse("[1]")) == U"[\n  1\n]");
 }

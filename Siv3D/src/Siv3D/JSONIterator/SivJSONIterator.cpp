@@ -13,207 +13,57 @@
 
 namespace s3d
 {
-	////////////////////////////////////////////////////////////////
-	//
-	//	(constructor)
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONIterator::JSONIterator(JSON::json_base::iterator it, const Optional<difference_type>& index)
-		: m_iterator(it)
-		, m_index(index.value_or(0LL))
-		, m_isArray{ index.has_value() } {}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator *
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONIterator::JSONItem JSONIterator::operator *() const
+	JSONIterator::JSONItemRef::operator JSONItem() const
 	{
-		return JSONItem{ key(), value() };
+		return JSONItem{ key, JSON{ value } };
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	key
-	//
-	////////////////////////////////////////////////////////////////
 
 	String JSONIterator::key() const
 	{
-		if (m_isArray)
+		if (m_index == detail::NotArray)
+		{
+			return Unicode::FromUTF8(m_iterator.key());
+		}
+		else
 		{
 			return ToString(m_index);
 		}
-
-		return Unicode::FromUTF8(m_iterator.key());
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	value
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON JSONIterator::value() const
+	JSONRef JSONIterator::value() const
 	{
-		return JSON(std::ref(m_iterator.value()));
+		return JSONRef{ m_iterator.value() };
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator ++
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONIterator& JSONIterator::operator ++()
+	JSONIterator::JSONItemRef JSONIterator::operator *() const
 	{
-		++m_iterator;
-		++m_index;
-		return *this;
+		return JSONItemRef{ key(), value() };
 	}
 
-	JSONIterator JSONIterator::operator ++(int)
+	JSONConstIterator::JSONItemConstRef::operator JSONItem() const
 	{
-		JSONIterator old = *this;
-		++m_iterator;
-		++m_index;
-		return old;
+		return JSONItem{ key, JSON{ value } };
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator --
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONIterator& JSONIterator::operator --()
+	String JSONConstIterator::key() const
 	{
-		--m_iterator;
-		--m_index;
-		return *this;
-	}
-
-	JSONIterator JSONIterator::operator --(int)
-	{
-		JSONIterator old = *this;
-		--m_iterator;
-		--m_index;
-		return old;
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator ==
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool operator ==(const JSONIterator& lhs, const JSONIterator& rhs)
-	{
-		return (lhs.m_iterator == rhs.m_iterator);
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	(constructor)
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONConstIterator::JSONConstIterator(JSON::json_base::const_iterator it, const Optional<difference_type>& index)
-		: m_iterator(it)
-		, m_index(index.value_or(0LL))
-		, m_isArray{ index.has_value() } {}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator *
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONConstIterator::JSONItem JSONConstIterator::operator *() const
-	{
-		return JSONItem{ key(), value() };
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	key
-	//
-	////////////////////////////////////////////////////////////////
-
-	const String JSONConstIterator::key() const
-	{
-		if (m_isArray)
+		if (m_index == detail::NotArray)
+		{
+			return Unicode::FromUTF8(m_iterator.key());
+		}
+		else
 		{
 			return ToString(m_index);
 		}
-
-		return Unicode::FromUTF8(m_iterator.key());
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	value
-	//
-	////////////////////////////////////////////////////////////////
-
-	const JSON JSONConstIterator::value() const
+	JSONConstRef JSONConstIterator::value() const
 	{
-		return JSON(std::cref(m_iterator.value()));
+		return JSONConstRef{ m_iterator.value() };
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator ++
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONConstIterator& JSONConstIterator::operator ++()
+	JSONConstIterator::JSONItemConstRef JSONConstIterator::operator *() const
 	{
-		++m_iterator;
-		++m_index;
-		return *this;
-	}
-
-	JSONConstIterator JSONConstIterator::operator ++(int)
-	{
-		JSONConstIterator old = *this;
-		++m_iterator;
-		++m_index;
-		return old;
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator --
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONConstIterator& JSONConstIterator::operator --()
-	{
-		--m_iterator;
-		--m_index;
-		return *this;
-	}
-
-	JSONConstIterator JSONConstIterator::operator --(int)
-	{
-		JSONConstIterator old = *this;
-		--m_iterator;
-		--m_index;
-		return old;
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator ==
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool operator ==(const JSONConstIterator& lhs, const JSONConstIterator& rhs)
-	{
-		return (lhs.m_iterator == rhs.m_iterator);
+		return JSONItemConstRef{ key(), value() };
 	}
 }

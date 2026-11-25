@@ -15,177 +15,233 @@ namespace s3d
 {
 	namespace detail
 	{
-		[[noreturn]]
-		void ThrowJSONGetError(const char* type, std::string_view s);
+		template <class Derived>
+		template <class Type>
+		Type JSONMixin<Derived>::get() const
+		{
+			try
+			{
+				return getRef().template get<Type>();
+			}
+			catch (const JSONBase::exception&)
+			{
+				ThrowJSONGetError(typeid(Type).name(), getRef().dump(-1, ' ', false, JSONBase::error_handler_t::replace));
+			}
+		}
+
+		template <class Derived>
+		template <class Type, class U>
+			requires std::constructible_from<Type, U>
+		Type JSONMixin<Derived>::getOr(U&& defaultValue) const
+		{
+			try
+			{
+				return getRef().template get<Type>();
+			}
+			catch (const JSONBase::exception&)
+			{
+				return Type(std::forward<U>(defaultValue));
+			}
+		}
+
+		template <class Derived>
+		template <class Type>
+		Optional<Type> JSONMixin<Derived>::getOpt() const
+		{
+			try
+			{
+				return getRef().template get<Type>();
+			}
+			catch (const JSONBase::exception&)
+			{
+				return none;
+			}
+		}
+
+		template <class Derived>
+		inline const JSONBase& JSONMixin<Derived>::getRef() const noexcept
+		{
+			return static_cast<const Derived&>(*this).getRefImpl();
+		}
+
+		extern template class JSONMixin<JSON>;
+
+		extern template class JSONMixin<JSONRef>;
+
+		extern template class JSONMixin<JSONConstRef>;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	(constructor)
-	//
-	////////////////////////////////////////////////////////////////
-
-	template <class Type>
-		requires std::constructible_from<JSON::json_base, Type>
-	JSON::JSON(Type&& value)
-		: m_json(std::forward<Type>(value)) {}
-
-	template <std::input_iterator Iterator>
-	JSON::JSON(Iterator first, Iterator last)
-		: m_json(std::in_place_type<json_base>, typename json_base::array_t(first, last)) {}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	load
-	//
-	////////////////////////////////////////////////////////////////
-
-	template <ReaderObject Reader>
-	bool JSON::load(Reader&& reader, const AllowExceptions allowExceptions)
+	inline const detail::JSONBase& JSON::getRefImpl() const noexcept
 	{
-		return load(std::make_unique<Reader>(std::move(reader)), allowExceptions);
+		return m_json;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator = 
-	//
-	////////////////////////////////////////////////////////////////
+	inline JSONRef::JSONRef(detail::JSONBase& json_ref)
+		: m_json_ref{ json_ref } {}
 
-	JSON& JSON::operator =(auto&& value)
+	inline const detail::JSONBase& JSONRef::getRefImpl() const noexcept
 	{
-		getRef() = std::forward<decltype(value)>(value);
+		return m_json_ref;
+	}
+
+	inline JSONConstRef::JSONConstRef(const detail::JSONBase& json_ref)
+		: m_json_ref{ json_ref } {}
+
+	inline const detail::JSONBase& JSONConstRef::getRefImpl() const noexcept
+	{
+		return m_json_ref;
+	}
+
+	template <bool Const>
+	JSONArrayViewIterator<Const>::JSONArrayViewIterator(JSONArrayViewIterator<!Const> itr) requires Const
+		: m_iterator{ itr.m_iterator } {}
+
+	template <bool Const>
+	typename JSONArrayViewIterator<Const>::reference JSONArrayViewIterator<Const>::operator *() const
+	{
+		return reference{ *m_iterator };
+	}
+
+	template <bool Const>
+	JSONArrayViewIterator<Const>& JSONArrayViewIterator<Const>::operator ++()
+	{
+		++m_iterator;
 		return *this;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	get
-	//
-	////////////////////////////////////////////////////////////////
-
-	/// @brief 値を Type 型として取得します。
-	/// @tparam Type 値の型
-	/// @return 値
-	/// @throw Error JSON の値を Type 型に変換できない場合
-	template <class Type>
-	Type JSON::get() const
+	template <bool Const>
+	JSONArrayViewIterator<Const> JSONArrayViewIterator<Const>::operator ++(int)
 	{
-		return FromJSON<Type>(*this);
+		JSONArrayViewIterator temp = *this;
+		++*this;
+		return temp;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	getOr
-	//
-	////////////////////////////////////////////////////////////////
-
-	/// @brief 値を Type 型として取得します。取得できなかった場合は defaultValue を返します。
-	/// @tparam Type 値の型
-	/// @tparam U 取得できなかった場合に返す値の型
-	/// @param defaultValue 取得できなかった場合に返す値
-	/// @return 値
-	template <class Type, class U>
-	Type JSON::getOr(U&& defaultValue) const
+	template <bool Const>
+	JSONArrayViewIterator<Const>& JSONArrayViewIterator<Const>::operator --()
 	{
-		return FromJSONOpt<Type>(*this).value_or(std::forward<U>(defaultValue));
+		--m_iterator;
+		return *this;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	getOpt
-	//
-	////////////////////////////////////////////////////////////////
-
-	/// @brief 値を Type 型として取得します。
-	/// @tparam Type 値の型
-	/// @return 値。取得できなかった場合は none
-	template <class Type>
-	Optional<Type> JSON::getOpt() const
+	template <bool Const>
+	JSONArrayViewIterator<Const> JSONArrayViewIterator<Const>::operator --(int)
 	{
-		return FromJSONOpt<Type>(*this);
+		JSONArrayViewIterator temp = *this;
+		--*this;
+		return temp;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	Load
-	//
-	////////////////////////////////////////////////////////////////
+	template <bool Const>
+	JSONArrayViewIterator<Const>& JSONArrayViewIterator<Const>::operator +=(const difference_type n)
+	{
+		m_iterator += n;
+		return *this;
+	}
+
+	template <bool Const>
+	JSONArrayViewIterator<Const>& JSONArrayViewIterator<Const>::operator -=(const difference_type n)
+	{
+		m_iterator -= n;
+		return *this;
+	}
+
+	template <bool Const>
+	typename JSONArrayViewIterator<Const>::reference JSONArrayViewIterator<Const>::operator [](const difference_type n) const
+	{
+		return reference{ m_iterator[n] };
+	}
+
+	template <bool Const>
+	JSONArrayViewIterator<Const>::JSONArrayViewIterator(iterator_type itr)
+		: m_iterator{ itr } {}
+
+	template <bool Const>
+	JSONArrayView<Const>::JSONArrayView(JSONArrayView<!Const> other) requires Const
+		: m_array{ other.m_array } {}
+
+	template <bool Const>
+	typename JSONArrayView<Const>::iterator JSONArrayView<Const>::begin() noexcept requires (!Const)
+	{
+		return iterator{ m_array.get().begin() };
+	}
+
+	template <bool Const>
+	typename JSONArrayView<Const>::iterator JSONArrayView<Const>::end() noexcept requires (!Const)
+	{
+		return iterator{ m_array.get().end() };
+	}
+
+	template <bool Const>
+	typename JSONArrayView<Const>::const_iterator JSONArrayView<Const>::begin() const noexcept
+	{
+		return const_iterator{ m_array.get().begin() };
+	}
+
+	template <bool Const>
+	typename JSONArrayView<Const>::const_iterator JSONArrayView<Const>::end() const noexcept
+	{
+		return const_iterator{ m_array.get().end() };
+	}
+
+	template <bool Const>
+	std::size_t JSONArrayView<Const>::size() const noexcept
+	{
+		return m_array.get().size();
+	}
+
+	template <bool Const>
+	JSONArrayView<Const>::JSONArrayView(detail::maybe_const<Const, detail::JSONBase>& json)
+		: m_array{ json.template get_ref<detail::maybe_const<Const, detail::JSONBase::array_t>&>() } {}
+
+	template <class Cpp17InputIterator>
+		requires (!std::integral<Cpp17InputIterator>)
+	JSON::JSON(Cpp17InputIterator first, Cpp17InputIterator last)
+		: m_json(typename detail::JSONBase::array_t(first, last))
+	{}
 
 	template <ReaderObject Reader>
-	JSON JSON::Load(Reader&& reader, const AllowExceptions allowExceptions)
+	JSON JSON::Load(Reader&& reader)
 	{
-		return Load(std::make_unique<Reader>(std::move(reader)), allowExceptions);
+		return Load(std::make_unique<Reader>(std::move(reader)));
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	ToJSON
-	//
-	////////////////////////////////////////////////////////////////
+	template <ReaderObject Reader>
+	Result<JSON, Array<JSONParseErrorReason>> JSON::LoadResult(Reader&& reader)
+	{
+		return LoadResult(std::make_unique<Reader>(std::move(reader)));
+	}
 
 	template <class Type>
-		requires std::constructible_from<JSON::json_base, Type>
+		requires std::constructible_from<JSON, Type>
 	JSON ToJSON(Type&& value)
 	{
 		return JSON(std::forward<Type>(value));
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	FromJSON
-	//
-	////////////////////////////////////////////////////////////////
-
 	template <class Type>
-	Type FromJSON(const JSON& json)
+	Type FromJSON(const JSONConstRef json)
 	{
-		try
-		{
-			return json.base().template get<Type>();
-		}
-		catch (const JSON::json_base::exception&)
-		{
-			detail::ThrowJSONGetError(typeid(Type).name(), json.base().dump(-1, ' ', false, JSON::json_base::error_handler_t::replace));
-		}
+		return json.get<Type>();
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	FromJSONOr
-	//
-	////////////////////////////////////////////////////////////////
 
 	template <class Type>
 		requires (not std::is_reference_v<Type>)
-	Type FromJSONOr(const JSON& json, Type&& defaultValue)
+	Type FromJSONOr(const JSONConstRef json, Type&& defaultValue)
 	{
 		return json.getOr<Type>(std::forward<Type>(defaultValue));
 	}
 
 	template <class Type>
-	Type FromJSONOr(const JSON& json, const Type& defaultValue)
+	Type FromJSONOr(const JSONConstRef json, const Type& defaultValue)
 	{
 		return json.getOr<Type>(defaultValue);
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	FromJSONOpt
-	//
-	////////////////////////////////////////////////////////////////
-
 	template <class Type>
-	Optional<Type> FromJSONOpt(const JSON& json)
+	Optional<Type> FromJSONOpt(const JSONConstRef json)
 	{
-		try
-		{
-			return json.base().template get<Type>();
-		}
-		catch (const JSON::json_base::exception&)
-		{
-			return none;
-		}
+		return json.getOpt<Type>();
 	}
 }
 

@@ -10,205 +10,143 @@
 //-----------------------------------------------
 
 # pragma once
+
+# include <string_view>
+# include <variant>
+
+# include "String.hpp"
 # include "JSON.hpp"
+# include "Optional.hpp"
 
 namespace s3d
 {
-	////////////////////////////////////////////////////////////////
-	//
-	//	JSONIterator
-	//
-	////////////////////////////////////////////////////////////////
+	namespace detail
+	{
+		inline constexpr std::size_t NotArray = static_cast<std::size_t>(-1);
+	}
+
+	struct JSONItem
+	{
+		String key;
+
+		JSON value;
+	};
 
 	class JSONIterator
 	{
 	public:
-
-		struct JSONItem
+		struct JSONItemRef
 		{
 			String key;
 
-			JSON value;
+			JSONRef value;
+
+			[[nodiscard]]
+			operator JSONItem() const;
+
+			JSONItemRef& operator =(const JSONItemRef&) = delete;
 		};
 
-		using value_type		= JSONItem;
+		using value_type = JSONItem;
 
-		using difference_type	= std::ptrdiff_t;
-
-		using iterator_concept	= std::bidirectional_iterator_tag;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	(constructor)
-		//
-		////////////////////////////////////////////////////////////////
+		using difference_type = std::ptrdiff_t;
 
 		[[nodiscard]]
-		JSONIterator() = default;
-
-		[[nodiscard]]
-		explicit JSONIterator(JSON::json_base::iterator it, const Optional<difference_type>& index = none);
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator *
-		//
-		////////////////////////////////////////////////////////////////
-
-		[[nodiscard]]
-		JSONItem operator *() const;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	key
-		//
-		////////////////////////////////////////////////////////////////
+		JSONIterator();
 
 		[[nodiscard]]
 		String key() const;
 
-		////////////////////////////////////////////////////////////////
-		//
-		//	value
-		//
-		////////////////////////////////////////////////////////////////
+		[[nodiscard]]
+		JSONRef value() const;
 
 		[[nodiscard]]
-		JSON value() const;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator ++
-		//
-		////////////////////////////////////////////////////////////////
+		JSONItemRef operator *() const;
 
 		JSONIterator& operator ++();
 
 		JSONIterator operator ++(int);
 
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator --
-		//
-		////////////////////////////////////////////////////////////////
-
 		JSONIterator& operator --();
 
 		JSONIterator operator --(int);
 
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator ==
-		//
-		////////////////////////////////////////////////////////////////
-
-		friend bool operator ==(const JSONIterator& lhs, const JSONIterator& rhs);
+		friend bool operator ==(const JSONIterator& lhs, const JSONIterator& rhs) noexcept = default;
 
 	private:
 
-		JSON::json_base::iterator m_iterator;
+		friend JSON;
 
-		difference_type m_index;
+		friend JSONRef;
 
-		bool m_isArray = false;
+		friend JSONConstIterator;
+
+		template <class>
+		friend class detail::JSONMixin;
+
+		JSONIterator(detail::JSONBase::iterator itr, std::size_t index);
+
+		detail::JSONBase::iterator m_iterator;
+
+		std::size_t m_index;
 	};
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	JSONConstIterator
-	//
-	////////////////////////////////////////////////////////////////
 
 	class JSONConstIterator
 	{
 	public:
 
-		struct JSONItem
+		struct JSONItemConstRef
 		{
-			const String key;
+			String key;
 
-			const JSON value;
+			JSONConstRef value;
+
+			[[nodiscard]]
+			operator JSONItem() const;
 		};
 
-		using value_type		= JSONItem;
+		using value_type = JSONItem;
 
-		using difference_type	= std::ptrdiff_t;
-
-		using iterator_concept	= std::bidirectional_iterator_tag;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	(constructor)
-		//
-		////////////////////////////////////////////////////////////////
+		using difference_type = std::ptrdiff_t;
 
 		[[nodiscard]]
-		JSONConstIterator() = default;
+		JSONConstIterator();
 
 		[[nodiscard]]
-		explicit JSONConstIterator(JSON::json_base::const_iterator it, const Optional<difference_type>& index = none);
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator *
-		//
-		////////////////////////////////////////////////////////////////
+		JSONConstIterator(const JSONIterator&);
 
 		[[nodiscard]]
-		JSONItem operator *() const;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	key
-		//
-		////////////////////////////////////////////////////////////////
+		String key() const;
 
 		[[nodiscard]]
-		const String key() const;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	value
-		//
-		////////////////////////////////////////////////////////////////
+		JSONConstRef value() const;
 
 		[[nodiscard]]
-		const JSON value() const;
-
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator ++
-		//
-		////////////////////////////////////////////////////////////////
+		JSONItemConstRef operator *() const;
 
 		JSONConstIterator& operator ++();
 
 		JSONConstIterator operator ++(int);
 
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator --
-		//
-		////////////////////////////////////////////////////////////////
-
 		JSONConstIterator& operator --();
 
 		JSONConstIterator operator --(int);
 
-		////////////////////////////////////////////////////////////////
-		//
-		//	operator ==
-		//
-		////////////////////////////////////////////////////////////////
-
-		friend bool operator ==(const JSONConstIterator& lhs, const JSONConstIterator& rhs);
+		friend bool operator ==(const JSONConstIterator& lhs, const JSONConstIterator& rhs) noexcept = default;
 
 	private:
 
-		JSON::json_base::const_iterator m_iterator;
+		friend JSON;
 
-		difference_type m_index;
+		template <class>
+		friend class detail::JSONMixin;
 
-		bool m_isArray = false;
+		JSONConstIterator(detail::JSONBase::const_iterator itr, std::size_t index);
+
+		detail::JSONBase::const_iterator m_iterator;
+
+		std::size_t m_index;
 	};
 }
+
+# include "detail/JSONIterator.ipp"

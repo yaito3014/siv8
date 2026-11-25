@@ -9,12 +9,12 @@
 //
 //-----------------------------------------------
 
+# include <algorithm>
 # include <Siv3D/JSON.hpp>
 # include <Siv3D/JSONIterator.hpp>
-# include <Siv3D/Unicode.hpp>
 # include <Siv3D/FormatLiteral.hpp>
+# include <Siv3D/Unicode.hpp>
 # include <Siv3D/Demangle.hpp>
-# include <Siv3D/Error.hpp>
 # include <Siv3D/TextFileWriter.hpp>
 # include <Siv3D/BinaryFileReader.hpp>
 
@@ -22,115 +22,261 @@ namespace s3d
 {
 	namespace
 	{
+		using JSONErrors = Array<JSONParseErrorReason>;
+
 		[[nodiscard]]
-		static JSON JSONErrorResult(const AllowExceptions allowExceptions, const char* message)
+		static Err<JSONErrors> MakeJSONError(String title, Array<String> locations = {}, String hint = {})
 		{
-			if (allowExceptions)
-			{
-				throw Error{ message };
-			}
-			return JSON::Invalid();
+			return Err{ JSONErrors{ JSONParseErrorReason{ std::move(title), std::move(locations), std::move(hint) } } };
 		}
 
 		[[nodiscard]]
-		static JSON ReadJSON(IReader& reader, const AllowExceptions allowExceptions)
+		static String MakeParseName(const FilePathView pathHint)
 		{
+			return pathHint ? String{ pathHint } : String{ U"internal string" };
+		}
+
+		// byte is the 1-based count of bytes read up to and including the offending one, as reported by nlohmann.
+		[[nodiscard]]
+		static String MakeLocation(const FilePathView pathHint, const std::string_view content, const std::size_t byte)
+		{
+			const std::size_t index = std::min(((byte == 0) ? 0 : (byte - 1)), content.size());
+			const std::string_view before = content.substr(0, index);
+			const std::size_t line = (1 + static_cast<std::size_t>(std::ranges::count(before, '\n')));
+			const std::size_t lineBegin = ((before.rfind('\n') == std::string_view::npos) ? 0 : (before.rfind('\n') + 1));
+			return U"{}:{}:{}"_fmt(MakeParseName(pathHint), line, (index - lineBegin + 1));
+		}
+
+		[[nodiscard]]
+		static String MakeTitle(const detail::JSONBase::exception& e)
+		{
+			std::string_view message = e.what();
+
+			if (const std::size_t pos = message.find("] "); pos != std::string_view::npos)
+			{
+				message.remove_prefix(pos + 2);
+			}
+
+			if (message.starts_with("parse error"))
+			{
+				if (const std::size_t pos = message.find(": "); pos != std::string_view::npos)
+				{
+					message.remove_prefix(pos + 2);
+				}
+			}
+
+			// The message quotes the input as read, which may be invalid UTF-8; FromUTF8 would return an empty string for it.
+			String title;
+
+			while (not message.empty())
+			{
+				const auto valid = Unicode::ValidateUTF8(message);
+				const std::size_t length = (valid ? message.size() : valid.error());
+				title.append(Unicode::FromUTF8(message.substr(0, length)));
+				message.remove_prefix(length);
+
+				if (not message.empty())
+				{
+					title.push_back(U'�');
+					message.remove_prefix(1);
+				}
+			}
+
+			return title;
+		}
+
+		[[nodiscard]]
+		static Result<detail::JSONBase, JSONErrors> ParseJSON(const std::string_view content, const FilePathView pathHint)
+		{
+			if (const std::size_t pos = content.find('\0'); pos != std::string_view::npos)
+			{
+				return MakeJSONError(U"unescaped NUL in input", { MakeLocation(pathHint, content, (pos + 1)) });
+			}
+
+			try
+			{
+				return detail::JSONBase::parse(content, nullptr, true, true);
+			}
+			catch (const detail::JSONBase::parse_error& e)
+			{
+				return MakeJSONError(MakeTitle(e), { MakeLocation(pathHint, content, e.byte) });
+			}
+			catch (const detail::JSONBase::exception& e)
+			{
+				return MakeJSONError(MakeTitle(e));
+			}
+		}
+
+		// Reads the remaining bytes as UTF-8, converting UTF-16 with a BOM.
+		[[nodiscard]]
+		static Result<std::string, JSONErrors> ReadJSONText(IReader& reader, const FilePathView pathHint)
+		{
+			const Array<String> locations = (pathHint ? Array<String>{ String{ pathHint } } : Array<String>{});
+
 			if (not reader.isOpen())
 			{
-				return JSONErrorResult(allowExceptions, "JSON::Load(): reader is not open");
+				return MakeJSONError(U"Failed to open the input.", locations, U"Check if the file exists.");
 			}
 
 			const int64 size = (reader.size() - reader.getPos());
+
 			if (size < 0)
 			{
-				return JSONErrorResult(allowExceptions, "JSON::Load(): invalid reader position");
+				return MakeJSONError(U"Invalid reader position.", locations);
 			}
 
-			const auto buffer = std::make_unique_for_overwrite<char[]>(static_cast<size_t>(size));
-			const std::string_view bytes{ buffer.get(), static_cast<size_t>(size) };
+			std::string bytes(static_cast<std::size_t>(size), '\0');
 			int64 offset = 0;
+
 			while (offset < size)
 			{
-				const int64 count = reader.read((buffer.get() + offset), (size - offset));
+				const int64 count = reader.read((bytes.data() + offset), (size - offset));
+
 				if ((count <= 0) || ((size - offset) < count))
 				{
-					return JSONErrorResult(allowExceptions, "JSON::Load(): incomplete read");
+					return MakeJSONError(U"Failed to read the input.", locations);
 				}
+
 				offset += count;
 			}
 
 			// Preserve CR and NUL: text-reader normalization can change JSON tokens.
 			const bool littleEndian = bytes.starts_with("\xFF\xFE");
+
 			if (littleEndian || bytes.starts_with("\xFE\xFF"))
 			{
 				if (bytes.size() % 2)
 				{
-					return JSONErrorResult(allowExceptions, "JSON::Load(): incomplete UTF-16 code unit");
+					return MakeJSONError(U"Incomplete UTF-16 code unit.", locations);
 				}
-				std::u16string utf16((bytes.size() / 2 - 1), u'\0');
-				for (size_t i = 0; i < utf16.size(); ++i)
+
+				std::u16string utf16(((bytes.size() / 2) - 1), u'\0');
+
+				for (std::size_t i = 0; i < utf16.size(); ++i)
 				{
 					const uint16 first = static_cast<uint8>(bytes[2 + i * 2]);
 					const uint16 second = static_cast<uint8>(bytes[3 + i * 2]);
 					utf16[i] = static_cast<char16>(littleEndian ? (first | (second << 8)) : ((first << 8) | second));
 				}
-				return JSON::Parse(Unicode::UTF16ToUTF8(utf16), allowExceptions);
+
+				return Unicode::UTF16ToUTF8(utf16);
 			}
-			return JSON::Parse(bytes, allowExceptions);
+
+			return bytes;
 		}
 
 		[[nodiscard]]
-		static constexpr JSON::json_base::value_t ToValueType(const JSONValueType valueType) noexcept
+		static Result<JSON, JSONErrors> LoadJSON(IReader& reader, const FilePathView pathHint)
 		{
-			return static_cast<JSON::json_base::value_t>(valueType);
+			auto text = ReadJSONText(reader, pathHint);
+
+			if (not text)
+			{
+				return Err{ std::move(text).error() };
+			}
+
+			return JSON::ParseResult(std::move(*text), pathHint);
+		}
+
+		template <class JSONBaseType>
+		[[nodiscard]]
+		static JSONBaseType& CheckedAt(JSONBaseType& json, const std::size_t index)
+		{
+			if (not json.is_array())
+			{
+				throw Error{ "JSON::operator [](size_t): This JSON value is not an array" };
+			}
+
+			if (json.size() <= index)
+			{
+				throw Error{ "JSON::operator [](size_t): Index out of range" };
+			}
+
+			return json[index];
+		}
+
+		static void PushBack(detail::JSONBase& json, detail::JSONBase&& value)
+		{
+			if (not (json.is_null() || json.is_array()))
+			{
+				throw Error{ "JSON::push_back(): This JSON value is not an array" };
+			}
+
+			json.push_back(std::move(value));
+		}
+
+		static void EraseIndex(detail::JSONBase& json, const std::size_t index)
+		{
+			if (not json.is_array())
+			{
+				throw Error{ "JSON::erase(size_t): This JSON value is not an array" };
+			}
+
+			if (json.size() <= index)
+			{
+				throw Error{ "JSON::erase(size_t): Index out of range" };
+			}
+
+			json.erase(json.begin() + index);
+		}
+
+		static void PopBack(detail::JSONBase& json)
+		{
+			if (not json.is_array())
+			{
+				throw Error{ "JSON::pop_back(): This JSON value is not an array" };
+			}
+
+			if (json.empty())
+			{
+				throw Error{ "JSON::pop_back(): The array is empty" };
+			}
+
+			json.erase(json.end() - 1);
+		}
+
+		static void EraseKey(detail::JSONBase& json, const std::string_view key)
+		{
+			if (not json.is_object())
+			{
+				throw Error{ "JSON::erase(): This JSON value is not an object" };
+			}
+
+			json.erase(std::string{ key });
 		}
 
 		[[nodiscard]]
-		static constexpr JSONValueType ToJSONValueType(const JSON::json_base::value_t valueType) noexcept
+		static Blob ToBlob(const std::vector<uint8>& data)
 		{
-			return static_cast<JSONValueType>(valueType);
+			return Blob{ data.data(), data.size() };
 		}
 
-		[[noreturn]]
-		static void ThrowNotString()
+		[[nodiscard]]
+		static bool SaveText(const FilePathView path, const std::string& text)
 		{
-			throw Error{ "JSON::getString(): This JSON value is not a string" };
+			TextFileWriter writer{ path };
+
+			if (not writer)
+			{
+				return false;
+			}
+
+			writer.writeUTF8(text);
+			return true;
 		}
 
-		[[noreturn]]
-		static void ThrowNotStringUTF8()
+		template <class Function>
+		[[nodiscard]]
+		static JSON FromBinary(const char* name, const AllowExceptions allowExceptions, Function f)
 		{
-			throw Error{ "JSON::getUTF8(): This JSON value is not a string" };
-		}
-
-		[[noreturn]]
-		static void ThrowNotBinary()
-		{
-			throw Error{ "JSON::getBinary(): This JSON value is not a binary" };
-		}
-
-		[[noreturn]]
-		static void ThrowOpSubscriptNotArray()
-		{
-			throw Error{ "JSON::operator [](size_t): This JSON value is not an array" };
-		}
-
-		[[noreturn]]
-		static void ThrowOpSubscriptIndexOutOfRange()
-		{
-			throw Error{ "JSON::operator [](size_t): Index out of range" };
-		}
-
-		[[noreturn]]
-		static void ThrowEraseNotArray()
-		{
-			throw Error{ "JSON::erase(size_t): This JSON value is not an array" };
-		}
-
-		[[noreturn]]
-		static void ThrowEraseIndexOutOfRange()
-		{
-			throw Error{ "JSON::erase(size_t): Index out of range" };
+			try
+			{
+				return JSON(f(allowExceptions.getBool()));
+			}
+			catch (const std::exception& e)
+			{
+				throw Error{ fmt::format("JSON::{}(): {}", name, e.what()) };
+			}
 		}
 	}
 
@@ -147,1019 +293,662 @@ namespace s3d
 				throw Error{ fmt::format("JSON::get<{}>(\"{}\"...) failed", DemangleUTF8(type), s.substr(0, 64)) };
 			}
 		}
+
+		template <class Derived>
+		JSONValueType JSONMixin<Derived>::getType() const noexcept
+		{
+			return static_cast<JSONValueType>(getRef().type());
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isNull() const noexcept
+		{
+			return getRef().is_null();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isObject() const noexcept
+		{
+			return getRef().is_object();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isArray() const noexcept
+		{
+			return getRef().is_array();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isString() const noexcept
+		{
+			return getRef().is_string();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isPrimitive() const noexcept
+		{
+			return getRef().is_primitive();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isBool() const noexcept
+		{
+			return getRef().is_boolean();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isNumber() const noexcept
+		{
+			return getRef().is_number();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isInt() const noexcept
+		{
+			return getRef().is_number_integer();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isUint() const noexcept
+		{
+			return getRef().is_number_unsigned();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isFloat() const noexcept
+		{
+			return getRef().is_number_float();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isBinary() const noexcept
+		{
+			return getRef().is_binary();
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::isInvalid() const noexcept
+		{
+			return getRef().is_discarded();
+		}
+
+		template <class Derived>
+		JSONMixin<Derived>::operator bool() const noexcept
+		{
+			const detail::JSONBase& ref = getRef();
+			return (!ref.is_discarded()) && (!ref.is_null());
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::hasElement(const std::string_view key) const
+		{
+			return contains(key);
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::hasElement(const StringView key) const
+		{
+			return contains(key);
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::contains(std::string_view key) const
+		{
+			return getRef().contains(key);
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::contains(StringView key) const
+		{
+			return getRef().contains(Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		std::size_t JSONMixin<Derived>::size() const noexcept
+		{
+			return getRef().size();
+		}
+
+		template <class Derived>
+		String JSONMixin<Derived>::getString() const
+		{
+			if (not isString())
+			{
+				throw Error{ "JSON::getString(): This JSON value is not a string" };
+			}
+
+			return Unicode::FromUTF8(getRef().template get<std::string_view>());
+		}
+
+		template <class Derived>
+		std::string JSONMixin<Derived>::getUTF8() const
+		{
+			if (not isString())
+			{
+				throw Error{ "JSON::getUTF8(): This JSON value is not a string" };
+			}
+
+			return getRef().template get<std::string>();
+		}
+
+		template <class Derived>
+		Blob JSONMixin<Derived>::getBinary() const
+		{
+			if (not isBinary())
+			{
+				throw Error{ "JSON::getBinary(): This JSON value is not a binary" };
+			}
+
+			const auto& binary = getRef().get_binary();
+			return Blob{ binary.data(), binary.size() };
+		}
+
+		template <class Derived>
+		JSONMixin<Derived>::const_iterator JSONMixin<Derived>::begin() const noexcept
+		{
+			return cbegin();
+		}
+
+		template <class Derived>
+		JSONMixin<Derived>::const_iterator JSONMixin<Derived>::end() const noexcept
+		{
+			return cend();
+		}
+
+		template <class Derived>
+		JSONMixin<Derived>::const_iterator JSONMixin<Derived>::cbegin() const noexcept
+		{
+			const detail::JSONBase& ref = getRef();
+			return const_iterator{ ref.cbegin(), ref.is_array() ? 0 : detail::NotArray };
+		}
+
+		template <class Derived>
+		JSONMixin<Derived>::const_iterator JSONMixin<Derived>::cend() const noexcept
+		{
+			const detail::JSONBase& ref = getRef();
+			return const_iterator{ ref.cend(), ref.is_array() ? ref.size() : detail::NotArray };
+		}
+
+		template <class Derived>
+		JSONConstRef JSONMixin<Derived>::operator [](std::string_view key) const
+		{
+			try
+			{
+				return JSONConstRef{ getRef().at(key) };
+			}
+			catch (const detail::JSONBase::exception& e)
+			{
+				throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
+			}
+		}
+
+		template <class Derived>
+		JSONConstRef JSONMixin<Derived>::operator [](StringView key) const
+		{
+			try
+			{
+				return JSONConstRef{ getRef().at(Unicode::ToUTF8(key)) };
+			}
+			catch (const detail::JSONBase::exception& e)
+			{
+				throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
+			}
+		}
+
+		template <class Derived>
+		JSONConstRef JSONMixin<Derived>::operator [](const std::size_t index) const
+		{
+			return JSONConstRef{ CheckedAt(getRef(), index) };
+		}
+
+		template <class Derived>
+		JSON JSONMixin<Derived>::flatten() const
+		{
+			return JSON(getRef().flatten());
+		}
+
+		template <class Derived>
+		JSON JSONMixin<Derived>::unflatten() const
+		{
+			return JSON(getRef().unflatten());
+		}
+
+		template <class Derived>
+		String JSONMixin<Derived>::format(const char32 indent, const std::size_t spaceCount, const EnsureAscii ensureAscii) const
+		{
+			return Unicode::FromUTF8(formatUTF8(indent, spaceCount, ensureAscii));
+		}
+
+		template <class Derived>
+		std::string JSONMixin<Derived>::formatUTF8(const char32 indent, const std::size_t spaceCount, const EnsureAscii ensureAscii) const
+		{
+			return getRef().dump(static_cast<int>(spaceCount), static_cast<char>(indent), ensureAscii.getBool());
+		}
+
+		template <class Derived>
+		String JSONMixin<Derived>::formatMinified(const EnsureAscii ensureAscii) const
+		{
+			return Unicode::FromUTF8(formatUTF8Minified(ensureAscii));
+		}
+
+		template <class Derived>
+		std::string JSONMixin<Derived>::formatUTF8Minified(const EnsureAscii ensureAscii) const
+		{
+			return getRef().dump(-1, ' ', ensureAscii.getBool());
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::save(const FilePathView path, const char32 indent, const std::size_t spaceCount, const EnsureAscii ensureAscii) const
+		{
+			return SaveText(path, formatUTF8(indent, spaceCount, ensureAscii));
+		}
+
+		template <class Derived>
+		bool JSONMixin<Derived>::saveMinified(const FilePathView path, const EnsureAscii ensureAscii) const
+		{
+			return SaveText(path, formatUTF8Minified(ensureAscii));
+		}
+
+		template <class Derived>
+		Blob JSONMixin<Derived>::toBSON() const
+		{
+			return ToBlob(JSONBase::to_bson(getRef()));
+		}
+
+		template <class Derived>
+		Blob JSONMixin<Derived>::toCBOR() const
+		{
+			return ToBlob(JSONBase::to_cbor(getRef()));
+		}
+
+		template <class Derived>
+		Blob JSONMixin<Derived>::toMessagePack() const
+		{
+			return ToBlob(JSONBase::to_msgpack(getRef()));
+		}
+
+		template <class Derived>
+		JSONArrayView<true> JSONMixin<Derived>::arrayView() const
+		{
+			if (getRef().is_array())
+			{
+				return JSONArrayView<true>{ getRef() };
+			}
+			else
+			{
+				throw Error{ "JSON::arrayView(): This JSON value is not an array" };
+			}
+		}
+
+		template <class Derived>
+		JSONMixin<Derived>::operator JSONConstRef() const noexcept
+			requires std::same_as<Derived, JSON>
+		{
+			return JSONConstRef{ getRef() };
+		}
+
+		template <class Derived>
+		JSONMixin<Derived>::operator JSONConstRef() const noexcept
+			requires std::same_as<Derived, JSONRef>
+		{
+			return JSONConstRef{ getRef() };
+		}
+
+		template class JSONMixin<JSON>;
+
+		template class JSONMixin<JSONRef>;
+
+		template class JSONMixin<JSONConstRef>;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	(constructor)
-	//
-	////////////////////////////////////////////////////////////////
+	JSON::JSON() : m_json() {}
 
-	JSON::JSON(const std::nullptr_t)
-		: m_json(std::in_place_type<JSON::json_base>, nullptr) {}
+	JSON::JSON(JSONValueType valueType) : m_json(static_cast<detail::JSONBase::value_t>(valueType)) {}
 
-	JSON::JSON(const JSONValueType valueType)
-		: m_json(std::in_place_type<JSON::json_base>, ToValueType(valueType)) {}
+	JSON::JSON(json_base::initializer_list_t init, const bool typeDeduction, const JSONValueType manualType)
+	try
+		: m_json(init, typeDeduction, static_cast<detail::JSONBase::value_t>(manualType)) {}
+	catch (const detail::JSONBase::exception& e)
+	{
+		throw Error{ fmt::format("JSON::JSON(): {}", e.what()) };
+	}
 
-	JSON::JSON(JSON::json_base::initializer_list_t init, const bool typeDeduction, const JSONValueType manualType)
-		: m_json(std::in_place_type<JSON::json_base>, init, typeDeduction, ToValueType(manualType)) {}
+	JSON::JSON(const JSON&) = default;
 
-	JSON::JSON(std::reference_wrapper<json_base> json)
-		: m_json(json) {}
+	JSON::JSON(JSON&&) noexcept = default;
 
-	JSON::JSON(std::reference_wrapper<const json_base> json)
-		: m_json(json) {}
+	JSON::JSON(JSONRef ref) : m_json(ref.m_json_ref) {}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	load
-	//
-	////////////////////////////////////////////////////////////////
+	JSON::JSON(JSONConstRef const_ref) : m_json(const_ref.m_json_ref) {}
 
-	bool JSON::load(const FilePathView path, const AllowExceptions allowExceptions)
+	JSON& JSON::operator =(JSON other) noexcept
+	{
+		m_json = std::move(other).m_json;
+		return *this;
+	}
+
+	JSON::iterator JSON::begin() noexcept
+	{
+		return iterator{ m_json.begin(), m_json.is_array() ? 0 : detail::NotArray };
+	}
+
+	JSON::iterator JSON::end() noexcept
+	{
+		return iterator{ m_json.end(), m_json.is_array() ? m_json.size() : detail::NotArray };
+	}
+
+	JSONRef JSON::operator [](std::string_view key)
 	{
 		try
 		{
-			*this = Load(path, allowExceptions);
+			return JSONRef{ m_json[key] };
 		}
-		catch (const Error&)
-		{
-			*this = Invalid();
-			throw;
-		}
-
-		return (not isInvalid());
-	}
-
-	bool JSON::load(std::unique_ptr<IReader> reader, const AllowExceptions allowExceptions)
-	{
-		try
-		{
-			*this = Load(std::move(reader), allowExceptions);
-		}
-		catch (const Error&)
-		{
-			*this = Invalid();
-			throw;
-		}
-
-		return (not isInvalid());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	parse
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::parse(const std::string_view s, const AllowExceptions allowExceptions)
-	{
-		try
-		{
-			*this = Parse(s, allowExceptions);
-		}
-		catch (const Error&)
-		{
-			*this = Invalid();
-			throw;
-		}
-
-		return (not isInvalid());
-	}
-
-	bool JSON::parse(const StringView s, const AllowExceptions allowExceptions)
-	{
-		return parse(Unicode::ToUTF8(s), allowExceptions);
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator = 
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON& JSON::operator =(const char32* value)
-	{
-		return operator =(Unicode::ToUTF8(value));
-	}
-
-	JSON& JSON::operator =(const std::u32string_view value)
-	{
-		return operator =(Unicode::ToUTF8(value));
-	}
-
-	JSON& JSON::operator =(const StringView value)
-	{
-		return operator =(Unicode::ToUTF8(value));
-	}
-
-	JSON& JSON::operator =(const JSON& value)
-	{
-		return operator =(value.getConstRef());
-	}
-
-	JSON& JSON::operator =(JSON&& value)
-	{
-		if (std::holds_alternative<json_base>(m_json)
-			&& std::holds_alternative<json_base>(value.m_json))
-		{
-			std::get<json_base>(m_json) = std::move(std::get<json_base>(value.m_json));
-			return *this;
-		}
-
-		// Borrowed source/destination values can overlap their owning root.
-		return operator =(value.getConstRef());
-	}
-
-	JSON& JSON::operator =(JSON& value)
-	{
-		return operator =(value.getConstRef());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	clone
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON JSON::clone() const
-	{
-		return JSON(json_base(getConstRef()));
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	getType
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSONValueType JSON::getType() const noexcept
-	{
-		return ToJSONValueType(getConstRef().type());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isNull
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isNull() const noexcept
-	{
-		return getConstRef().is_null();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isBool
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isBool() const noexcept
-	{
-		return getConstRef().is_boolean();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isNumber
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isNumber() const noexcept
-	{
-		return getConstRef().is_number();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isInt
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isInt() const noexcept
-	{
-		return getConstRef().is_number_integer();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isUint
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isUint() const noexcept
-	{
-		return getConstRef().is_number_unsigned();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isFloat
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isFloat() const noexcept
-	{
-		return getConstRef().is_number_float();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isString
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isString() const noexcept
-	{
-		return getConstRef().is_string();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isPrimitive
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isPrimitive() const noexcept
-	{
-		return getConstRef().is_primitive();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isArray
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isArray() const noexcept
-	{
-		return getConstRef().is_array();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isObject
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isObject() const noexcept
-	{
-		return getConstRef().is_object();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isBinary
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isBinary() const noexcept
-	{
-		return getConstRef().is_binary();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	isInvalid
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::isInvalid() const noexcept
-	{
-		return getConstRef().is_discarded();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator bool
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON::operator bool() const noexcept
-	{
-		const auto& j = getConstRef();
-		return ((not j.is_null())
-			&&  (not j.is_discarded()));
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	hasElement
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::hasElement(const std::string_view key) const
-	{
-		return getConstRef().contains(key);
-	}
-
-	bool JSON::hasElement(const StringView key) const
-	{
-		return getConstRef().contains(Unicode::ToUTF8(key));
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	contains
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::contains(const std::string_view key) const
-	{
-		return getConstRef().contains(key);
-	}
-
-	bool JSON::contains(const StringView key) const
-	{
-		return getConstRef().contains(Unicode::ToUTF8(key));
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	size
-	//
-	////////////////////////////////////////////////////////////////
-
-	size_t JSON::size() const noexcept
-	{
-		return getConstRef().size();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	getString
-	//
-	////////////////////////////////////////////////////////////////
-
-	String JSON::getString() const
-	{
-		if (not isString())
-		{
-			ThrowNotString();
-		}
-
-		return Unicode::FromUTF8(getConstRef().get<std::string_view>());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	getUTF8
-	//
-	////////////////////////////////////////////////////////////////
-
-	std::string JSON::getUTF8() const
-	{
-		if (not isString())
-		{
-			ThrowNotStringUTF8();
-		}
-
-		return getConstRef().get<std::string>();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	getBinary
-	//
-	////////////////////////////////////////////////////////////////
-
-	Blob JSON::getBinary() const
-	{
-		if (not isBinary())
-		{
-			ThrowNotBinary();
-		}
-
-		const auto& binary = getConstRef().get_binary();
-
-		return Blob{ binary.data(), binary.size() };
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator []
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON JSON::operator [](const std::string_view key)
-	{
-		return JSON(std::ref(getRef()[key]));
-	}
-
-	const JSON JSON::operator [](const std::string_view key) const
-	{
-		try
-		{
-			return JSON(std::cref(getConstRef().at(key)));
-		}
-		catch (const json_base::exception& e)
+		catch (const detail::JSONBase::exception& e)
 		{
 			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
 		}
 	}
 
-	JSON JSON::operator [](const StringView key)
+	JSONRef JSON::operator [](StringView key)
 	{
-		return operator[](Unicode::ToUTF8(key));
-	}
-
-	const JSON JSON::operator [](const StringView key) const
-	{
-		return operator[](Unicode::ToUTF8(key));
-	}
-
-	JSON JSON::operator [](const size_t index)
-	{
-		auto& j = getRef();
-
-		if (not j.is_array())
+		try
 		{
-			ThrowOpSubscriptNotArray();
+			return JSONRef{ m_json[Unicode::ToUTF8(key)] };
 		}
-
-		if (j.size() <= index)
+		catch (const detail::JSONBase::exception& e)
 		{
-			ThrowOpSubscriptIndexOutOfRange();
+			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
 		}
-
-		return JSON(std::ref(j[index]));
 	}
 
-	const JSON JSON::operator [](const size_t index) const
+	JSONRef JSON::operator [](const std::size_t index)
 	{
-		auto& j = getConstRef();
-
-		if (not j.is_array())
-		{
-			ThrowOpSubscriptNotArray();
-		}
-
-		if (j.size() <= index)
-		{
-			ThrowOpSubscriptIndexOutOfRange();
-		}
-
-		return JSON(std::ref(j[index]));
+		return JSONRef{ CheckedAt(m_json, index) };
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	push_back
-	//
-	////////////////////////////////////////////////////////////////
-
-	void JSON::push_back(const JSON& value)
+	void JSON::push_back(JSON value)
 	{
-		getRef().push_back(value.getConstRef());
+		PushBack(m_json, std::move(value.m_json));
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	pop_back
-	//
-	////////////////////////////////////////////////////////////////
 
 	void JSON::pop_back()
 	{
-		erase(size() - 1);
+		PopBack(m_json);
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	clear
-	//
-	////////////////////////////////////////////////////////////////
 
 	void JSON::clear()
 	{
-		getRef().clear();
+		m_json.clear();
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	erase
-	//
-	////////////////////////////////////////////////////////////////
 
 	void JSON::erase(const std::string_view key)
 	{
-		getRef().erase(key);
+		EraseKey(m_json, key);
 	}
 
 	void JSON::erase(const StringView key)
 	{
-		getRef().erase(Unicode::ToUTF8(key));
+		EraseKey(m_json, Unicode::ToUTF8(key));
 	}
 
-	void JSON::erase(const size_t index)
+	void JSON::erase(const std::size_t index)
 	{
-		auto& j = getRef();
-
-		if (not j.is_array())
-		{
-			ThrowEraseNotArray();
-		}
-
-		if (j.size() <= index)
-		{
-			ThrowEraseIndexOutOfRange();
-		}
-
-		j.erase(j.begin() + index);
+		EraseIndex(m_json, index);
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	begin, end
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON::iterator JSON::begin()
+	JSONArrayView<false> JSON::arrayView()
 	{
-		auto& j = getRef();
-
-		if (j.is_array())
+		if (m_json.is_array())
 		{
-			return iterator{ j.begin(), 0 };
+			return JSONArrayView<false>{ m_json };
 		}
 		else
 		{
-			return iterator{ j.begin() };
+			throw Error{ "JSON::arrayView(): This JSON value is not an array" };
 		}
 	}
-
-	JSON::iterator JSON::end()
-	{
-		auto& j = getRef();
-
-		if (j.is_array())
-		{
-			return iterator{ j.end(), j.size() };
-		}
-		else
-		{
-			return iterator{ j.end() };
-		}
-	}
-
-	JSON::const_iterator JSON::begin() const noexcept
-	{
-		return cbegin();
-	}
-
-	JSON::const_iterator JSON::end() const noexcept
-	{
-		return cend();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	cbegin, cend
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON::const_iterator JSON::cbegin() const noexcept
-	{
-		const auto& j = getConstRef();
-
-		if (j.is_array())
-		{
-			return const_iterator{ j.cbegin(), 0 };
-		}
-		else
-		{
-			return const_iterator{ j.cbegin() };
-		}
-	}
-
-	JSON::const_iterator JSON::cend() const noexcept
-	{
-		const auto& j = getConstRef();
-
-		if (j.is_array())
-		{
-			return const_iterator{ j.cend(), j.size() };
-		}
-		else
-		{
-			return const_iterator{ j.cend() };
-		}
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	flatten
-	//
-	////////////////////////////////////////////////////////////////
-
-	[[nodiscard]]
-	JSON JSON::flatten() const
-	{
-		return JSON(getConstRef().flatten());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	unflatten
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON JSON::unflatten() const
-	{
-		return JSON(getConstRef().unflatten());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	format
-	//
-	////////////////////////////////////////////////////////////////
-
-	String JSON::format(const char32 indent, const size_t spaceCount, const EnsureAscii ensureAscii) const
-	{
-		return Unicode::FromUTF8(formatUTF8(indent, spaceCount, ensureAscii));
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	formatUTF8
-	//
-	////////////////////////////////////////////////////////////////
-
-	std::string JSON::formatUTF8(const char32 indent, const size_t spaceCount, const EnsureAscii ensureAscii) const
-	{
-		return getConstRef().dump(static_cast<int>(spaceCount), static_cast<char>(indent), ensureAscii.getBool());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	formatMinified
-	//
-	////////////////////////////////////////////////////////////////
-
-	String JSON::formatMinified(const EnsureAscii ensureAscii) const
-	{
-		return Unicode::FromUTF8(formatUTF8Minified(ensureAscii));
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	formatUTF8Minified
-	//
-	////////////////////////////////////////////////////////////////
-
-	std::string JSON::formatUTF8Minified(const EnsureAscii ensureAscii) const
-	{
-		return getConstRef().dump(-1, ' ', ensureAscii.getBool());
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	save
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::save(const FilePathView path, const char32 indent, const size_t spaceCount, const EnsureAscii ensureAscii) const
-	{
-		const std::string text = formatUTF8(indent, spaceCount, ensureAscii);
-		TextFileWriter writer{ path };
-
-		if (not writer)
-		{
-			return false;
-		}
-
-		writer.writeUTF8(text);
-
-		return true;
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	saveMinified
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool JSON::saveMinified(const FilePathView path, const EnsureAscii ensureAscii) const
-	{
-		const std::string text = formatUTF8Minified(ensureAscii);
-		TextFileWriter writer{ path };
-
-		if (not writer)
-		{
-			return false;
-		}
-
-		writer.writeUTF8(text);
-
-		return true;
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	base
-	//
-	////////////////////////////////////////////////////////////////
-
-	[[nodiscard]]
-	const JSON::json_base& JSON::base() const
-	{
-		return getConstRef();
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	toBSON
-	//
-	////////////////////////////////////////////////////////////////
-
-	Blob JSON::toBSON() const
-	{
-		std::vector<uint8> result;
-		JSON::json_base::to_bson(getConstRef(), result);
-		return Blob{ result.data(), result.size() };
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	toCBOR
-	//
-	////////////////////////////////////////////////////////////////
-
-	Blob JSON::toCBOR() const
-	{
-		std::vector<uint8> result;
-		JSON::json_base::to_cbor(getConstRef(), result);
-		return Blob{ result.data(), result.size() };
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	toMessagePack
-	//
-	////////////////////////////////////////////////////////////////
-
-	Blob JSON::toMessagePack() const
-	{
-		std::vector<uint8> result;
-		JSON::json_base::to_msgpack(getConstRef(), result);
-		return Blob{ result.data(), result.size() };
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	swap
-	//
-	////////////////////////////////////////////////////////////////
 
 	void JSON::swap(JSON& other) noexcept
 	{
 		m_json.swap(other.m_json);
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	operator ==
-	//
-	////////////////////////////////////////////////////////////////
-
-	bool operator ==(const JSON& lhs, const JSON& rhs) noexcept
+	JSON JSON::Parse(std::string content, const FilePathView pathHint)
 	{
-		return (lhs.getConstRef() == rhs.getConstRef());
+		if (auto result = ParseResult(std::move(content), pathHint))
+		{
+			return std::move(*result);
+		}
+
+		return Invalid();
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	Load
-	//
-	////////////////////////////////////////////////////////////////
+	JSON JSON::Parse(const StringView content, const FilePathView pathHint)
+	{
+		return Parse(Unicode::ToUTF8(content), pathHint);
+	}
 
-	JSON JSON::Load(const FilePathView path, const AllowExceptions allowExceptions)
+	Result<JSON, Array<JSONParseErrorReason>> JSON::ParseResult(std::string content, const FilePathView pathHint)
+	{
+		auto result = ParseJSON(content, pathHint);
+
+		if (not result)
+		{
+			return Err{ std::move(result).error() };
+		}
+
+		return JSON(std::move(*result));
+	}
+
+	Result<JSON, Array<JSONParseErrorReason>> JSON::ParseResult(const StringView content, const FilePathView pathHint)
+	{
+		return ParseResult(Unicode::ToUTF8(content), pathHint);
+	}
+
+	JSON JSON::Load(const FilePathView path)
+	{
+		if (auto result = LoadResult(path))
+		{
+			return std::move(*result);
+		}
+
+		return Invalid();
+	}
+
+	JSON JSON::Load(std::unique_ptr<IReader> reader)
+	{
+		if (auto result = LoadResult(std::move(reader)))
+		{
+			return std::move(*result);
+		}
+
+		return Invalid();
+	}
+
+	Result<JSON, Array<JSONParseErrorReason>> JSON::LoadResult(const FilePathView path)
 	{
 		BinaryFileReader reader{ path };
-		return ReadJSON(reader, allowExceptions);
+		return LoadJSON(reader, path);
 	}
 
-	JSON JSON::Load(std::unique_ptr<IReader> reader, const AllowExceptions allowExceptions)
+	Result<JSON, Array<JSONParseErrorReason>> JSON::LoadResult(std::unique_ptr<IReader> reader)
 	{
 		if (not reader)
 		{
-			return JSONErrorResult(allowExceptions, "JSON::Load(): null reader");
+			return MakeJSONError(U"Reader is null.", {}, U"Provide a valid reader.");
 		}
-		return ReadJSON(*reader, allowExceptions);
+
+		return LoadJSON(*reader, U"");
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	Parse
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON JSON::Parse(const std::string_view s, const AllowExceptions allowExceptions)
-	{
-		if (s.find('\0') != std::string_view::npos)
-		{
-			return JSONErrorResult(allowExceptions, "JSON::Parse(): unescaped NUL in input");
-		}
-
-		JSON json;
-
-		try
-		{
-			json.m_json = JSON::json_base::parse(s, nullptr, allowExceptions.getBool(), true);
-		}
-		catch (const JSON::json_base::exception& e)
-		{
-			throw Error{ fmt::format("JSON::Parse(): {}", e.what()) };
-		}
-
-		return json;
-	}
-
-	JSON JSON::Parse(const StringView s, const AllowExceptions allowExceptions)
-	{
-		return Parse(Unicode::ToUTF8(s), allowExceptions);
-	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	FromBSON
-	//
-	////////////////////////////////////////////////////////////////
 
 	JSON JSON::FromBSON(const Blob& bson, const AllowExceptions allowExceptions)
 	{
-		JSON json;
-
-		try
-		{
-			json.m_json = JSON::json_base::from_bson(bson.begin(), bson.end(), true, allowExceptions.getBool());
-		}
-		catch (const std::exception& e)
-		{
-			throw Error{ fmt::format("JSON::FromBSON(): {}", e.what()) };
-		}
-
-		return json;
+		return FromBinary("FromBSON", allowExceptions, [&](const bool exceptions) { return json_base::from_bson(bson.begin(), bson.end(), true, exceptions); });
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	FromCBOR
-	//
-	////////////////////////////////////////////////////////////////
 
 	JSON JSON::FromCBOR(const Blob& cbor, const AllowExceptions allowExceptions)
 	{
-		JSON json;
-
-		try
-		{
-			json.m_json = JSON::json_base::from_cbor(cbor.begin(), cbor.end(), true, allowExceptions.getBool());
-		}
-		catch (const std::exception& e)
-		{
-			throw Error{ fmt::format("JSON::FromCBOR(): {}", e.what()) };
-		}
-
-		return json;
+		return FromBinary("FromCBOR", allowExceptions, [&](const bool exceptions) { return json_base::from_cbor(cbor.begin(), cbor.end(), true, exceptions); });
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	FromMessagePack
-	//
-	////////////////////////////////////////////////////////////////
 
 	JSON JSON::FromMessagePack(const Blob& msgpack, const AllowExceptions allowExceptions)
 	{
-		JSON json;
-
-		try
-		{
-			json.m_json = JSON::json_base::from_msgpack(msgpack.begin(), msgpack.end(), true, allowExceptions.getBool());
-		}
-		catch (const std::exception& e)
-		{
-			throw Error{ fmt::format("JSON::FromMessagePack(): {}", e.what()) };
-		}
-
-		return json;
+		return FromBinary("FromMessagePack", allowExceptions, [&](const bool exceptions) { return json_base::from_msgpack(msgpack.begin(), msgpack.end(), true, exceptions); });
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	EmptyArray
-	//
-	////////////////////////////////////////////////////////////////
 
 	JSON JSON::EmptyArray()
 	{
 		return JSON(JSONValueType::Array);
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	EmptyObject
-	//
-	////////////////////////////////////////////////////////////////
-
 	JSON JSON::EmptyObject()
 	{
 		return JSON(JSONValueType::Object);
 	}
-
-	////////////////////////////////////////////////////////////////
-	//
-	//	EmptyBinary
-	//
-	////////////////////////////////////////////////////////////////
 
 	JSON JSON::EmptyBinary()
 	{
 		return JSON(JSONValueType::Binary);
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	Invalid
-	//
-	////////////////////////////////////////////////////////////////
-
 	JSON JSON::Invalid()
 	{
 		return JSON(JSONValueType::Invalid);
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	Formatter
-	//
-	////////////////////////////////////////////////////////////////
-
-	void Formatter(FormatData& formatData, const JSON& value)
+	JSONRef& JSONRef::operator =(const JSONRef& other)
 	{
-		formatData.string.append(value.format());
+		m_json_ref = other.m_json_ref;
+		return *this;
 	}
 
-	////////////////////////////////////////////////////////////////
-	//
-	//	(private function)
-	//
-	////////////////////////////////////////////////////////////////
-
-	JSON::json_base& JSON::getRef()
+	const JSONRef& JSONRef::operator =(const JSONRef& other) const
 	{
-		if (std::holds_alternative<json_base>(m_json))
+		m_json_ref = other.m_json_ref;
+		return *this;
+	}
+
+	JSONRef& JSONRef::operator =(const JSON& other)
+	{
+		m_json_ref = other.m_json;
+		return *this;
+	}
+
+	JSONRef& JSONRef::operator =(JSON&& other)
+	{
+		m_json_ref = std::move(other).m_json;
+		return *this;
+	}
+
+	const JSONRef& JSONRef::operator =(const JSON& other) const
+	{
+		m_json_ref = other.m_json;
+		return *this;
+	}
+
+	const JSONRef& JSONRef::operator =(JSON&& other) const
+	{
+		m_json_ref = std::move(other).m_json;
+		return *this;
+	}
+
+	JSONRef::iterator JSONRef::begin() noexcept
+	{
+		return iterator{ m_json_ref.begin(), m_json_ref.is_array() ? 0 : detail::NotArray };
+	}
+
+	JSONRef::iterator JSONRef::end() noexcept
+	{
+		return iterator{ m_json_ref.end(), m_json_ref.is_array() ? m_json_ref.size() : detail::NotArray };
+	}
+
+	JSONRef JSONRef::operator [](std::string_view key)
+	{
+		try
 		{
-			return std::get<json_base>(m_json);
+			return JSONRef{ m_json_ref[key] };
 		}
-		else if (std::holds_alternative<std::reference_wrapper<json_base>>(m_json))
+		catch (const detail::JSONBase::exception& e)
 		{
-			return std::get<std::reference_wrapper<json_base>>(m_json).get();
+			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
+		}
+	}
+
+	JSONRef JSONRef::operator [](StringView key)
+	{
+		try
+		{
+			return JSONRef{ m_json_ref[Unicode::ToUTF8(key)] };
+		}
+		catch (const detail::JSONBase::exception& e)
+		{
+			throw Error{ fmt::format("JSON::operator []: {}", e.what()) };
+		}
+
+	}
+
+	JSONRef JSONRef::operator [](const std::size_t index)
+	{
+		return JSONRef{ CheckedAt(m_json_ref, index) };
+	}
+
+	void JSONRef::push_back(JSON value)
+	{
+		PushBack(m_json_ref, std::move(value.m_json));
+	}
+
+	void JSONRef::pop_back()
+	{
+		PopBack(m_json_ref);
+	}
+
+	void JSONRef::clear()
+	{
+		m_json_ref.clear();
+	}
+
+	void JSONRef::erase(const std::string_view key)
+	{
+		EraseKey(m_json_ref, key);
+	}
+
+	void JSONRef::erase(const StringView key)
+	{
+		EraseKey(m_json_ref, Unicode::ToUTF8(key));
+	}
+
+	void JSONRef::erase(const std::size_t index)
+	{
+		EraseIndex(m_json_ref, index);
+	}
+
+	JSONArrayView<false> JSONRef::arrayView()
+	{
+		if (m_json_ref.is_array())
+		{
+			return JSONArrayView<false>{ m_json_ref };
 		}
 		else
 		{
-			m_json = json_base(std::get<std::reference_wrapper<const json_base>>(m_json).get());
-			return std::get<json_base>(m_json);
+			throw Error{ "JSON::arrayView(): This JSON value is not an array" };
 		}
 	}
 
-	const JSON::json_base& JSON::getConstRef() const
+	bool operator ==(JSONConstRef lhs, JSONConstRef rhs) noexcept
 	{
-		if (std::holds_alternative<json_base>(m_json))
-		{
-			return std::get<json_base>(m_json);
-		}
-		else if (std::holds_alternative<std::reference_wrapper<json_base>>(m_json))
-		{
-			return std::get<std::reference_wrapper<json_base>>(m_json).get();
-		}
-		else
-		{
-			return std::get<std::reference_wrapper<const json_base>>(m_json).get();
-		}
+		return lhs.m_json_ref == rhs.m_json_ref;
 	}
 
 	inline namespace Literals
 	{
 		inline namespace JSONLiterals
 		{
-			////////////////////////////////////////////////////////////////
-			//
-			//	_json
-			//
-			////////////////////////////////////////////////////////////////
-
-			[[nodiscard]]
-			JSON operator ""_json(const char* str, size_t length)
+			JSON operator ""_json(const char* str, const std::size_t length)
 			{
-				return JSON::Parse(std::string_view{ str, length });
+				return JSON::Parse(std::string(str, length));
 			}
 
-			[[nodiscard]]
-			JSON operator ""_json(const char32_t* str, size_t length)
+			JSON operator ""_json(const char32_t* str, const std::size_t length)
 			{
 				return JSON::Parse(StringView{ str, length });
 			}

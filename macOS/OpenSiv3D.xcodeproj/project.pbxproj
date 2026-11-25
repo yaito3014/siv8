@@ -3131,6 +3131,7 @@
 		F9E5FCD22BC3AD410081A4F7 /* JSON.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F9E5FCD02BC3AD400081A4F7 /* JSON.hpp */; };
 		F9E5FCD32BC3AD410081A4F7 /* JSONValueType.hpp in Headers */ = {isa = PBXBuildFile; fileRef = F9E5FCD12BC3AD400081A4F7 /* JSONValueType.hpp */; };
 		F9E5FCD52BC3AD580081A4F7 /* JSON.ipp in Headers */ = {isa = PBXBuildFile; fileRef = F9E5FCD42BC3AD580081A4F7 /* JSON.ipp */; };
+		9BF82F5E3D4BF172CA7810F1 /* JSONIterator.ipp in Headers */ = {isa = PBXBuildFile; fileRef = 79ADA133CFF0AF85EE7CFE27 /* JSONIterator.ipp */; };
 		F9E5FCDA2BC3AD820081A4F7 /* SivJSONValueType.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F9E5FCD62BC3AD820081A4F7 /* SivJSONValueType.cpp */; };
 		F9E5FCDB2BC3AD820081A4F7 /* SivJSON.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F9E5FCD82BC3AD820081A4F7 /* SivJSON.cpp */; };
 		F9E5FCE12BC59E610081A4F7 /* Test_JSON.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F9E5FCE02BC59E610081A4F7 /* Test_JSON.cpp */; };
@@ -6601,6 +6602,7 @@
 		F9E5FCD02BC3AD400081A4F7 /* JSON.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = JSON.hpp; sourceTree = "<group>"; };
 		F9E5FCD12BC3AD400081A4F7 /* JSONValueType.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = JSONValueType.hpp; sourceTree = "<group>"; };
 		F9E5FCD42BC3AD580081A4F7 /* JSON.ipp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = JSON.ipp; sourceTree = "<group>"; };
+		79ADA133CFF0AF85EE7CFE27 /* JSONIterator.ipp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = JSONIterator.ipp; sourceTree = "<group>"; };
 		F9E5FCD62BC3AD820081A4F7 /* SivJSONValueType.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SivJSONValueType.cpp; sourceTree = "<group>"; };
 		F9E5FCD82BC3AD820081A4F7 /* SivJSON.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = SivJSON.cpp; sourceTree = "<group>"; };
 		F9E5FCDE2BC3ADD10081A4F7 /* json.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = json.hpp; sourceTree = "<group>"; };
@@ -7592,6 +7594,7 @@
 				F9070B882B9F175000383E4D /* ISteadyClock.ipp */,
 				F9070B892B9F175000383E4D /* IWriter.ipp */,
 				F9E5FCD42BC3AD580081A4F7 /* JSON.ipp */,
+				79ADA133CFF0AF85EE7CFE27 /* JSONIterator.ipp */,
 				F9070B8A2B9F175000383E4D /* KahanSummation.ipp */,
 				F96F95ED2C359E4F0033353E /* KDTree.ipp */,
 				F98605F42BE61586006A4C0F /* Line.ipp */,
@@ -14546,6 +14549,7 @@
 				F99BC3692FE6B7AB00D4ECDE /* CircularDashStyle.hpp in Headers */,
 				F98601BF2BCFBB53006A4C0F /* SkFontScanner.h in Headers */,
 				F9E5FCD52BC3AD580081A4F7 /* JSON.ipp in Headers */,
+				9BF82F5E3D4BF172CA7810F1 /* JSONIterator.ipp in Headers */,
 				F9528B1E2BAFB65000222F45 /* Base64Value.ipp in Headers */,
 				F9528C632BC05B0200222F45 /* ImagePixelFormat.hpp in Headers */,
 				F98601EE2BCFBB53006A4C0F /* SkMasks.h in Headers */,

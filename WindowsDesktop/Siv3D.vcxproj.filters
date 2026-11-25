@@ -2715,6 +2715,9 @@
     <ClInclude Include="..\Siv3D\include\Siv3D\detail\JSON.ipp">
       <Filter>include\Siv3D\detail</Filter>
     </ClInclude>
+    <ClInclude Include="..\Siv3D\include\Siv3D\detail\JSONIterator.ipp">
+      <Filter>include\Siv3D\detail</Filter>
+    </ClInclude>
     <ClInclude Include="..\Siv3D\include\ThirdParty\nlohmann\json.hpp">
       <Filter>include\ThirdParty\nlohmann</Filter>
     </ClInclude>
