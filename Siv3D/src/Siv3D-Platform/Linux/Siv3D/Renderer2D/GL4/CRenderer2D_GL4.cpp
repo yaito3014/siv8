@@ -22,6 +22,7 @@
 # include <Siv3D/Texture/GL4/CTexture_GL4.hpp>
 # include <Siv3D/Renderer/GL4/CRenderer_GL4.hpp>
 # include <Siv3D/Shader/IShader.hpp>
+# include <Siv3D/Profiler/IProfiler.hpp>
 # include <Siv3D/Shader/GL4/CShader_GL4.hpp>
 # include <Siv3D/EngineShader/IEngineShader.hpp>
 # include <Siv3D/Mat3x3.hpp>
@@ -319,6 +320,8 @@ namespace s3d
 		shader->setConstantBufferPS(1, m_psEffectConstants._base());
 
 		size_t indexOffset = 0;
+		uint32 drawCalls = 0;
+		uint32 triangleCount = 0;
 
 		for (const auto& command : m_commands)
 		{
@@ -358,12 +361,12 @@ namespace s3d
 
 			// --- constants (UBOs) ---
 			m_vsConstants->setTransform(command.transform * Mat3x3{ Mat3x2::Screen(vp.size.x, vp.size.y) });
-			m_vsConstants->colorMul = m_colorMul;
+			m_vsConstants->colorMul = command.colorMul;
 
-			m_psConstants->colorAdd				= Float4{ m_colorAdd.x, m_colorAdd.y, m_colorAdd.z, 0.0f };
-			m_psConstants->sdfParam				= m_sdfParams[0];
-			m_psConstants->sdfOuterColorPMA		= m_sdfParams[1];
-			m_psConstants->sdfShadowColorPMA	= m_sdfParams[2];
+			m_psConstants->colorAdd				= Float4{ command.colorAdd.x, command.colorAdd.y, command.colorAdd.z, 0.0f };
+			m_psConstants->sdfParam				= command.sdfParams[0];
+			m_psConstants->sdfOuterColorPMA		= command.sdfParams[1];
+			m_psConstants->sdfShadowColorPMA	= command.sdfParams[2];
 
 			if (command.program == Program::Pattern)
 			{
@@ -396,7 +399,12 @@ namespace s3d
 				reinterpret_cast<void*>(indexOffset * sizeof(Vertex2D::IndexType)));
 
 			indexOffset += command.indexCount;
+			++drawCalls;
+			triangleCount += (command.indexCount / 3);
 		}
+
+		SIV3D_ENGINE(Profiler)->reportStat(ProfilerStat::Renderer2D_DrawCalls, drawCalls);
+		SIV3D_ENGINE(Profiler)->reportStat(ProfilerStat::Renderer2D_TriangleCount, triangleCount);
 
 		// Restore default GL state so the next frame's clear/draw isn't affected
 		// (glClear honors scissor + color mask).

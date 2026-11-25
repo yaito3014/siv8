@@ -416,6 +416,9 @@ namespace s3d
 			Optional<Rect> viewport;
 			Optional<VertexShader::IDType> customVS;	// overrides the engine VS when set
 			Optional<PixelShader::IDType> customPS;		// overrides the engine PS when set (e.g. text)
+			Float4 colorMul{ 1.0f, 1.0f, 1.0f, 1.0f };
+			Float3 colorAdd{ 0.0f, 0.0f, 0.0f };
+			std::array<Float4, 3> sdfParams{};
 		};
 
 		// True when two commands share every piece of render state, so their index
@@ -427,7 +430,8 @@ namespace s3d
 				&& (a.blend == b.blend) && (a.rasterizer.asValue() == b.rasterizer.asValue())
 				&& (a.sampler.asValue() == b.sampler.asValue())
 				&& (a.scissor == b.scissor) && (a.viewport == b.viewport) && (a.transform == b.transform)
-				&& (a.customVS == b.customVS) && (a.customPS == b.customPS);
+				&& (a.customVS == b.customVS) && (a.customPS == b.customPS)
+				&& (a.colorMul == b.colorMul) && (a.colorAdd == b.colorAdd) && (a.sdfParams == b.sdfParams);
 		}
 
 		// Stamp the current render state onto a command being recorded.
@@ -441,6 +445,9 @@ namespace s3d
 			command.transform	= (Mat3x3{ m_localTransform * m_cameraTransform } * m_quadWarpTransform);
 			command.customVS	= (m_customVS ? Optional<VertexShader::IDType>{ m_customVS->id() } : none);
 			command.customPS	= (m_customPS ? Optional<PixelShader::IDType>{ m_customPS->id() } : none);
+			command.colorMul	= m_colorMul;
+			command.colorAdd	= m_colorAdd;
+			command.sdfParams	= m_sdfParams;
 		}
 
 		// Append `indexCount` indices, merging with the previous command when the
