@@ -20,8 +20,10 @@ namespace s3d
 {
 	namespace
 	{
+		using detail::TOMLValue;
+
 		[[nodiscard]]
-		static String MakeShortValue(String s)
+		static String MakeShortValue(const String& s)
 		{
 			constexpr size_t MaxLength = 64;
 			const bool truncated = (MaxLength < s.size());
@@ -42,7 +44,7 @@ namespace s3d
 			{
 				result.append(U" ...");
 			}
-			
+
 			return result;
 		}
 
@@ -53,9 +55,115 @@ namespace s3d
 		}
 
 		[[nodiscard]]
-		static String MakeKeyPath(const StringView parent, const StringView key)
+		static TOMLValueType ToValueType(const TOMLValue& value) noexcept
 		{
-			return U"{}[\"{}\"]"_fmt(parent, key);
+			switch (value.type())
+			{
+			case toml::value_t::boolean:         return TOMLValueType::Bool;
+			case toml::value_t::integer:         return TOMLValueType::Int;
+			case toml::value_t::floating:        return TOMLValueType::Float;
+			case toml::value_t::string:          return TOMLValueType::String;
+			case toml::value_t::offset_datetime: return TOMLValueType::OffsetDateTime;
+			case toml::value_t::local_datetime:  return TOMLValueType::LocalDateTime;
+			case toml::value_t::local_date:      return TOMLValueType::LocalDate;
+			case toml::value_t::local_time:      return TOMLValueType::LocalTime;
+			case toml::value_t::array:           return TOMLValueType::Array;
+			case toml::value_t::table:           return TOMLValueType::Table;
+			default:                             return TOMLValueType::Invalid;
+			}
+		}
+
+		[[nodiscard]]
+		static bool AppendPath(const TOMLValue& node, const TOMLValue* target, String& path)
+		{
+			if (&node == target)
+			{
+				return true;
+			}
+
+			const size_t length = path.size();
+
+			if (node.is_table())
+			{
+				for (const auto& [key, value] : node.as_table())
+				{
+					path.append(U"[\"").append(Unicode::FromUTF8(key)).append(U"\"]");
+
+					if (AppendPath(value, target, path))
+					{
+						return true;
+					}
+
+					path.resize(length);
+				}
+			}
+			else if (node.is_array())
+			{
+				const auto& array = node.as_array();
+
+				for (size_t i = 0; i < array.size(); ++i)
+				{
+					path.append(U"[{}]"_fmt(i));
+
+					if (AppendPath(array[i], target, path))
+					{
+						return true;
+					}
+
+					path.resize(length);
+				}
+			}
+
+			return false;
+		}
+
+		[[nodiscard]]
+		static String MakePath(const TOMLValue* root, const TOMLValue& value)
+		{
+			String path = U"$";
+
+			if (root && (root != &value) && (not AppendPath(*root, &value, path)))
+			{
+				return U"$";
+			}
+
+			return path;
+		}
+
+		[[nodiscard]]
+		static String FormatForMessage(const TOMLValue& value)
+		{
+			if (value.is_empty())
+			{
+				return U"";
+			}
+
+			try
+			{
+				return Unicode::FromUTF8(toml::format(value, toml::spec::default_version()));
+			}
+			catch (const toml::exception&)
+			{
+				return U"";
+			}
+		}
+
+		[[nodiscard]]
+		static std::string FormatValue(const TOMLValue& value)
+		{
+			if (value.is_empty())
+			{
+				return{};
+			}
+
+			try
+			{
+				return toml::format(value, toml::spec::default_version());
+			}
+			catch (const toml::exception& e)
+			{
+				throw Error{ U"TOML::format(): {}"_fmt(Unicode::FromUTF8(e.what())) };
+			}
 		}
 
 		[[nodiscard]]
@@ -125,408 +233,702 @@ namespace s3d
 			return true;
 		}
 
-		[[noreturn]]
-		static void ThrowAtNotTable(const StringView key, const FilePathView path, const TOMLValueType type)
+		[[nodiscard]]
+		static Result<TOMLValue, Array<TOMLParseErrorReason>> ParseValue(std::string content, const FilePathView pathHint)
 		{
-			throw Error{ U"TOML::at(\"{}\"): value at {} is not a table. Actual type: {}"_fmt(key, path, type) };
+			std::istringstream iss{ std::move(content) };
+
+			if (auto parseResult = toml::try_parse<toml::ordered_type_config>(iss, MakeParseName(pathHint), toml::spec::default_version()))
+			{
+				return std::move(parseResult.unwrap());
+			}
+			else
+			{
+				return Err{ ToParseErrorReasons(parseResult.as_err()) };
+			}
 		}
 
 		[[noreturn]]
-		static void ThrowAtKeyNotFound(const StringView key, const FilePathView path)
+		static void ThrowNotTable(const StringView function, const std::string& key, const TOMLValue* root, const TOMLValue& value)
 		{
-			throw Error{ U"TOML::at(\"{}\"): key was not found at {}"_fmt(key, path) };
+			throw Error{ U"TOML::{}(\"{}\"): value at {} is not a table. Actual type: {}"_fmt(function, Unicode::FromUTF8(key), MakePath(root, value), ToValueType(value)) };
 		}
 
 		[[noreturn]]
-		static void ThrowAtNotArray(const size_t index, const FilePathView path, const TOMLValueType type)
+		static void ThrowKeyNotFound(const StringView function, const std::string& key, const TOMLValue* root, const TOMLValue& value)
 		{
-			throw Error{ U"TOML::at({}): value at {} is not an array. Actual type: {}"_fmt(index, path, type) };
+			throw Error{ U"TOML::{}(\"{}\"): key was not found at {}"_fmt(function, Unicode::FromUTF8(key), MakePath(root, value)) };
 		}
 
 		[[noreturn]]
-		static void ThrowAtIndexOutOfRange(const size_t index, const FilePathView path, const size_t size)
+		static void ThrowNotArray(const StringView function, const size_t index, const TOMLValue* root, const TOMLValue& value)
 		{
-			throw Error{ U"TOML::at({}): index out of range at {}. Size: {}"_fmt(index, path, size) };
+			throw Error{ U"TOML::{}({}): value at {} is not an array. Actual type: {}"_fmt(function, index, MakePath(root, value), ToValueType(value)) };
 		}
 
 		[[noreturn]]
-		static void ThrowNotArrayView(const StringView path, const TOMLValueType actualType)
+		static void ThrowIndexOutOfRange(const StringView function, const size_t index, const TOMLValue* root, const TOMLValue& value)
 		{
-			throw Error{ U"TOML::arrayView(): value at {} is not an array. Actual type: {}"_fmt(path, actualType) };
+			throw Error{ U"TOML::{}({}): index out of range at {}. Size: {}"_fmt(function, index, MakePath(root, value), value.as_array().size()) };
 		}
 
 		[[noreturn]]
-		static void ThrowNotTableView(const StringView path, const TOMLValueType actualType)
+		static void ThrowWrongType(const StringView function, const StringView expected, const TOMLValue* root, const TOMLValue& value)
 		{
-			throw Error{ U"TOML::tableView(): value at {} is not a table. Actual type: {}"_fmt(path, actualType) };
+			throw Error{ U"TOML::{}(): value at {} is not {}. Actual type: {}"_fmt(function, MakePath(root, value), expected, ToValueType(value)) };
+		}
+
+		[[nodiscard]]
+		static const TOMLValue& FindMember(const StringView function, const TOMLValue* root, const TOMLValue& value, const std::string& key)
+		{
+			if (not value.is_table())
+			{
+				ThrowNotTable(function, key, root, value);
+			}
+
+			const auto& table = value.as_table();
+			const auto it = table.find(key);
+
+			if (it == table.end())
+			{
+				ThrowKeyNotFound(function, key, root, value);
+			}
+
+			return it->second;
+		}
+
+		[[nodiscard]]
+		static TOMLValue& FindMember(const StringView function, const TOMLValue* root, TOMLValue& value, const std::string& key)
+		{
+			return const_cast<TOMLValue&>(FindMember(function, root, std::as_const(value), key));
+		}
+
+		[[nodiscard]]
+		static const TOMLValue& FindElement(const StringView function, const TOMLValue* root, const TOMLValue& value, const size_t index)
+		{
+			if (not value.is_array())
+			{
+				ThrowNotArray(function, index, root, value);
+			}
+
+			const auto& array = value.as_array();
+
+			if (array.size() <= index)
+			{
+				ThrowIndexOutOfRange(function, index, root, value);
+			}
+
+			return array[index];
+		}
+
+		[[nodiscard]]
+		static TOMLValue& FindElement(const StringView function, const TOMLValue* root, TOMLValue& value, const size_t index)
+		{
+			return const_cast<TOMLValue&>(FindElement(function, root, std::as_const(value), index));
 		}
 	}
 
-	DateTime TOML::LocalTime::toDateTime() const noexcept
+	namespace detail
 	{
-		return DateTime{ 0, 0, 0, hour, minute, second, millisecond };
-	}
+		////////////////////////////////////////////////////////////////
+		//
+		//	TOMLLocalTime / TOMLLocalDateTime / TOMLOffsetDateTime
+		//
+		////////////////////////////////////////////////////////////////
 
-	DateTime TOML::LocalTime::toDateTimeTruncatedToMilliseconds() const noexcept
-	{
-		return toDateTime();
-	}
-
-	TOML::LocalTime TOML::LocalTime::FromTOML(const toml::local_time& localTime) noexcept
-	{
-		return LocalTime{
-			static_cast<uint8>(localTime.hour),
-			static_cast<uint8>(localTime.minute),
-			static_cast<uint8>(localTime.second),
-			static_cast<uint16>(localTime.millisecond),
-			static_cast<uint16>(localTime.microsecond),
-			static_cast<uint16>(localTime.nanosecond)
-		};
-	}
-
-	DateTime TOML::LocalDateTime::toDateTime() const noexcept
-	{
-		return DateTime{ date, time.hour, time.minute, time.second, time.millisecond };
-	}
-
-	DateTime TOML::LocalDateTime::toDateTimeTruncatedToMilliseconds() const noexcept
-	{
-		return toDateTime();
-	}
-
-	TOML::LocalDateTime TOML::LocalDateTime::FromTOML(const toml::local_datetime& localDateTime) noexcept
-	{
-		return LocalDateTime{ ToDate(localDateTime.date), LocalTime::FromTOML(localDateTime.time) };
-	}
-
-	TOML::OffsetDateTime TOML::OffsetDateTime::FromTOML(const toml::offset_datetime& offsetDateTime) noexcept
-	{
-		return OffsetDateTime{
-			LocalDateTime{ ToDate(offsetDateTime.date), LocalTime::FromTOML(offsetDateTime.time) },
-			ToOffsetMinutes(offsetDateTime.offset)
-		};
-	}
-
-	bool TOML::isValid() const noexcept
-	{
-		return (m_value != nullptr);
-	}
-
-	TOML::operator bool() const noexcept
-	{
-		return isValid();
-	}
-
-	const String& TOML::path() const noexcept
-	{
-		return m_path;
-	}
-
-	TOMLValueType TOML::type() const noexcept
-	{
-		if (not m_value)
+		DateTime TOMLLocalTime::toDateTime() const noexcept
 		{
-			return TOMLValueType::Invalid;
+			return DateTime{ 0, 0, 0, hour, minute, second, millisecond };
 		}
 
-		switch (m_value->type())
+		DateTime TOMLLocalTime::toDateTimeTruncatedToMilliseconds() const noexcept
 		{
-		case toml::value_t::boolean:         return TOMLValueType::Bool;
-		case toml::value_t::integer:         return TOMLValueType::Int;
-		case toml::value_t::floating:        return TOMLValueType::Float;
-		case toml::value_t::string:          return TOMLValueType::String;
-		case toml::value_t::offset_datetime: return TOMLValueType::OffsetDateTime;
-		case toml::value_t::local_datetime:  return TOMLValueType::LocalDateTime;
-		case toml::value_t::local_date:      return TOMLValueType::LocalDate;
-		case toml::value_t::local_time:      return TOMLValueType::LocalTime;
-		case toml::value_t::array:           return TOMLValueType::Array;
-		case toml::value_t::table:           return TOMLValueType::Table;
-		default:                             return TOMLValueType::Invalid;
-		}
-	}
-
-	TOMLValueType TOML::getType() const noexcept
-	{
-		return type();
-	}
-	
-	bool TOML::hasValue() const noexcept
-	{
-		return (m_value && (m_value->type() != toml::value_t::empty));
-	}
-	
-	bool TOML::isInvalid() const noexcept
-	{
-		return (not isValid());
-	}
-	
-	bool TOML::isEmpty() const noexcept
-	{
-		return (m_value && (m_value->type() == toml::value_t::empty));
-	}
-
-	bool TOML::isBool() const noexcept
-	{
-		return (m_value && m_value->is_boolean());
-	}
-	
-	bool TOML::isInt() const noexcept
-	{
-		return (m_value && m_value->is_integer());
-	}
-	
-	bool TOML::isFloat() const noexcept
-	{
-		return (m_value && m_value->is_floating());
-	}
-	
-	bool TOML::isString() const noexcept
-	{
-		return (m_value && m_value->is_string());
-	}
-	
-	bool TOML::isLocalDate() const noexcept
-	{
-		return (m_value && m_value->is_local_date());
-	}
-	
-	bool TOML::isLocalTime() const noexcept
-	{
-		return (m_value && m_value->is_local_time());
-	}
-	
-	bool TOML::isLocalDateTime() const noexcept
-	{
-		return (m_value && m_value->is_local_datetime());
-	}
-	
-	bool TOML::isOffsetDateTime() const noexcept
-	{
-		return (m_value && m_value->is_offset_datetime());
-	}
-	
-	bool TOML::isArray() const noexcept
-	{
-		return (m_value && m_value->is_array());
-	}
-	
-	bool TOML::isTable() const noexcept
-	{
-		return (m_value && m_value->is_table());
-	}
-	
-	bool TOML::is(const TOMLValueType valueType) const noexcept
-	{
-		return (type() == valueType);
-	}
-
-	bool TOML::contains(const std::string& key) const
-	{
-		return (isTable() && m_value->contains(key));
-	}
-
-	bool TOML::contains(const StringView key) const
-	{
-		return contains(Unicode::ToUTF8(key));
-	}
-
-	size_t TOML::size() const noexcept
-	{
-		if (isArray())
-		{
-			return m_value->as_array().size();
-		}
-		
-		if (isTable())
-		{
-			return m_value->as_table().size();
+			return toDateTime();
 		}
 
-		return 0;
+		TOMLLocalTime TOMLLocalTime::FromTOML(const toml::local_time& localTime) noexcept
+		{
+			return TOMLLocalTime{
+				static_cast<uint8>(localTime.hour),
+				static_cast<uint8>(localTime.minute),
+				static_cast<uint8>(localTime.second),
+				static_cast<uint16>(localTime.millisecond),
+				static_cast<uint16>(localTime.microsecond),
+				static_cast<uint16>(localTime.nanosecond)
+			};
+		}
+
+		DateTime TOMLLocalDateTime::toDateTime() const noexcept
+		{
+			return DateTime{ date, time.hour, time.minute, time.second, time.millisecond };
+		}
+
+		DateTime TOMLLocalDateTime::toDateTimeTruncatedToMilliseconds() const noexcept
+		{
+			return toDateTime();
+		}
+
+		TOMLLocalDateTime TOMLLocalDateTime::FromTOML(const toml::local_datetime& localDateTime) noexcept
+		{
+			return TOMLLocalDateTime{ ToDate(localDateTime.date), TOMLLocalTime::FromTOML(localDateTime.time) };
+		}
+
+		TOMLOffsetDateTime TOMLOffsetDateTime::FromTOML(const toml::offset_datetime& offsetDateTime) noexcept
+		{
+			return TOMLOffsetDateTime{
+				TOMLLocalDateTime{ ToDate(offsetDateTime.date), TOMLLocalTime::FromTOML(offsetDateTime.time) },
+				ToOffsetMinutes(offsetDateTime.offset)
+			};
+		}
+
+		Date ToDate(const toml::local_date& date) noexcept
+		{
+			return Date{ static_cast<int32>(date.year), (static_cast<int32>(date.month) + 1), static_cast<int32>(date.day) };
+		}
+
+		void ThrowTOMLGetError(const char* type, const TOMLValue* root, const TOMLValue& value)
+		{
+			throw Error{ U"TOML::get<{}>() failed at {}. Actual type: {}, value: \"{}\""_fmt(Demangle(type), MakePath(root, value), ToValueType(value), MakeShortValue(FormatForMessage(value))) };
+		}
+
+		void ThrowTOMLParsedGetError(const char* type, const TOMLValue* root, const TOMLValue& value)
+		{
+			throw Error{ U"TOML::getParsed<{}>() failed at {}. Actual type: {}, value: \"{}\""_fmt(Demangle(type), MakePath(root, value), ToValueType(value), MakeShortValue(FormatForMessage(value))) };
+		}
+
+		void ThrowTOMLNotArray(const char* type, const TOMLValue* root, const TOMLValue& value)
+		{
+			throw Error{ U"TOML::getArray<{}>(): value at {} is not an array. Actual type: {}"_fmt(Demangle(type), MakePath(root, value), ToValueType(value)) };
+		}
+
+		void ThrowTOMLArrayElementGetError(const char* type, const TOMLValue* root, const TOMLValue& value)
+		{
+			throw Error{ U"TOML::getArray<{}>(): element conversion failed at {}. Actual type: {}, value: \"{}\""_fmt(Demangle(type), MakePath(root, value), ToValueType(value), MakeShortValue(FormatForMessage(value))) };
+		}
+
+		void ThrowTOMLIntegerOutOfRange(const uint64 value)
+		{
+			throw Error{ U"TOML::TOML(): integer {} is out of the range of int64"_fmt(value) };
+		}
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	TOMLMixin
+		//
+		////////////////////////////////////////////////////////////////
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isValid() const noexcept
+		{
+			return (not getValue().is_empty());
+		}
+
+		template <class Derived>
+		TOMLMixin<Derived>::operator bool() const noexcept
+		{
+			return isValid();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isInvalid() const noexcept
+		{
+			return getValue().is_empty();
+		}
+
+		template <class Derived>
+		String TOMLMixin<Derived>::path() const
+		{
+			return MakePath(getRoot(), getValue());
+		}
+
+		template <class Derived>
+		TOMLValueType TOMLMixin<Derived>::type() const noexcept
+		{
+			return ToValueType(getValue());
+		}
+
+		template <class Derived>
+		TOMLValueType TOMLMixin<Derived>::getType() const noexcept
+		{
+			return type();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isBool() const noexcept
+		{
+			return getValue().is_boolean();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isInt() const noexcept
+		{
+			return getValue().is_integer();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isFloat() const noexcept
+		{
+			return getValue().is_floating();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isString() const noexcept
+		{
+			return getValue().is_string();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isLocalDate() const noexcept
+		{
+			return getValue().is_local_date();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isLocalTime() const noexcept
+		{
+			return getValue().is_local_time();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isLocalDateTime() const noexcept
+		{
+			return getValue().is_local_datetime();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isOffsetDateTime() const noexcept
+		{
+			return getValue().is_offset_datetime();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isArray() const noexcept
+		{
+			return getValue().is_array();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isTable() const noexcept
+		{
+			return getValue().is_table();
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::is(const TOMLValueType valueType) const noexcept
+		{
+			return (type() == valueType);
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::contains(const std::string& key) const
+		{
+			const TOMLValue& value = getValue();
+			return (value.is_table() && value.as_table().contains(key));
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::contains(const StringView key) const
+		{
+			return contains(Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		size_t TOMLMixin<Derived>::size() const noexcept
+		{
+			const TOMLValue& value = getValue();
+
+			if (value.is_array())
+			{
+				return value.as_array().size();
+			}
+
+			if (value.is_table())
+			{
+				return value.as_table().size();
+			}
+
+			return 0;
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isEmptyArray() const noexcept
+		{
+			const TOMLValue& value = getValue();
+			return (value.is_array() && value.as_array().empty());
+		}
+
+		template <class Derived>
+		bool TOMLMixin<Derived>::isEmptyTable() const noexcept
+		{
+			const TOMLValue& value = getValue();
+			return (value.is_table() && value.as_table().empty());
+		}
+
+		template <class Derived>
+		TOMLConstRef TOMLMixin<Derived>::operator [](const std::string& key) const
+		{
+			return TOMLConstRef{ getRoot(), &FindMember(U"operator[]", getRoot(), getValue(), key) };
+		}
+
+		template <class Derived>
+		TOMLConstRef TOMLMixin<Derived>::operator [](const StringView key) const
+		{
+			return operator [](Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		TOMLConstRef TOMLMixin<Derived>::operator [](const size_t index) const
+		{
+			return TOMLConstRef{ getRoot(), &FindElement(U"operator[]", getRoot(), getValue(), index) };
+		}
+
+		template <class Derived>
+		TOMLConstRef TOMLMixin<Derived>::at(const std::string& key) const
+		{
+			return TOMLConstRef{ getRoot(), &FindMember(U"at", getRoot(), getValue(), key) };
+		}
+
+		template <class Derived>
+		TOMLConstRef TOMLMixin<Derived>::at(const StringView key) const
+		{
+			return at(Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		TOMLConstRef TOMLMixin<Derived>::at(const size_t index) const
+		{
+			return TOMLConstRef{ getRoot(), &FindElement(U"at", getRoot(), getValue(), index) };
+		}
+
+		template <class Derived>
+		String TOMLMixin<Derived>::getString() const
+		{
+			return get<String>();
+		}
+
+		template <class Derived>
+		std::string TOMLMixin<Derived>::getUTF8() const
+		{
+			return get<std::string>();
+		}
+
+		template <class Derived>
+		TOMLLocalTime TOMLMixin<Derived>::getLocalTime() const
+		{
+			return get<TOMLLocalTime>();
+		}
+
+		template <class Derived>
+		Date TOMLMixin<Derived>::getLocalDate() const
+		{
+			return get<Date>();
+		}
+
+		template <class Derived>
+		TOMLLocalDateTime TOMLMixin<Derived>::getLocalDateTime() const
+		{
+			return get<TOMLLocalDateTime>();
+		}
+
+		template <class Derived>
+		TOMLOffsetDateTime TOMLMixin<Derived>::getOffsetDateTime() const
+		{
+			return get<TOMLOffsetDateTime>();
+		}
+
+		template <class Derived>
+		TOMLArrayView<true> TOMLMixin<Derived>::arrayView() const
+		{
+			const TOMLValue& value = getValue();
+
+			if (not value.is_array())
+			{
+				ThrowWrongType(U"arrayView", U"an array", getRoot(), value);
+			}
+
+			return TOMLArrayView<true>{ getRoot(), &value.as_array() };
+		}
+
+		template <class Derived>
+		TOMLTableView<true> TOMLMixin<Derived>::tableView() const
+		{
+			const TOMLValue& value = getValue();
+
+			if (not value.is_table())
+			{
+				ThrowWrongType(U"tableView", U"a table", getRoot(), value);
+			}
+
+			return TOMLTableView<true>{ getRoot(), &value.as_table() };
+		}
+
+		template <class Derived>
+		String TOMLMixin<Derived>::format() const
+		{
+			return Unicode::FromUTF8(FormatValue(getValue()));
+		}
+
+		template <class Derived>
+		std::string TOMLMixin<Derived>::formatUTF8() const
+		{
+			return FormatValue(getValue());
+		}
+
+		////////////////////////////////////////////////////////////////
+		//
+		//	TOMLMutableMixin
+		//
+		////////////////////////////////////////////////////////////////
+
+		template <class Derived>
+		TOMLRef TOMLMutableMixin<Derived>::operator [](const std::string& key)
+		{
+			TOMLValue& value = getMutableValue();
+
+			if (value.is_empty())
+			{
+				value = TOMLValue{ TOMLValue::table_type{} };
+			}
+			else if (not value.is_table())
+			{
+				ThrowNotTable(U"operator[]", key, getMutableRoot(), value);
+			}
+
+			return TOMLRef{ getMutableRoot(), &value.as_table()[key] };
+		}
+
+		template <class Derived>
+		TOMLRef TOMLMutableMixin<Derived>::operator [](const StringView key)
+		{
+			return operator [](Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		TOMLRef TOMLMutableMixin<Derived>::operator [](const size_t index)
+		{
+			return TOMLRef{ getMutableRoot(), &FindElement(U"operator[]", getMutableRoot(), getMutableValue(), index) };
+		}
+
+		template <class Derived>
+		TOMLRef TOMLMutableMixin<Derived>::at(const std::string& key)
+		{
+			return TOMLRef{ getMutableRoot(), &FindMember(U"at", getMutableRoot(), getMutableValue(), key) };
+		}
+
+		template <class Derived>
+		TOMLRef TOMLMutableMixin<Derived>::at(const StringView key)
+		{
+			return at(Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		TOMLRef TOMLMutableMixin<Derived>::at(const size_t index)
+		{
+			return TOMLRef{ getMutableRoot(), &FindElement(U"at", getMutableRoot(), getMutableValue(), index) };
+		}
+
+		template <class Derived>
+		void TOMLMutableMixin<Derived>::push_back(TOML value)
+		{
+			TOMLValue& self = getMutableValue();
+
+			if (self.is_empty())
+			{
+				self = TOMLValue{ TOMLValue::array_type{} };
+			}
+			else if (not self.is_array())
+			{
+				ThrowWrongType(U"push_back", U"an array", getMutableRoot(), self);
+			}
+
+			self.as_array().push_back(std::move(value.m_value));
+		}
+
+		template <class Derived>
+		void TOMLMutableMixin<Derived>::pop_back()
+		{
+			TOMLValue& value = getMutableValue();
+
+			if (not value.is_array())
+			{
+				ThrowWrongType(U"pop_back", U"an array", getMutableRoot(), value);
+			}
+
+			auto& array = value.as_array();
+
+			if (array.empty())
+			{
+				throw Error{ U"TOML::pop_back(): array at {} is empty"_fmt(MakePath(getMutableRoot(), value)) };
+			}
+
+			array.pop_back();
+		}
+
+		template <class Derived>
+		void TOMLMutableMixin<Derived>::clear()
+		{
+			TOMLValue& value = getMutableValue();
+
+			if (value.is_array())
+			{
+				value.as_array().clear();
+			}
+			else if (value.is_table())
+			{
+				value.as_table().clear();
+			}
+			else
+			{
+				ThrowWrongType(U"clear", U"an array or a table", getMutableRoot(), value);
+			}
+		}
+
+		template <class Derived>
+		void TOMLMutableMixin<Derived>::erase(const std::string& key)
+		{
+			TOMLValue& value = getMutableValue();
+
+			if (not value.is_table())
+			{
+				ThrowNotTable(U"erase", key, getMutableRoot(), value);
+			}
+
+			value.as_table().erase(key);
+		}
+
+		template <class Derived>
+		void TOMLMutableMixin<Derived>::erase(const StringView key)
+		{
+			erase(Unicode::ToUTF8(key));
+		}
+
+		template <class Derived>
+		void TOMLMutableMixin<Derived>::erase(const size_t index)
+		{
+			TOMLValue& value = getMutableValue();
+
+			if (not value.is_array())
+			{
+				ThrowNotArray(U"erase", index, getMutableRoot(), value);
+			}
+
+			auto& array = value.as_array();
+
+			if (array.size() <= index)
+			{
+				ThrowIndexOutOfRange(U"erase", index, getMutableRoot(), value);
+			}
+
+			array.erase(array.begin() + index);
+		}
+
+		template <class Derived>
+		TOMLArrayView<false> TOMLMutableMixin<Derived>::arrayView()
+		{
+			TOMLValue& value = getMutableValue();
+
+			if (not value.is_array())
+			{
+				ThrowWrongType(U"arrayView", U"an array", getMutableRoot(), value);
+			}
+
+			return TOMLArrayView<false>{ getMutableRoot(), &value.as_array() };
+		}
+
+		template <class Derived>
+		TOMLTableView<false> TOMLMutableMixin<Derived>::tableView()
+		{
+			TOMLValue& value = getMutableValue();
+
+			if (not value.is_table())
+			{
+				ThrowWrongType(U"tableView", U"a table", getMutableRoot(), value);
+			}
+
+			return TOMLTableView<false>{ getMutableRoot(), &value.as_table() };
+		}
+
+		template class TOMLMixin<TOML>;
+		template class TOMLMixin<TOMLRef>;
+		template class TOMLMixin<TOMLConstRef>;
+		template class TOMLMutableMixin<TOML>;
+		template class TOMLMutableMixin<TOMLRef>;
 	}
 
-	bool TOML::isEmptyArray() const noexcept
-	{
-		return (isArray() && m_value->as_array().empty());
-	}
-	
-	bool TOML::isEmptyTable() const noexcept
-	{
-		return (isTable() && m_value->as_table().empty());
-	}
+	////////////////////////////////////////////////////////////////
+	//
+	//	TOML
+	//
+	////////////////////////////////////////////////////////////////
 
-	TOML TOML::operator [](const std::string& key) const
-	{
-		const String key32 = Unicode::FromUTF8(key);
-		
-		if (not isTable())
-		{
-			return InvalidWithPath(MakeKeyPath(m_path, key32));
-		}
-		
-		if (not m_value->contains(key))
-		{
-			return InvalidWithPath(MakeKeyPath(m_path, key32));
-		}
-		
-		return TOML{ m_root, &(m_value->at(key)), MakeKeyPath(m_path, key32) };
-	}
+	TOML::TOML(const TOMLConstRef value)
+		: m_value(value.getValueImpl()) {}
 
-	TOML TOML::operator [](const StringView key) const
-	{
-		return operator [](Unicode::ToUTF8(key));
-	}
+	TOML::TOML(const TOMLRef value)
+		: m_value(value.getValueImpl()) {}
 
-	TOML TOML::operator [](const size_t index) const
-	{
-		if (not isArray())
-		{
-			return InvalidWithPath(MakeIndexPath(m_path, index));
-		}
-		
-		const auto& array = m_value->as_array();
-		
-		if (array.size() <= index)
-		{
-			return InvalidWithPath(MakeIndexPath(m_path, index));
-		}
-		
-		return TOML{ m_root, &(array[index]), MakeIndexPath(m_path, index) };
-	}
+	TOML::TOML(const char* s)
+		: m_value(std::string{ s }) {}
 
-	TOML TOML::at(const std::string& key) const
-	{
-		const String key32 = Unicode::FromUTF8(key);
-		
-		if (not isTable())
-		{
-			ThrowAtNotTable(key32, m_path, type());
-		}
-		
-		if (not m_value->contains(key))
-		{
-			ThrowAtKeyNotFound(key32, m_path);
-		}
-		
-		return TOML{ m_root, &(m_value->at(key)), MakeKeyPath(m_path, key32) };
-	}
+	TOML::TOML(const std::string_view s)
+		: m_value(std::string{ s }) {}
 
-	TOML TOML::at(const StringView key) const
-	{
-		return at(Unicode::ToUTF8(key));
-	}
+	TOML::TOML(std::string s)
+		: m_value(std::move(s)) {}
 
-	TOML TOML::at(const size_t index) const
-	{
-		if (not isArray())
-		{
-			ThrowAtNotArray(index, m_path, type());
-		}
-		
-		const auto& array = m_value->as_array();
-		
-		if (array.size() <= index)
-		{
-			ThrowAtIndexOutOfRange(index, m_path, size());
-		}
-		
-		return TOML{ m_root, &(array[index]), MakeIndexPath(m_path, index) };
-	}
+	TOML::TOML(const char32* s)
+		: m_value(Unicode::ToUTF8(StringView{ s })) {}
 
-	String TOML::getString() const
-	{
-		return get<String>();
-	}
-	
-	std::string TOML::getUTF8() const
-	{
-		return get<std::string>();
-	}
-	
-	TOML::LocalTime TOML::getLocalTime() const
-	{
-		return get<LocalTime>();
-	}
-	
-	Date TOML::getLocalDate() const
-	{
-		return get<Date>();
-	}
-	
-	TOML::LocalDateTime TOML::getLocalDateTime() const
-	{
-		return get<LocalDateTime>();
-	}
-	
-	TOML::OffsetDateTime TOML::getOffsetDateTime() const
-	{
-		return get<OffsetDateTime>();
-	}
+	TOML::TOML(const StringView s)
+		: m_value(Unicode::ToUTF8(s)) {}
 
-	TOML::ArrayView TOML::arrayView() const
-	{
-		if (not isArray())
-		{
-			ThrowNotArrayView(path(), type());
-		}
-		
-		return ArrayView{ m_root, &(m_value->as_array()), m_path };
-	}
+	TOML::TOML(const String& s)
+		: m_value(Unicode::ToUTF8(s)) {}
 
-	TOML::TableView TOML::tableView() const
-	{
-		if (not isTable())
-		{
-			ThrowNotTableView(path(), type());
-		}
-		
-		return TableView{ m_root, &(m_value->as_table()), m_path };
-	}
+	TOML::TOML(const Date& date)
+		: m_value(toml::local_date{ date.year, static_cast<toml::month_t>(date.month - 1), date.day }) {}
 
-	String TOML::format() const
-	{
-		if (not m_value)
-		{
-			return U"";
-		}
-		
-		return Unicode::FromUTF8(toml::format(*m_value, toml::spec::default_version()));
-	}
+	TOML::TOML(const LocalTime& time)
+		: m_value(toml::local_time{ time.hour, time.minute, time.second, time.millisecond, time.microsecond, time.nanosecond }) {}
 
-	std::string TOML::formatUTF8() const
-	{
-		if (not m_value)
-		{
-			return{};
-		}
-		
-		return toml::format(*m_value, toml::spec::default_version());
-	}
+	TOML::TOML(const LocalDateTime& dateTime)
+		: m_value(toml::local_datetime{
+			toml::local_date{ dateTime.date.year, static_cast<toml::month_t>(dateTime.date.month - 1), dateTime.date.day },
+			toml::local_time{ dateTime.time.hour, dateTime.time.minute, dateTime.time.second, dateTime.time.millisecond, dateTime.time.microsecond, dateTime.time.nanosecond } }) {}
 
-	bool operator ==(const TOML& lhs, const TOML& rhs)
+	TOML::TOML(const OffsetDateTime& dateTime)
+		: m_value(toml::offset_datetime{
+			toml::local_datetime{
+				toml::local_date{ dateTime.localDateTime.date.year, static_cast<toml::month_t>(dateTime.localDateTime.date.month - 1), dateTime.localDateTime.date.day },
+				toml::local_time{ dateTime.localDateTime.time.hour, dateTime.localDateTime.time.minute, dateTime.localDateTime.time.second,
+					dateTime.localDateTime.time.millisecond, dateTime.localDateTime.time.microsecond, dateTime.localDateTime.time.nanosecond } },
+			toml::time_offset{ (dateTime.offsetMinutes / 60), (dateTime.offsetMinutes % 60) } }) {}
+
+	TOML::TOML(const std::initializer_list<std::pair<StringView, TOML>> table)
+		: m_value(Value::table_type{})
 	{
-		if (not lhs && not rhs)
+		auto& members = m_value.as_table();
+
+		for (const auto& [key, value] : table)
 		{
-			return true;
+			std::string key8 = Unicode::ToUTF8(key);
+
+			if (members.contains(key8))
+			{
+				throw Error{ U"TOML::TOML(): duplicate key \"{}\""_fmt(key) };
+			}
+
+			members.emplace(std::move(key8), value.m_value);
 		}
-		
-		if ((not lhs) || (not rhs))
-		{
-			return false;
-		}
-		
-		return (*lhs.m_value == *rhs.m_value);
 	}
 
 	TOML TOML::Parse(std::string content, const FilePathView pathHint)
 	{
-		std::istringstream iss{ std::move(content) };
-		
-		if (auto parseResult = toml::try_parse<toml::ordered_type_config>(iss, MakeParseName(pathHint), toml::spec::default_version()))
+		if (auto result = ParseValue(std::move(content), pathHint))
 		{
-			return FromRoot(std::make_shared<Value>(std::move(parseResult.unwrap())));
+			return FromValue(std::move(*result));
 		}
-		
+
 		return{};
 	}
 
@@ -537,15 +939,13 @@ namespace s3d
 
 	Result<TOML, Array<TOMLParseErrorReason>> TOML::ParseResult(std::string content, const FilePathView pathHint)
 	{
-		std::istringstream iss{ std::move(content) };
-		
-		if (auto parseResult = toml::try_parse<toml::ordered_type_config>(iss, MakeParseName(pathHint), toml::spec::default_version()))
+		if (auto result = ParseValue(std::move(content), pathHint))
 		{
-			return FromRoot(std::make_shared<Value>(std::move(parseResult.unwrap())));
+			return FromValue(std::move(*result));
 		}
 		else
 		{
-			return Err{ ToParseErrorReasons(parseResult.as_err()) };
+			return Err{ std::move(result.error()) };
 		}
 	}
 
@@ -559,7 +959,7 @@ namespace s3d
 		std::string content;
 		{
 			BinaryFileReader reader{ path };
-			
+
 			if (not ReadTextFile(reader, content))
 			{
 				return{};
@@ -575,17 +975,17 @@ namespace s3d
 		{
 			return{};
 		}
-		
+
 		std::string content;
 		{
 			if (not ReadTextFile(*reader, content))
 			{
 				return{};
 			}
-			
+
 			reader.reset();
 		}
-		
+
 		return Parse(std::move(content));
 	}
 
@@ -594,13 +994,13 @@ namespace s3d
 		std::string content;
 		{
 			BinaryFileReader reader{ path };
-			
+
 			if (not ReadTextFile(reader, content))
 			{
 				return Err{ Array<TOMLParseErrorReason>{ TOMLParseErrorReason{ U"Failed to read the file.", { String{ path } }, U"Check if the file exists and is a valid UTF-8 text file." } } };
 			}
 		}
-		
+
 		return ParseResult(std::move(content), path);
 	}
 
@@ -617,9 +1017,10 @@ namespace s3d
 			{
 				return Err{ Array<TOMLParseErrorReason>{ TOMLParseErrorReason{ U"Failed to read the file.", {}, U"Check if the file is a valid UTF-8 text file." } } };
 			}
-			
+
 			reader.reset();
 		}
+
 		return ParseResult(std::move(content));
 	}
 
@@ -628,162 +1029,48 @@ namespace s3d
 		return{};
 	}
 
-	void Formatter(FormatData& formatData, const TOML& value)
+	TOML TOML::EmptyArray()
 	{
-		formatData.string.append(value.format());
+		return FromValue(Value::array_type{});
 	}
 
-	TOML::TOML(std::shared_ptr<const Value> root, const Value* value, String path)
-		: m_root{ std::move(root) }
-		, m_value{ value }
-		, m_path{ std::move(path) } {}
-
-	TOML TOML::FromRoot(std::shared_ptr<const Value> root)
+	TOML TOML::EmptyTable()
 	{
-		const Value* value = root.get();
-		return TOML{ std::move(root), value, U"$" };
+		return FromValue(Value::table_type{});
 	}
 
-	TOML TOML::InvalidWithPath(String path) const
+	TOML TOML::FromValue(Value value)
 	{
-		return TOML{ m_root, nullptr, std::move(path) };
+		TOML result;
+		result.m_value = std::move(value);
+		return result;
 	}
 
-	Date TOML::ToDate(const toml::local_date& date) noexcept
-	{
-		return Date{ static_cast<int32>(date.year), (static_cast<int32>(date.month) + 1), static_cast<int32>(date.day) };
-	}
+	////////////////////////////////////////////////////////////////
+	//
+	//	TOMLRef
+	//
+	////////////////////////////////////////////////////////////////
 
-	void TOML::ThrowTOMLGetError(const char* type, const StringView path, const TOMLValueType actualType, const String& value)
+	TOMLRef& TOMLRef::operator =(const TOMLRef& other)
 	{
-		throw Error{ U"TOML::get<{}>() failed at {}. Actual type: {}, value: \"{}\""_fmt(Demangle(type), path, actualType, MakeShortValue(value)) };
-	}
+		if (m_value != other.m_value)
+		{
+			TOMLValue copy = *other.m_value;
+			*m_value = std::move(copy);
+		}
 
-	void TOML::ThrowTOMLParsedGetError(const char* type, const StringView path, const TOMLValueType actualType, const String& value)
-	{
-		throw Error{ U"TOML::getParsed<{}>() failed at {}. Actual type: {}, value: \"{}\""_fmt(Demangle(type), path, actualType, MakeShortValue(value)) };
-	}
-
-	void TOML::ThrowNotArray(const char* type, const StringView path, const TOMLValueType actualType)
-	{
-		throw Error{ U"TOML::getArray<{}>(): value at {} is not an array. Actual type: {}"_fmt(Demangle(type), path, actualType) };
-	}
-
-	void TOML::ThrowArrayElementGetError(const char* type, const StringView path, const TOMLValueType actualType, const String& value)
-	{
-		throw Error{ U"TOML::getArray<{}>(): element conversion failed at {}. Actual type: {}, value: \"{}\""_fmt(Demangle(type), path, actualType, MakeShortValue(value)) };
-	}
-
-	String TOML::MakeIndexPath(const StringView parent, const size_t index)
-	{
-		return U"{}[{}]"_fmt(parent, index);
-	}
-
-	TOML::ArrayView::Iterator::Iterator(std::shared_ptr<const Value> root, const Value::array_type* array, const size_t index, String path)
-		: m_root{ std::move(root) }
-		, m_array{ array }
-		, m_index{ index }
-		, m_path{ std::move(path) } {}
-
-	TOML::ArrayView::Iterator& TOML::ArrayView::Iterator::operator ++()
-	{
-		++m_index;
 		return *this;
 	}
 
-	TOML::ArrayView::Iterator TOML::ArrayView::Iterator::operator ++(int)
+	TOMLRef& TOMLRef::operator =(TOML value)
 	{
-		Iterator old = *this;
-		++(*this);
-		return old;
+		*m_value = std::move(value.m_value);
+		return *this;
 	}
 
-	[[nodiscard]]
-	TOML TOML::ArrayView::Iterator::operator *() const
+	bool operator ==(const TOMLConstRef lhs, const TOMLConstRef rhs)
 	{
-		return TOML{ m_root, &((*m_array)[m_index]), MakeIndexPath(m_path, m_index) };
-	}
-
-	bool operator ==(const TOML::ArrayView::Iterator& lhs, const TOML::ArrayView::Iterator& rhs) noexcept
-	{
-		return ((lhs.m_array == rhs.m_array) && (lhs.m_index == rhs.m_index));
-	}
-
-	TOML::ArrayView::ArrayView(std::shared_ptr<const Value> root, const Value::array_type* array, String path)
-		: m_root{ std::move(root) }
-		, m_array{ array }
-		, m_path{ std::move(path) } {}
-
-	TOML::ArrayView::Iterator TOML::ArrayView::begin() const
-	{
-		return Iterator{ m_root, m_array, 0, m_path };
-	}
-	
-	TOML::ArrayView::Iterator TOML::ArrayView::end() const
-	{
-		return Iterator{ m_root, m_array, (m_array ? m_array->size() : 0), m_path };
-	}
-	
-	size_t TOML::ArrayView::size() const noexcept
-	{
-		return (m_array ? m_array->size() : 0);
-	}
-	
-	bool TOML::ArrayView::isEmpty() const noexcept
-	{
-		return (size() == 0);
-	}
-
-	TOML::TableView::Iterator::Iterator(std::shared_ptr<const Value> root, TableIterator it, String path)
-		: m_root{ std::move(root) }
-		, m_it{ it }
-		, m_path{ std::move(path) } {}
-
-	TOML::TableView::Iterator& TOML::TableView::Iterator::operator ++()
-	{
-		++m_it; return *this;
-	}
-
-	TOML::TableView::Iterator TOML::TableView::Iterator::operator ++(int)
-	{
-		Iterator old = *this;
-		++(*this);
-		return old;
-	}
-
-	TOML::TableMember TOML::TableView::Iterator::operator *() const
-	{
-		const String key = Unicode::FromUTF8(m_it->first);
-		return TableMember{ key, TOML{ m_root, &(m_it->second), MakeKeyPath(m_path, key) } };
-	}
-
-	bool operator ==(const TOML::TableView::Iterator& lhs, const TOML::TableView::Iterator& rhs) noexcept
-	{
-		return (lhs.m_it == rhs.m_it);
-	}
-
-	TOML::TableView::TableView(std::shared_ptr<const Value> root, const Value::table_type* table, String path)
-		: m_root{ std::move(root) }
-		, m_table{ table }
-		, m_path{ std::move(path) } {}
-
-	TOML::TableView::Iterator TOML::TableView::begin() const
-	{
-		return Iterator{ m_root, m_table->begin(), m_path };
-	}
-	
-	TOML::TableView::Iterator TOML::TableView::end() const
-	{
-		return Iterator{ m_root, m_table->end(), m_path };
-	}
-	
-	size_t TOML::TableView::size() const noexcept
-	{
-		return (m_table ? m_table->size() : 0);
-	}
-	
-	bool TOML::TableView::isEmpty() const noexcept
-	{
-		return (size() == 0);
+		return (lhs.getValueImpl() == rhs.getValueImpl());
 	}
 }
