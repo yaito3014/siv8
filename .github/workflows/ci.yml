@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main, vcpkg-cmake]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 tools/check_docs.py
+
+  windows:
+    name: Windows (x64-windows-static, Release)
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/vcpkg-setup
+      - name: Configure
+        id: configure
+        working-directory: App
+        # A short buildtrees root keeps MSVC under the path length limit.
+        run: |
+          cmake --version
+          cmake --preset windows "-DVCPKG_INSTALL_OPTIONS=--x-buildtrees-root=C:/vb;--clean-after-build"
+      - uses: ./.github/actions/vcpkg-save
+        if: ${{ always() }}
+        with:
+          installed-dir: App/build/vcpkg_installed
+          prune: ${{ steps.configure.outcome == 'success' }}
+      - name: Build
+        working-directory: App
+        # Quoted: PowerShell splits a bare -p:Name=Value into '-p:' and 'Name=Value'.
+        run: cmake --build --preset windows --parallel -- '-p:CL_MPCount=4' '-v:minimal' -nologo
+      - name: Test
+        working-directory: App/app
+        shell: pwsh
+        # Siv3D-App is a GUI-subsystem program: wait for it explicitly, and
+        # read the results from report files because it has no usable stdout.
+        # Hosted runners render with WARP; cases it renders differently are
+        # listed in .github/windows-warp-known-failures.txt.
+        run: |
+          New-Item -ItemType Directory -Force -Path ../../test-reports | Out-Null
+          $exclusions = Get-Content ../../.github/windows-warp-known-failures.txt |
+            Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { "~`"$_`"" }
+          $info = [Diagnostics.ProcessStartInfo]::new((Resolve-Path ./Siv3D-App.exe).Path)
+          $info.WorkingDirectory = (Get-Location).Path
+          $info.UseShellExecute = $false
+          # ArgumentList quotes each element, so the filter stays one argument.
+          foreach ($argument in @('--test-only', '--colour-mode', 'none',
+            '--reporter', 'console::out=../../test-reports/windows.txt',
+            '--reporter', 'xml::out=../../test-reports/windows.xml')) {
+            $info.ArgumentList.Add($argument)
+          }
+          if ($exclusions) { $info.ArgumentList.Add($exclusions -join ' ') }
+          $process = [Diagnostics.Process]::Start($info)
+          $process.WaitForExit()
+          if (Test-Path ../../test-reports/windows.txt) { Get-Content ../../test-reports/windows.txt }
+          if ($process.ExitCode -ne 0) { throw "Tests failed (exit $($process.ExitCode))." }
+      - name: Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-test-reports
+          path: test-reports/
+          if-no-files-found: ignore
+
+  linux:
+    name: Linux (x64-linux, Release)
+    runs-on: ubuntu-24.04
+    # The engine needs GCC 15, which Ubuntu 24.04 does not ship.
+    container: ubuntu:26.04
+    timeout-minutes: 360
+    steps:
+      - name: Install packages
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -q
+          apt-get install -y -q build-essential cmake ninja-build pkg-config git curl zip \
+            unzip tar zstd ca-certificates autoconf automake autoconf-archive libtool python3 \
+            bison flex libgl-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxi-dev libxkbcommon-dev uuid-dev libpulse-dev libasound2-dev \
+            libwayland-dev wayland-protocols libffi-dev xvfb libgl1-mesa-dri
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/vcpkg-setup
+      - name: Configure
+        id: configure
+        working-directory: App
+        run: cmake --preset linux -G Ninja "-DVCPKG_INSTALL_OPTIONS=--clean-after-build"
+      - uses: ./.github/actions/vcpkg-save
+        if: ${{ always() }}
+        with:
+          installed-dir: App/build/vcpkg_installed
+          prune: ${{ steps.configure.outcome == 'success' }}
+      - name: Build
+        working-directory: App
+        run: cmake --build --preset linux --parallel
+      - name: Test
+        working-directory: App/app
+        # Software GL on a virtual display. Cases the Linux backend cannot pass
+        # yet are listed, with reasons, in .github/linux-known-failures.txt.
+        run: |
+          filter=$(grep -v '^[[:space:]]*\(#\|$\)' ../../.github/linux-known-failures.txt | sed 's/.*/~"&"/' | tr '\n' ' ')
+          Xvfb :99 -screen 0 1280x720x24 &
+          sleep 2
+          DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe ./Siv3D-App --test-only "$filter"
+
+  macos:
+    name: macOS (arm64-osx, Release, not yet supported)
+    runs-on: macos-26
+    timeout-minutes: 360
+    # The CMake build has never been run on macOS; report how far it gets
+    # without failing the workflow.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/vcpkg-setup
+      - name: Configure
+        id: configure
+        working-directory: App
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            "-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-osx "-DVCPKG_INSTALL_OPTIONS=--clean-after-build"
+      - uses: ./.github/actions/vcpkg-save
+        if: ${{ always() }}
+        with:
+          installed-dir: App/build/vcpkg_installed
+          prune: ${{ steps.configure.outcome == 'success' }}
+      - name: Build
+        working-directory: App
+        # Makefiles take a bare --parallel as an unlimited "make -j".
+        run: cmake --build build --parallel "$(sysctl -n hw.ncpu)"
+      - name: Test
+        working-directory: App/app
+        run: ./Siv3D-App.app/Contents/MacOS/Siv3D-App --test-only
